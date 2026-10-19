@@ -2,6 +2,14 @@
     <x-ui.page-header title="Barang Masuk" icon="login"
                       subtitle="Dokumen penerimaan barang dari pemasok ke gudang.">
         <x-slot name="actions">
+            @can('inbounds.export')
+                {{-- Ikut filter yang aktif. data-no-ajax: unduhan berkas tidak boleh lewat navigasi AJAX. --}}
+                <x-ui.button :href="route('admin.inbounds.export', request()->query())"
+                             variant="secondary" icon="document" data-no-ajax
+                             title="Unduh daftar dan ringkasan sesuai filter yang aktif">
+                    Export Excel
+                </x-ui.button>
+            @endcan
             @can('inbounds.create')
                 <x-ui.button :href="route('admin.inbounds.create')" icon="plus">Buat Dokumen</x-ui.button>
             @endcan

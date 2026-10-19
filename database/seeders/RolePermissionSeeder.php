@@ -74,6 +74,7 @@ class RolePermissionSeeder extends Seeder
             'inbounds.delete' => 'Menghapus barang masuk',
             'inbounds.post' => 'Mengajukan & membatalkan barang masuk',
             'inbounds.approve' => 'Menyetujui barang masuk',
+            'inbounds.export' => 'Export barang masuk & ringkasannya ke Excel',
         ],
         'Barang Keluar' => [
             'outbounds.view' => 'Melihat barang keluar',
@@ -173,7 +174,7 @@ class RolePermissionSeeder extends Seeder
                 'products.view', 'products.create', 'products.update',
                 'movements.view', 'movements.export',
                 'reports.view', 'reports.export',
-                'inbounds.view', 'inbounds.create', 'inbounds.update', 'inbounds.post',
+                'inbounds.view', 'inbounds.create', 'inbounds.update', 'inbounds.post', 'inbounds.export',
                 'outbounds.view', 'outbounds.create', 'outbounds.update', 'outbounds.scan', 'outbounds.post',
                 'returns.view', 'returns.create', 'returns.update', 'returns.scan', 'returns.post',
                 'imports.view', 'imports.create', 'imports.cancel',

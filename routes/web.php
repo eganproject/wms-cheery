@@ -57,6 +57,7 @@ Route::middleware('auth')
         Route::get('reports/restock/export', [RestockReportController::class, 'export'])->name('reports.restock.export');
         Route::get('reports/restock', [RestockReportController::class, 'index'])->name('reports.restock');
 
+        Route::get('inbounds/export', [InboundController::class, 'export'])->name('inbounds.export');
         Route::post('inbounds/{inbound}/submit', [InboundController::class, 'submit'])->name('inbounds.submit');
         Route::post('inbounds/{inbound}/approve', [InboundController::class, 'approve'])->name('inbounds.approve');
         Route::post('inbounds/{inbound}/withdraw', [InboundController::class, 'withdraw'])->name('inbounds.withdraw');
