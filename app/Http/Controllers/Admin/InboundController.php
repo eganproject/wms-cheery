@@ -10,6 +10,8 @@ use App\Models\Inbound;
 use App\Models\Product;
 use App\Models\Supplier;
 use App\Services\ApprovalService;
+use App\Services\InboundExportService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -17,6 +19,7 @@ use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class InboundController extends Controller implements HasMiddleware
 {
@@ -28,6 +31,7 @@ class InboundController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('can:inbounds.view', only: ['index', 'show']),
+            new Middleware('can:inbounds.export', only: ['export']),
             new Middleware('can:inbounds.create', only: ['create', 'store']),
             new Middleware('can:inbounds.update', only: ['edit', 'update']),
             new Middleware('can:inbounds.delete', only: ['destroy']),
@@ -38,20 +42,45 @@ class InboundController extends Controller implements HasMiddleware
 
     public function index(Request $request): View
     {
-        $inbounds = Inbound::query()
+        $inbounds = $this->filtered($request)
             // Nama pemasok tampil di setiap baris tabel.
             ->with(['user', 'supplier'])
             ->withCount('items')
             ->withSum('items', 'quantity')
-            ->search($request->string('search')->trim()->value())
-            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
-            ->dateBetween(DateRange::fromRequest($request))
             ->latest('date')
             ->latest('id')
             ->paginate(10)
             ->withQueryString();
 
         return view('admin.inbounds.index', compact('inbounds'));
+    }
+
+    /**
+     * Unduh daftar barang masuk beserta ringkasannya sebagai Excel.
+     */
+    public function export(Request $request, InboundExportService $exporter): StreamedResponse
+    {
+        return $exporter->download(
+            $this->filtered($request),
+            [
+                'search' => $request->string('search')->trim()->value() ?: null,
+                'status' => $request->string('status')->value() ?: null,
+                'range' => DateRange::fromRequest($request),
+            ],
+            'barang-masuk-'.now()->format('Y-m-d-Hi').'.xlsx',
+        );
+    }
+
+    /**
+     * Filter yang sama dipakai tabel di layar maupun berkas export, supaya
+     * keduanya tidak pernah bercerita beda.
+     */
+    protected function filtered(Request $request): Builder
+    {
+        return Inbound::query()
+            ->search($request->string('search')->trim()->value())
+            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
+            ->dateBetween(DateRange::fromRequest($request));
     }
 
     public function create(): View
