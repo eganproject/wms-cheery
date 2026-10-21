@@ -57,10 +57,10 @@ class StockReportService
      */
     protected array $contributions = [];
 
-    public function paginate(StockReportFilters $filters, int $perPage = 25): LengthAwarePaginator
+    public function paginate(StockReportFilters $filters, int $perPage = 25, ?int $page = null): LengthAwarePaginator
     {
         return $this->ordered($filters)
-            ->paginate($perPage)
+            ->paginate($perPage, page: $page)
             ->withQueryString()
             ->through(fn (object $row) => StockReportRow::fromQuery($row, $filters->days(), $this->contribution($filters)));
     }

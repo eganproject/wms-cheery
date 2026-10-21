@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Support\DateRange;
+use App\Support\StockMovementSummary;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Services\StockMovementExportService;
@@ -11,7 +12,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -92,20 +92,6 @@ class StockMovementController extends Controller implements HasMiddleware
      */
     protected function summary(Request $request): array
     {
-        $row = $this->filtered($request)
-            ->toBase()
-            ->selectRaw('COUNT(*) as entries')
-            ->selectRaw("COALESCE(SUM(CASE WHEN type = 'in' THEN quantity ELSE 0 END), 0) as incoming")
-            ->selectRaw("COALESCE(SUM(CASE WHEN type = 'out' THEN quantity ELSE 0 END), 0) as outgoing")
-            ->selectRaw('COUNT(DISTINCT product_id) as products')
-            ->first();
-
-        return [
-            'entries' => (int) ($row->entries ?? 0),
-            'incoming' => (int) ($row->incoming ?? 0),
-            'outgoing' => (int) ($row->outgoing ?? 0),
-            'net' => (int) ($row->incoming ?? 0) - (int) ($row->outgoing ?? 0),
-            'products' => (int) ($row->products ?? 0),
-        ];
+        return StockMovementSummary::of($this->filtered($request));
     }
 }
