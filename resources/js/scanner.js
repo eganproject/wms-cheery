@@ -42,10 +42,28 @@ export default function documentScanner(config) {
             return this.progress.items.find((item) => item.id === id) ?? { scanned: 0, quantity: 0, completed: false };
         },
 
-        async submit() {
-            const code = this.code.trim();
-            if (! code || this.busy || this.isDone) return;
+        /**
+         * Scan yang masuk saat server belum menjawab scan sebelumnya.
+         * Diantrekan, bukan dibuang — scanner genggam tidak menunggu.
+         */
+        queue: [],
 
+        submit() {
+            const code = this.code.trim();
+            if (! code || this.isDone) return;
+
+            this.code = '';
+
+            if (this.busy) {
+                this.queue.push(code);
+
+                return;
+            }
+
+            return this.process(code);
+        },
+
+        async process(code) {
             this.busy = true;
             this.feedback = null;
 
@@ -77,8 +95,14 @@ export default function documentScanner(config) {
                 this.announce('error', error.message, code, this.isResiStage ? 'rejected' : 'error');
             } finally {
                 this.busy = false;
-                this.code = '';
                 this.focusInput();
+            }
+
+            // Dokumen sudah lengkap: sisa antrean pasti ditolak, jadi dibuang.
+            if (this.isDone || this.progress.ready) {
+                this.queue = [];
+            } else if (this.queue.length) {
+                await this.process(this.queue.shift());
             }
         },
 

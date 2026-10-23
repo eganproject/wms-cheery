@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class MarketplaceScanTest extends TestCase
@@ -95,6 +96,33 @@ class MarketplaceScanTest extends TestCase
         $this->scanItem('FLT-OLI-STD')->assertOk()->assertJsonPath('progress.scanned', 2);
 
         $this->assertTrue($this->outbound->refresh()->isFullyScanned());
+    }
+
+    /**
+     * Satu scan barang dulu memuat ulang seluruh baris dokumen berikut
+     * barangnya sampai tiga kali. Jawaban scan harus tetap akurat tanpa itu.
+     */
+    public function test_item_scan_does_not_reload_the_document(): void
+    {
+        $this->scanResi('SPXID01234567890')->assertOk();
+
+        DB::enableQueryLog();
+
+        $this->scanItem('8991234500035')
+            ->assertOk()
+            ->assertJsonPath('progress.scanned', 1)
+            ->assertJsonPath('progress.items.0.scanned', 1)
+            ->assertJsonPath('completed', false);
+
+        $selects = collect(DB::getQueryLog())
+            ->filter(fn (array $query) => str_starts_with(strtolower($query['query']), 'select'))
+            ->count();
+
+        DB::disableQueryLog();
+
+        // dokumen, baris barang, barang, paket — masing-masing sekali.
+        $this->assertLessThanOrEqual(4, $selects);
+        $this->assertSame(1, (int) $this->outbound->items()->sum('scanned_quantity'));
     }
 
     public function test_unknown_barcode_is_rejected(): void

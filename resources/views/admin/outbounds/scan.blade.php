@@ -82,12 +82,12 @@
                                 </span>
 
                                 <input x-ref="input" x-model="code" type="text" autocomplete="off" autocapitalize="off"
-                                       spellcheck="false" :disabled="busy"
+                                       spellcheck="false"
                                        :placeholder="isResiStage ? 'Scan atau ketik nomor resi…' : 'Scan barcode atau ketik SKU barang…'"
                                        class="block h-20 w-full rounded-2xl border-0 bg-white/10 pl-16 pr-32 font-mono text-xl tracking-wider text-white placeholder:font-sans placeholder:text-base placeholder:tracking-normal placeholder:text-white/30 ring-1 ring-inset ring-white/15 transition focus:bg-white/[0.15] focus:ring-2 focus:ring-white disabled:opacity-60">
 
                                 <div class="absolute inset-y-0 right-0 flex items-center pr-3">
-                                    <button type="submit" :disabled="busy || ! code.trim()"
+                                    <button type="submit" :disabled="! code.trim()"
                                             class="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-ink-950 transition hover:bg-white/90 disabled:opacity-40">
                                         <span x-show="! busy">Proses</span>
                                         <span x-show="busy" x-cloak class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-ink-950/30 border-t-ink-950"></span>
