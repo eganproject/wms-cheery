@@ -204,12 +204,11 @@ class OutboundScanService
             ]);
         }
 
-        DB::transaction(function () use ($item, $quantity) {
-            $item->increment('scanned_quantity', $quantity);
-        });
-
-        $outbound->load('items.product');
-        $item->refresh();
+        // increment() memperbarui nilai pada model yang sama di memori, dan
+        // model itu juga yang ada di $outbound->items — jadi dokumen tidak
+        // perlu dimuat ulang dari database setelahnya. Sebelumnya setiap scan
+        // memuat ulang seluruh baris berikut barangnya sampai tiga kali.
+        $item->increment('scanned_quantity', $quantity);
 
         return [
             // SKU, bukan nama barang: nama bisa sepanjang "KABEL BINTIK 0.5MM
@@ -327,7 +326,9 @@ class OutboundScanService
      */
     public function progress(Outbound $outbound): array
     {
-        $outbound->load('items.product', 'bundles.bundle');
+        // loadMissing, bukan load: pemanggilnya hampir selalu sudah memuat
+        // relasi ini, dan isinya sudah mutakhir di memori.
+        $outbound->loadMissing('items', 'bundles.bundle');
 
         return [
             'resi_verified' => $outbound->isResiVerified(),

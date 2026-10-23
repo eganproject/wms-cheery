@@ -33,6 +33,16 @@ export default function packingStation(config) {
         completed: [],
         history: [],
 
+        /**
+         * Scan yang masuk saat permintaan sebelumnya belum dijawab server.
+         *
+         * Scanner genggam dan kamera tidak menunggu server. Dulu kolom input
+         * dimatikan selama menunggu, sehingga scan berikutnya hilang tanpa
+         * bunyi dan operator harus mengulang — yang terasa sebagai "scan
+         * lambat". Sekarang scan itu diantrekan lalu dikirim berurutan.
+         */
+        queue: [],
+
         /** Lanjut sendiri ke resi berikutnya begitu satu paket lengkap. */
         autoContinue: true,
 
@@ -130,15 +140,30 @@ export default function packingStation(config) {
 
         /* ------------------------------------------------------- scanning */
 
-        async submit() {
+        submit() {
             const code = this.code.trim();
-            if (! code || this.busy || this.stage === 'done') return;
+            if (! code || this.stage === 'done') return;
 
+            // Jumlah dibaca saat scan terjadi, bukan saat dikirim: jawaban
+            // scan sebelumnya mengembalikan pengali ke satu.
+            const entry = { code, quantity: Math.max(1, Number(this.bulk) || 1) };
+            this.code = '';
+
+            if (this.busy) {
+                this.queue.push(entry);
+
+                return;
+            }
+
+            return this.process(entry);
+        },
+
+        async process({ code, quantity }) {
             this.busy = true;
             this.feedback = null;
 
             try {
-                this.isResiStage ? await this.startPackage(code) : await this.scanItem(code);
+                this.isResiStage ? await this.startPackage(code) : await this.scanItem(code, quantity);
             } catch (error) {
                 // Resi ditolak berbunyi lain dari barang yang salah discan:
                 // yang pertama berarti "ambil paket lain", yang kedua berarti
@@ -146,9 +171,25 @@ export default function packingStation(config) {
                 this.report('error', error.message, code, this.isResiStage ? 'rejected' : 'error');
             } finally {
                 this.busy = false;
-                this.code = '';
                 this.focusInput();
             }
+
+            await this.drain();
+        },
+
+        /** Kirim scan berikutnya yang sempat diantrekan, satu per satu. */
+        async drain() {
+            if (this.busy || ! this.queue.length) return;
+
+            // Paket sudah lengkap: sisa antrean hanyalah scan berlebih yang
+            // pasti ditolak server, jadi dibuang.
+            if (this.stage === 'done') {
+                this.queue = [];
+
+                return;
+            }
+
+            await this.process(this.queue.shift());
         },
 
         async startPackage(code) {
@@ -166,9 +207,7 @@ export default function packingStation(config) {
             this.report('success', `Paket dibuka · ${payload.progress.total} unit`, code, 'resi');
         },
 
-        async scanItem(code) {
-            const quantity = Math.max(1, Number(this.bulk) || 1);
-
+        async scanItem(code, quantity = 1) {
             const payload = await this.post(this.urls.item, { code, quantity });
 
             this.bulk = 1;
@@ -210,6 +249,8 @@ export default function packingStation(config) {
                 this.busy = false;
                 this.focusInput();
             }
+
+            await this.drain();
         },
 
         /* -------------------------------------------------- penyelesaian */
@@ -244,6 +285,7 @@ export default function packingStation(config) {
 
         reset() {
             this.stage = 'resi';
+            this.queue = [];
             this.outbound = null;
             this.items = [];
             this.bundles = [];
