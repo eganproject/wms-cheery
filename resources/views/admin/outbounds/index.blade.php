@@ -2,6 +2,11 @@
     <x-ui.page-header title="Barang Keluar" icon="logout"
                       subtitle="Dokumen pengiriman barang, termasuk pesanan marketplace.">
         <x-slot name="actions">
+            <x-ui.button :href="route('admin.outbounds.export', request()->query())"
+                         variant="secondary" icon="document" data-no-ajax
+                         title="Unduh dokumen dan detail barang sesuai saringan yang aktif">
+                Export Excel
+            </x-ui.button>
             @can('outbounds.create')
                 <x-ui.button :href="route('admin.outbounds.create')" icon="plus">Buat Dokumen</x-ui.button>
             @endcan

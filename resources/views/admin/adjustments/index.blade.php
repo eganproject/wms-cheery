@@ -2,6 +2,11 @@
     <x-ui.page-header title="Penyesuaian Stok" icon="sliders"
                       subtitle="Selaraskan saldo tercatat dengan hasil hitung fisik di rak.">
         <x-slot name="actions">
+            <x-ui.button :href="route('admin.adjustments.export', request()->query())"
+                         variant="secondary" icon="document" data-no-ajax
+                         title="Unduh dokumen penyesuaian dan selisih per barang sesuai saringan yang aktif">
+                Export Excel
+            </x-ui.button>
             @can('adjustments.create')
                 <x-ui.button :href="route('admin.adjustments.create')" icon="plus">Buat Penyesuaian</x-ui.button>
             @endcan

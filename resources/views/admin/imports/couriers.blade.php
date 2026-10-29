@@ -29,7 +29,15 @@
 
 <x-app-layout title="Per Ekspedisi">
     <x-ui.page-header title="Beban per Ekspedisi" icon="chart"
-                      subtitle="Berapa resi yang harus disiapkan tiap ekspedisi, dan berapa yang belum siap." />
+                      subtitle="Berapa resi yang harus disiapkan tiap ekspedisi, dan berapa yang belum siap.">
+        <x-slot name="actions">
+            <x-ui.button :href="route('admin.imports.couriers.export', request()->query())"
+                         variant="secondary" icon="document" data-no-ajax
+                         title="Unduh angka per ekspedisi sesuai rentang yang aktif">
+                Export Excel
+            </x-ui.button>
+        </x-slot>
+    </x-ui.page-header>
 
 
     <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">

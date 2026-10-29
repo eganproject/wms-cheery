@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ShipmentOrder;
 use App\Models\ShipmentOrderItem;
+use App\Services\TableExport;
 use App\Support\DateRange;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -12,6 +13,7 @@ use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Daftar pesanan marketplace, bergaya halaman Pesanan wmsxshopee.
@@ -109,6 +111,122 @@ class OrderController extends Controller implements HasMiddleware
             'searchTerms' => count($this->terms($request)),
             'perPage' => $perPage,
         ]);
+    }
+
+    /**
+     * Excel pesanan sesuai tab, saringan, dan urutan yang sedang aktif.
+     * Lembar "Pesanan" satu baris per resi; "Detail Barang" satu baris per
+     * SKU per resi, untuk diolah ulang di spreadsheet.
+     */
+    public function export(Request $request): StreamedResponse
+    {
+        $stage = (string) ($request->input('stage') ?? $request->input('status'));
+        $stage = ShipmentOrder::LEGACY_STAGES[$stage] ?? $stage;
+        $stage = array_key_exists($stage, ShipmentOrder::STAGES) ? $stage : '';
+
+        $query = fn () => $this->filtered($request)
+            ->atStage($stage)
+            ->tap(fn (Builder $query) => $this->sort($query, (string) $request->string('sort')));
+
+        $orders = function () use ($query) {
+            $number = 0;
+
+            foreach ($query()->with([
+                'items',
+                'outbound' => fn ($query) => $query
+                    ->withSum('items', 'quantity')
+                    ->withSum('items', 'scanned_quantity'),
+            ])->lazy(500) as $order) {
+                yield [
+                    ++$number,
+                    $order->tracking_number,
+                    $order->order_number,
+                    $order->order_date,
+                    $order->created_at,
+                    $order->marketplace,
+                    $order->store_name,
+                    $order->buyer_name,
+                    $order->courier,
+                    $order->shipping_method,
+                    self::STAGE_LABELS[$order->stage()] ?? $order->stageLabel(),
+                    $order->stageDetail(),
+                    $order->order_status,
+                    $order->items->count(),
+                    $order->totalQuantity(),
+                    $order->items->map(fn ($item) => $item->sku.' x'.$item->quantity)->implode(', '),
+                    $order->outbound?->code,
+                    $order->cancellation_reason,
+                    $order->buyer_note,
+                ];
+            }
+        };
+
+        $items = function () use ($query) {
+            foreach ($query()->with('items')->lazy(500) as $order) {
+                foreach ($order->items as $item) {
+                    yield [
+                        $order->tracking_number,
+                        $order->order_number,
+                        $order->order_date,
+                        $order->marketplace,
+                        $order->store_name,
+                        $order->courier,
+                        $item->sku,
+                        $item->product_name,
+                        (int) $item->quantity,
+                        $item->product_id ? 'Ya' : 'Belum',
+                    ];
+                }
+            }
+        };
+
+        $notes = collect([
+            'Tahap: '.(self::STAGE_LABELS[$stage] ?? 'Semua'),
+            'Tanggal unggah: '.DateRange::fromRequest($request)->label(),
+            $request->filled('marketplace') ? 'Marketplace: '.$request->string('marketplace') : null,
+            $request->filled('store') ? 'Toko: '.$request->string('store') : null,
+            $request->filled('courier') ? 'Kurir: '.$request->string('courier') : null,
+            $request->boolean('duplicate') ? 'Hanya resi kembar' : null,
+            $request->boolean('unmatched') ? 'Hanya SKU belum terdaftar' : null,
+            count($this->terms($request)) ? 'Cari: '.Str::limit(implode(', ', $this->terms($request)), 80) : null,
+        ])->filter()->implode(' · ');
+
+        return TableExport::make('Daftar Pesanan')
+            ->note($notes)
+            ->sheet('Pesanan', [
+                ['No', 'number'],
+                ['No. Resi', 'text'],
+                ['No. Pesanan', 'text'],
+                ['Tanggal Pesanan', 'datetime'],
+                ['Diunggah', 'datetime'],
+                ['Marketplace', 'text'],
+                ['Toko', 'text'],
+                ['Pembeli', 'text'],
+                ['Kurir', 'text'],
+                ['Layanan', 'text'],
+                ['Tahap', 'text'],
+                ['Keterangan Tahap', 'text'],
+                ['Status Marketplace', 'text'],
+                ['Jumlah SKU', 'number'],
+                ['Total Qty', 'sum'],
+                ['Isi Pesanan', 'text'],
+                ['Dokumen Barang Keluar', 'text'],
+                ['Alasan Batal', 'text'],
+                ['Catatan Pembeli', 'text'],
+            ], $orders())
+            ->sheet('Detail Barang', [
+                ['No. Resi', 'text'],
+                ['No. Pesanan', 'text'],
+                ['Tanggal Pesanan', 'datetime'],
+                ['Marketplace', 'text'],
+                ['Toko', 'text'],
+                ['Kurir', 'text'],
+                ['SKU', 'text'],
+                ['Nama Barang', 'text'],
+                ['Qty', 'sum'],
+                ['Terdaftar di Master', 'text'],
+            ], $items())
+            ->download('pesanan-'.now()->format('Y-m-d-Hi').'.xlsx');
     }
 
     /**

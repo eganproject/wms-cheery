@@ -115,6 +115,8 @@ class PackingList
                     'sku' => $line['sku'] ?? $product?->sku,
                     'name' => $product?->name ?? $line['name'],
                     'image_url' => $product?->image_url,
+                    // Untuk PDF: berkas gambar di disk, milik barang atau induk variannya.
+                    'image_path' => $product ? ($product->image_path ?: $product->group?->image_path) : null,
                     'matched' => $line['product_id'] !== null,
                     'remaining' => $line['ordered'] - $line['scanned'],
                 ]);

@@ -14,6 +14,13 @@
 <x-app-layout title="Serah Terima Paket">
     <x-ui.page-header title="Serah Terima Paket" icon="outbound"
                       subtitle="Paket yang sudah lolos QC dan tinggal diserahkan ke kurir. Scan resinya saat paket berpindah tangan.">
+        <x-slot name="actions">
+            <x-ui.button :href="route('admin.outbounds.handover.export', request()->query())"
+                         variant="secondary" icon="document" data-no-ajax
+                         title="Unduh antrean paket sebagai manifest untuk dicocokkan dengan kurir">
+                Export Excel
+            </x-ui.button>
+        </x-slot>
     </x-ui.page-header>
 
 

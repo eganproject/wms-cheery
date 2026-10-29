@@ -11,6 +11,12 @@
     <x-ui.page-header title="Barang Rusak" icon="trash"
                       subtitle="Saldo barang rusak, beserta dokumen setiap barang yang keluar di luar penjualan.">
         <x-slot name="actions">
+            {{-- Isi berkas mengikuti tab yang terbuka: saldo rusak atau riwayat penanganan. --}}
+            <x-ui.button :href="route('admin.disposals.export', array_merge(request()->query(), ['tab' => $tab]))"
+                         variant="secondary" icon="document" data-no-ajax
+                         title="Unduh isi tab yang sedang terbuka sesuai saringan">
+                Export Excel
+            </x-ui.button>
             @can('disposals.create')
                 {{--
                     Saldo asalnya dipilih di sini, bukan di dalam form: dengan

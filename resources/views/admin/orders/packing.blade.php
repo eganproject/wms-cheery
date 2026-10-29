@@ -23,7 +23,17 @@
     <x-ui.page-header title="Packing List"
                       subtitle="Ringkasan SKU dari resi yang diimport: jumlah tiap SKU dari semua resi dijumlahkan, berikut sisanya yang belum lolos QC Kemas. Resi yang sudah dikirim atau dibatalkan tidak dihitung.">
         <x-slot name="actions">
-            <x-ui.button type="button" variant="secondary" icon="printer" onclick="window.print()">Cetak</x-ui.button>
+            {{-- Ikut saringan dan mode "Ringkas per" yang aktif. data-no-ajax: unduhan berkas tidak boleh lewat navigasi AJAX. --}}
+            <x-ui.button :href="route('admin.orders.packing.excel', request()->query())"
+                         variant="secondary" icon="document" data-no-ajax
+                         title="Unduh daftar barang dan resi yang belum tuntas sesuai saringan yang aktif">
+                Export Excel
+            </x-ui.button>
+            <x-ui.button :href="route('admin.orders.packing.pdf', request()->query())"
+                         variant="secondary" icon="printer" data-no-ajax
+                         title="PDF siap cetak untuk packer, dengan gambar barang dan kotak centang">
+                Export PDF
+            </x-ui.button>
             @can('outbounds.scan')
                 <x-ui.button :href="route('admin.outbounds.marketplace')" icon="packing">QC Kemas</x-ui.button>
             @endcan

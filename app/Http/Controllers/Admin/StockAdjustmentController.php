@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\UpdateStockAdjustmentRequest;
 use App\Models\Product;
 use App\Models\StockAdjustment;
 use App\Services\ApprovalService;
+use App\Services\TableExport;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -16,6 +17,7 @@ use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class StockAdjustmentController extends Controller implements HasMiddleware
 {
@@ -26,7 +28,7 @@ class StockAdjustmentController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:adjustments.view', only: ['index', 'show']),
+            new Middleware('can:adjustments.view', only: ['index', 'show', 'export']),
             new Middleware('can:adjustments.create', only: ['create', 'store']),
             new Middleware('can:adjustments.update', only: ['edit', 'update']),
             new Middleware('can:adjustments.delete', only: ['destroy']),
@@ -35,17 +37,111 @@ class StockAdjustmentController extends Controller implements HasMiddleware
         ];
     }
 
-    public function index(Request $request): View
+    /**
+     * Excel penyesuaian stok sesuai saringan yang aktif. Lembar "Detail
+     * Barang" memuat saldo tercatat, hasil hitung, dan selisih tiap barang.
+     */
+    public function export(Request $request): StreamedResponse
     {
-        $adjustments = StockAdjustment::query()
-            ->with(['user', 'items'])
-            ->withCount('items')
+        $documents = function () use ($request) {
+            $number = 0;
+
+            foreach ($this->filtered($request)->with('user', 'approver', 'items')->withCount('items')->lazy(500) as $adjustment) {
+                $differences = $adjustment->items->map(fn ($item) => $item->difference());
+
+                yield [
+                    ++$number,
+                    $adjustment->date,
+                    $adjustment->code,
+                    $adjustment->reason,
+                    $adjustment->statusLabel(),
+                    $adjustment->items_count,
+                    (int) $differences->filter(fn ($value) => $value > 0)->sum(),
+                    (int) -$differences->filter(fn ($value) => $value < 0)->sum(),
+                    (int) $differences->sum(),
+                    $adjustment->user?->name,
+                    $adjustment->approver?->name,
+                    $adjustment->note,
+                ];
+            }
+        };
+
+        $items = function () use ($request) {
+            foreach ($this->filtered($request)->with('items.product')->lazy(500) as $adjustment) {
+                foreach ($adjustment->items as $item) {
+                    yield [
+                        $adjustment->date,
+                        $adjustment->code,
+                        $adjustment->reason,
+                        $adjustment->statusLabel(),
+                        $item->product?->sku,
+                        $item->product?->name,
+                        (int) $item->system_quantity,
+                        (int) $item->actual_quantity,
+                        $item->difference(),
+                        $item->applied_difference,
+                        $item->note,
+                    ];
+                }
+            }
+        };
+
+        return TableExport::make('Penyesuaian Stok')
+            ->note(collect([
+                'Tanggal: '.DateRange::fromRequest($request)->label(),
+                $request->filled('status') ? 'Status: '.$request->string('status') : null,
+                $request->filled('reason') ? 'Alasan: '.$request->string('reason') : null,
+                $request->filled('search') ? 'Cari: '.$request->string('search')->trim() : null,
+            ])->filter()->implode(' · '))
+            ->sheet('Dokumen', [
+                ['No', 'number'],
+                ['Tanggal', 'date'],
+                ['No. Dokumen', 'text'],
+                ['Alasan', 'text'],
+                ['Status', 'text'],
+                ['Jumlah Barang', 'number'],
+                ['Total Tambah', 'sum'],
+                ['Total Kurang', 'sum'],
+                ['Selisih Bersih', 'sum'],
+                ['Dibuat Oleh', 'text'],
+                ['Disetujui Oleh', 'text'],
+                ['Catatan', 'text'],
+            ], $documents())
+            ->sheet('Detail Barang', [
+                ['Tanggal', 'date'],
+                ['No. Dokumen', 'text'],
+                ['Alasan', 'text'],
+                ['Status', 'text'],
+                ['SKU', 'text'],
+                ['Nama Barang', 'text'],
+                ['Saldo Tercatat', 'number'],
+                ['Hasil Hitung', 'number'],
+                ['Selisih', 'sum'],
+                ['Selisih Dibukukan', 'number'],
+                ['Catatan', 'text'],
+            ], $items())
+            ->download('penyesuaian-stok-'.now()->format('Y-m-d-Hi').'.xlsx');
+    }
+
+    /**
+     * Saringan yang sama untuk tabel di layar dan berkas export.
+     */
+    protected function filtered(Request $request): \Illuminate\Database\Eloquent\Builder
+    {
+        return StockAdjustment::query()
             ->search($request->string('search')->trim()->value())
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->when($request->filled('reason'), fn ($query) => $query->where('reason', $request->string('reason')))
             ->dateBetween(DateRange::fromRequest($request))
             ->latest('date')
-            ->latest('id')
+            ->latest('id');
+    }
+
+    public function index(Request $request): View
+    {
+        $adjustments = $this->filtered($request)
+            ->with(['user', 'items'])
+            ->withCount('items')
             ->paginate(10)
             ->withQueryString();
 

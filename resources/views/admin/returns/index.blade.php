@@ -2,6 +2,11 @@
     <x-ui.page-header title="Penerimaan Retur" icon="refresh"
                       subtitle="Barang yang dikembalikan pembeli, dari marketplace maupun pengiriman biasa.">
         <x-slot name="actions">
+            <x-ui.button :href="route('admin.returns.export', request()->query())"
+                         variant="secondary" icon="document" data-no-ajax
+                         title="Unduh dokumen retur dan detail barang sesuai saringan yang aktif">
+                Export Excel
+            </x-ui.button>
             @can('returns.create')
                 <x-ui.button :href="route('admin.returns.marketplace')" variant="secondary" icon="search">
                     Scan Retur Marketplace

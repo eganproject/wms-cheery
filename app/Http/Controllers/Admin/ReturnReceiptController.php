@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\ReturnReceipt;
 use App\Models\ReturnReceiptItem;
 use App\Services\ApprovalService;
+use App\Services\TableExport;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -18,6 +19,7 @@ use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReturnReceiptController extends Controller implements HasMiddleware
 {
@@ -28,7 +30,7 @@ class ReturnReceiptController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:returns.view', only: ['index', 'show']),
+            new Middleware('can:returns.view', only: ['index', 'show', 'export']),
             new Middleware('can:returns.create', only: ['create', 'store']),
             new Middleware('can:returns.update', only: ['edit', 'update']),
             new Middleware('can:returns.delete', only: ['destroy']),
@@ -37,19 +39,123 @@ class ReturnReceiptController extends Controller implements HasMiddleware
         ];
     }
 
-    public function index(Request $request): View
+    /**
+     * Excel penerimaan retur sesuai saringan yang aktif.
+     */
+    public function export(Request $request): StreamedResponse
     {
-        $returns = ReturnReceipt::query()
-            ->with('user')
-            ->withCount('items')
-            ->withSum('items', 'quantity')
+        $documents = function () use ($request) {
+            $number = 0;
+
+            foreach ($this->filtered($request)->with('user', 'approver', 'items')->withCount('items')->lazy(500) as $return) {
+                yield [
+                    ++$number,
+                    $return->date,
+                    $return->code,
+                    $return->isMarketplace() ? 'Marketplace' : 'Reguler',
+                    $return->sender,
+                    $return->marketplace,
+                    $return->tracking_number,
+                    $return->reference,
+                    $return->reason,
+                    $return->statusLabel(),
+                    $return->items_count,
+                    (int) $return->items->sum('quantity'),
+                    (int) $return->items->sum('good_quantity'),
+                    (int) $return->items->sum('damaged_quantity'),
+                    $return->user?->name,
+                    $return->approver?->name,
+                    $return->note,
+                ];
+            }
+        };
+
+        $items = function () use ($request) {
+            foreach ($this->filtered($request)->with('items.product')->lazy(500) as $return) {
+                foreach ($return->items as $item) {
+                    yield [
+                        $return->date,
+                        $return->code,
+                        $return->sender,
+                        $return->marketplace,
+                        $return->tracking_number,
+                        $return->statusLabel(),
+                        $item->product?->sku,
+                        $item->product?->name,
+                        (int) $item->quantity,
+                        (int) $item->good_quantity,
+                        (int) $item->damaged_quantity,
+                        $item->note,
+                    ];
+                }
+            }
+        };
+
+        return TableExport::make('Penerimaan Retur')
+            ->note(collect([
+                'Tanggal: '.DateRange::fromRequest($request)->label(),
+                $request->filled('status') ? 'Status: '.$request->string('status') : null,
+                $request->filled('type') ? 'Jenis: '.($request->input('type') === ReturnReceipt::TYPE_MARKETPLACE ? 'Marketplace' : 'Reguler') : null,
+                $request->filled('marketplace') ? 'Marketplace: '.$request->string('marketplace') : null,
+                $request->filled('search') ? 'Cari: '.$request->string('search')->trim() : null,
+            ])->filter()->implode(' · '))
+            ->sheet('Dokumen', [
+                ['No', 'number'],
+                ['Tanggal', 'date'],
+                ['No. Dokumen', 'text'],
+                ['Jenis', 'text'],
+                ['Pengirim', 'text'],
+                ['Marketplace', 'text'],
+                ['No. Resi', 'text'],
+                ['Referensi', 'text'],
+                ['Alasan', 'text'],
+                ['Status', 'text'],
+                ['Jumlah Baris', 'number'],
+                ['Qty Retur', 'sum'],
+                ['Layak Jual', 'sum'],
+                ['Rusak', 'sum'],
+                ['Dibuat Oleh', 'text'],
+                ['Disetujui Oleh', 'text'],
+                ['Catatan', 'text'],
+            ], $documents())
+            ->sheet('Detail Barang', [
+                ['Tanggal', 'date'],
+                ['No. Dokumen', 'text'],
+                ['Pengirim', 'text'],
+                ['Marketplace', 'text'],
+                ['No. Resi', 'text'],
+                ['Status', 'text'],
+                ['SKU', 'text'],
+                ['Nama Barang', 'text'],
+                ['Qty Retur', 'sum'],
+                ['Layak Jual', 'sum'],
+                ['Rusak', 'sum'],
+                ['Catatan', 'text'],
+            ], $items())
+            ->download('retur-'.now()->format('Y-m-d-Hi').'.xlsx');
+    }
+
+    /**
+     * Saringan yang sama untuk tabel di layar dan berkas export.
+     */
+    protected function filtered(Request $request): \Illuminate\Database\Eloquent\Builder
+    {
+        return ReturnReceipt::query()
             ->search($request->string('search')->trim()->value())
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->when($request->filled('type'), fn ($query) => $query->where('type', $request->string('type')))
             ->when($request->filled('marketplace'), fn ($query) => $query->where('marketplace', $request->string('marketplace')))
             ->dateBetween(DateRange::fromRequest($request))
             ->latest('date')
-            ->latest('id')
+            ->latest('id');
+    }
+
+    public function index(Request $request): View
+    {
+        $returns = $this->filtered($request)
+            ->with('user')
+            ->withCount('items')
+            ->withSum('items', 'quantity')
             ->paginate(10)
             ->withQueryString();
 

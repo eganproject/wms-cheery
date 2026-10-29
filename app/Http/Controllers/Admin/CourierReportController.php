@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ShipmentOrder;
+use App\Services\TableExport;
 use App\Support\DateRange;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -12,6 +13,7 @@ use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Beban kerja per ekspedisi pada suatu rentang tanggal.
@@ -52,6 +54,31 @@ class CourierReportController extends Controller implements HasMiddleware
                 'cancelled' => $couriers->sum('cancelled'),
             ],
         ]);
+    }
+
+    /**
+     * Excel beban per ekspedisi untuk rentang dan pencarian yang aktif.
+     */
+    public function export(Request $request): StreamedResponse
+    {
+        $range = DateRange::fromRequest($request);
+        $search = $request->string('search')->trim()->value();
+
+        return TableExport::make('Beban per Ekspedisi')
+            ->note('Tanggal unggah: '.$range->label().($search !== '' ? ' · Cari: '.$search : ''))
+            ->sheet('Per Ekspedisi', [
+                ['No', 'number'],
+                ['Ekspedisi', 'text'],
+                ['Total Resi', 'sum'],
+                ['Unit Dipesan', 'sum'],
+                ['Belum QC', 'sum'],
+                ['Sudah QC', 'sum'],
+                ['Dikirim', 'sum'],
+                ['Dibatalkan', 'sum'],
+            ], $this->couriers($range, $search)->values()->map(fn ($row, $index) => [
+                $index + 1, $row->courier, $row->total, $row->units, $row->awaiting, $row->checked, $row->shipped, $row->cancelled,
+            ]))
+            ->download('beban-ekspedisi-'.now()->format('Y-m-d-Hi').'.xlsx');
     }
 
     /**

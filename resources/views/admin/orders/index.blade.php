@@ -29,6 +29,12 @@
     <x-ui.page-header title="Pesanan"
                       subtitle="Semua resi hasil import dan posisinya di gudang: belum QC, sudah QC (menunggu serah terima), dikirim, atau dibatalkan.">
         <x-slot name="actions">
+            {{-- Ikut tab, saringan, dan urutan yang aktif. data-no-ajax: unduhan berkas tidak boleh lewat navigasi AJAX. --}}
+            <x-ui.button :href="route('admin.orders.export', request()->query())"
+                         variant="secondary" icon="document" data-no-ajax
+                         title="Unduh pesanan dan isi barangnya sesuai tab dan saringan yang aktif">
+                Export Excel
+            </x-ui.button>
             <x-ui.button :href="route('admin.orders.packing', request()->only(['marketplace', 'store', 'courier', 'from', 'to', 'range']))" variant="secondary" icon="list">Packing List</x-ui.button>
             @can('imports.create')
                 <x-ui.button :href="route('admin.imports.create')" variant="secondary" icon="import">Import Resi</x-ui.button>

@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\Supplier;
 use App\Services\ApprovalService;
+use App\Services\TableExport;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Barang rusak dan pengeluaran barang di luar penjualan.
@@ -38,7 +40,7 @@ class DamagedStockController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:disposals.view', only: ['index', 'show']),
+            new Middleware('can:disposals.view', only: ['index', 'show', 'export']),
             new Middleware('can:disposals.create', only: ['create', 'store']),
             new Middleware('can:disposals.delete', only: ['destroy']),
             new Middleware('can:disposals.post', only: ['submit', 'withdraw']),
@@ -66,21 +68,10 @@ class DamagedStockController extends Controller implements HasMiddleware
                 ->paginate(15, ['*'], 'stok')
                 ->withQueryString();
         } else {
-            $bucket = $request->string('bucket')->value();
-            $action = $request->string('action')->value();
-
-            $disposals = DamagedDisposal::query()
+            $disposals = $this->filteredDisposals($request)
                 ->with('user')
                 ->withCount('items')
                 ->withSum('items', 'quantity')
-                ->search($search)
-                ->when(in_array($bucket, [StockMovement::BUCKET_GOOD, StockMovement::BUCKET_DAMAGED], true),
-                    fn ($query) => $query->where('bucket', $bucket))
-                ->when(array_key_exists($action, DamagedDisposal::actions()),
-                    fn ($query) => $query->where('action', $action))
-                ->dateBetween(DateRange::fromRequest($request))
-                ->latest('date')
-                ->latest('id')
                 ->paginate(15, ['*'], 'dokumen')
                 ->withQueryString();
         }
@@ -104,6 +95,133 @@ class DamagedStockController extends Controller implements HasMiddleware
      * Tab yang dibuka. Tautan lama yang membawa rentang tanggal selalu
      * dimaksudkan untuk riwayat, jadi langsung dibawa ke sana.
      */
+    /**
+     * Excel mengikuti tab yang terbuka: "Saldo Rusak" berisi barang yang
+     * masih punya stok rusak, "Riwayat" berisi dokumen penanganannya.
+     */
+    public function export(Request $request): StreamedResponse
+    {
+        $search = $request->string('search')->trim()->value();
+        $stamp = now()->format('Y-m-d-Hi');
+
+        if ($this->tabFrom($request) === 'saldo') {
+            $rows = function () use ($search) {
+                $number = 0;
+
+                foreach (Product::query()->where('damaged_stock', '>', 0)->search($search)->orderByDesc('damaged_stock')->orderBy('id')->lazy(500) as $product) {
+                    yield [++$number, $product->sku, $product->name, $product->unit, (int) $product->stock, (int) $product->damaged_stock];
+                }
+            };
+
+            return TableExport::make('Saldo Barang Rusak')
+                ->note($search !== '' ? 'Cari: '.$search : null)
+                ->sheet('Saldo Rusak', [
+                    ['No', 'number'],
+                    ['SKU', 'text'],
+                    ['Nama Barang', 'text'],
+                    ['Satuan', 'text'],
+                    ['Stok Layak Jual', 'sum'],
+                    ['Stok Rusak', 'sum'],
+                ], $rows())
+                ->download('saldo-barang-rusak-'.$stamp.'.xlsx');
+        }
+
+        $documents = function () use ($request) {
+            $number = 0;
+
+            foreach ($this->filteredDisposals($request)->with('user', 'approver', 'supplier')->withCount('items')->withSum('items', 'quantity')->lazy(500) as $disposal) {
+                yield [
+                    ++$number,
+                    $disposal->date,
+                    $disposal->code,
+                    $disposal->bucketLabel(),
+                    $disposal->actionLabel(),
+                    $disposal->supplier?->name,
+                    $disposal->statusLabel(),
+                    $disposal->items_count,
+                    (int) $disposal->items_sum_quantity,
+                    $disposal->user?->name,
+                    $disposal->approver?->name,
+                    $disposal->note,
+                ];
+            }
+        };
+
+        $items = function () use ($request) {
+            foreach ($this->filteredDisposals($request)->with('items.product', 'supplier')->lazy(500) as $disposal) {
+                foreach ($disposal->items as $item) {
+                    yield [
+                        $disposal->date,
+                        $disposal->code,
+                        $disposal->bucketLabel(),
+                        $disposal->actionLabel(),
+                        $disposal->statusLabel(),
+                        $item->product?->sku,
+                        $item->product?->name,
+                        (int) $item->quantity,
+                        $item->note,
+                    ];
+                }
+            }
+        };
+
+        $action = $request->string('action')->value();
+        $bucket = $request->string('bucket')->value();
+
+        return TableExport::make('Penanganan Barang Rusak')
+            ->note(collect([
+                'Tanggal: '.DateRange::fromRequest($request)->label(),
+                $bucket === StockMovement::BUCKET_GOOD ? 'Asal: stok layak jual' : ($bucket === StockMovement::BUCKET_DAMAGED ? 'Asal: stok rusak' : null),
+                array_key_exists($action, DamagedDisposal::actions()) ? 'Tindakan: '.DamagedDisposal::actions()[$action] : null,
+                $search !== '' ? 'Cari: '.$search : null,
+            ])->filter()->implode(' · '))
+            ->sheet('Dokumen', [
+                ['No', 'number'],
+                ['Tanggal', 'date'],
+                ['No. Dokumen', 'text'],
+                ['Asal Stok', 'text'],
+                ['Tindakan', 'text'],
+                ['Pemasok', 'text'],
+                ['Status', 'text'],
+                ['Jumlah Baris', 'number'],
+                ['Total Qty', 'sum'],
+                ['Dibuat Oleh', 'text'],
+                ['Disetujui Oleh', 'text'],
+                ['Catatan', 'text'],
+            ], $documents())
+            ->sheet('Detail Barang', [
+                ['Tanggal', 'date'],
+                ['No. Dokumen', 'text'],
+                ['Asal Stok', 'text'],
+                ['Tindakan', 'text'],
+                ['Status', 'text'],
+                ['SKU', 'text'],
+                ['Nama Barang', 'text'],
+                ['Qty', 'sum'],
+                ['Catatan', 'text'],
+            ], $items())
+            ->download('penanganan-barang-rusak-'.$stamp.'.xlsx');
+    }
+
+    /**
+     * Saringan dokumen penanganan, sama untuk tabel dan berkas export.
+     */
+    protected function filteredDisposals(Request $request): \Illuminate\Database\Eloquent\Builder
+    {
+        $bucket = $request->string('bucket')->value();
+        $action = $request->string('action')->value();
+
+        return DamagedDisposal::query()
+            ->search($request->string('search')->trim()->value())
+            ->when(in_array($bucket, [StockMovement::BUCKET_GOOD, StockMovement::BUCKET_DAMAGED], true),
+                fn ($query) => $query->where('bucket', $bucket))
+            ->when(array_key_exists($action, DamagedDisposal::actions()),
+                fn ($query) => $query->where('action', $action))
+            ->dateBetween(DateRange::fromRequest($request))
+            ->latest('date')
+            ->latest('id');
+    }
+
     protected function tabFrom(Request $request): string
     {
         $tab = $request->string('tab')->value();

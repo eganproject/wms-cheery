@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Outbound;
 use App\Services\ApprovalService;
+use App\Services\TableExport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,6 +13,7 @@ use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Halaman Serah Terima Paket: paket yang sudah lolos QC diserahkan ke kurir.
@@ -29,7 +31,7 @@ class OutboundHandoverController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:outbounds.view', only: ['index']),
+            new Middleware('can:outbounds.view', only: ['index', 'export']),
             new Middleware('can:outbounds.post', only: ['process', 'scan']),
         ];
     }
@@ -43,16 +45,78 @@ class OutboundHandoverController extends Controller implements HasMiddleware
         return redirect()->route('admin.outbounds.handover', $request->query(), 301);
     }
 
-    public function index(Request $request): View
+    /**
+     * Excel antrean serah terima sesuai saringan: bisa dicetak sebagai
+     * manifest untuk dicocokkan dengan kurir saat paket diserahkan.
+     */
+    public function export(Request $request): StreamedResponse
     {
-        $outbounds = Outbound::awaitingHandover()
-            ->with('user', 'shipmentOrder')
-            ->withCount('items')
-            ->withSum('items', 'quantity')
+        $rows = function () use ($request) {
+            $number = 0;
+
+            foreach ($this->filtered($request)->with('shipmentOrder')->withCount('items')->withSum('items', 'quantity')->lazy(500) as $outbound) {
+                $order = $outbound->shipmentOrder;
+
+                yield [
+                    ++$number,
+                    $outbound->tracking_number,
+                    $order?->order_number,
+                    $outbound->code,
+                    $order?->courier,
+                    $order?->marketplace,
+                    $order?->store_name,
+                    $outbound->recipient ?: $order?->buyer_name,
+                    $outbound->items_count,
+                    (int) $outbound->items_sum_quantity,
+                    $outbound->resi_verified_at,
+                    $order?->isCancelled() ? 'BATAL, jangan dikirim' : null,
+                    null,
+                ];
+            }
+        };
+
+        return TableExport::make('Serah Terima Paket')
+            ->note(collect([
+                'Paket lolos QC yang menunggu diserahkan ke kurir',
+                $request->filled('marketplace') ? 'Marketplace: '.$request->string('marketplace') : null,
+                $request->filled('search') ? 'Cari: '.$request->string('search')->trim() : null,
+            ])->filter()->implode(' · '))
+            ->sheet('Antrean Serah Terima', [
+                ['No', 'number'],
+                ['No. Resi', 'text'],
+                ['No. Pesanan', 'text'],
+                ['No. Dokumen', 'text'],
+                ['Kurir', 'text'],
+                ['Marketplace', 'text'],
+                ['Toko', 'text'],
+                ['Penerima', 'text'],
+                ['Jumlah Baris', 'number'],
+                ['Total Qty', 'sum'],
+                ['Resi Discan', 'datetime'],
+                ['Peringatan', 'text'],
+                ['Paraf Kurir', 'text'],
+            ], $rows())
+            ->download('serah-terima-paket-'.now()->format('Y-m-d-Hi').'.xlsx');
+    }
+
+    /**
+     * Saringan yang sama untuk tabel di layar dan berkas export.
+     */
+    protected function filtered(Request $request): \Illuminate\Database\Eloquent\Builder
+    {
+        return Outbound::awaitingHandover()
             ->search($request->string('search')->trim()->value())
             ->fromMarketplace($request->string('marketplace')->value())
             // Paket yang paling lama menunggu dikerjakan lebih dulu.
-            ->oldest('id')
+            ->oldest('id');
+    }
+
+    public function index(Request $request): View
+    {
+        $outbounds = $this->filtered($request)
+            ->with('user', 'shipmentOrder')
+            ->withCount('items')
+            ->withSum('items', 'quantity')
             ->paginate(20)
             ->withQueryString();
 

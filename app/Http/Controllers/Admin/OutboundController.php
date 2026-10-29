@@ -10,6 +10,7 @@ use App\Models\Outbound;
 use App\Models\Product;
 use App\Services\ApprovalService;
 use App\Services\BundleExploder;
+use App\Services\TableExport;
 use App\Support\BundledLines;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class OutboundController extends Controller implements HasMiddleware
 {
@@ -31,7 +33,7 @@ class OutboundController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:outbounds.view', only: ['index', 'show']),
+            new Middleware('can:outbounds.view', only: ['index', 'show', 'export']),
             new Middleware('can:outbounds.create', only: ['create', 'store']),
             new Middleware('can:outbounds.update', only: ['edit', 'update']),
             new Middleware('can:outbounds.delete', only: ['destroy']),
@@ -40,22 +42,133 @@ class OutboundController extends Controller implements HasMiddleware
         ];
     }
 
-    public function index(Request $request): View
+    /**
+     * Excel dokumen barang keluar sesuai saringan yang aktif: satu lembar per
+     * dokumen, satu lembar per barang.
+     */
+    public function export(Request $request): StreamedResponse
     {
-        $outbounds = Outbound::query()
-            ->with('user', 'shipmentOrder:id,marketplace')
-            ->withCount('items')
-            ->withSum('items', 'quantity')
-            // Progres scan dinilai dari jumlahnya, jadi baris barang tidak
-            // perlu dimuat satu per satu hanya untuk menampilkan badge.
-            ->withSum('items', 'scanned_quantity')
+        $documents = function () use ($request) {
+            $number = 0;
+
+            foreach ($this->filtered($request)
+                ->with('user', 'approver', 'shipmentOrder:id,marketplace,order_number')
+                ->withCount('items')
+                ->withSum('items', 'quantity')
+                ->withSum('items', 'scanned_quantity')
+                ->lazy(500) as $outbound) {
+                yield [
+                    ++$number,
+                    $outbound->date,
+                    $outbound->code,
+                    $outbound->isMarketplace() ? 'Marketplace' : 'Reguler',
+                    $outbound->recipient,
+                    $outbound->tracking_number,
+                    $outbound->shipmentOrder?->order_number,
+                    $outbound->marketplace,
+                    $outbound->stageLabel(),
+                    $outbound->items_count,
+                    $outbound->totalQuantity(),
+                    $outbound->totalScanned(),
+                    $outbound->posted_at,
+                    $outbound->user?->name,
+                    $outbound->approver?->name,
+                    $outbound->note,
+                ];
+            }
+        };
+
+        $items = function () use ($request) {
+            foreach ($this->filtered($request)->with('items.product', 'shipmentOrder:id,marketplace')
+                ->withSum('items', 'quantity')
+                ->withSum('items', 'scanned_quantity')
+                ->lazy(500) as $outbound) {
+                foreach ($outbound->items as $item) {
+                    yield [
+                        $outbound->date,
+                        $outbound->code,
+                        $outbound->isMarketplace() ? 'Marketplace' : 'Reguler',
+                        $outbound->recipient,
+                        $outbound->tracking_number,
+                        $outbound->marketplace,
+                        $outbound->stageLabel(),
+                        $item->product?->sku,
+                        $item->product?->name,
+                        (int) $item->quantity,
+                        (int) $item->scanned_quantity,
+                        $item->note,
+                    ];
+                }
+            }
+        };
+
+        return TableExport::make('Barang Keluar')
+            ->note(collect([
+                'Tanggal: '.DateRange::fromRequest($request)->label(),
+                $request->filled('status') ? 'Tahap: '.(Outbound::stages()[$request->string('status')->value()]['label'] ?? $request->string('status')) : null,
+                $request->filled('type') ? 'Jenis: '.($request->input('type') === Outbound::TYPE_MARKETPLACE ? 'Marketplace' : 'Reguler') : null,
+                $request->filled('marketplace') ? 'Marketplace: '.$request->string('marketplace') : null,
+                $request->filled('search') ? 'Cari: '.$request->string('search')->trim() : null,
+            ])->filter()->implode(' · '))
+            ->sheet('Dokumen', [
+                ['No', 'number'],
+                ['Tanggal', 'date'],
+                ['No. Dokumen', 'text'],
+                ['Jenis', 'text'],
+                ['Penerima', 'text'],
+                ['No. Resi', 'text'],
+                ['No. Pesanan', 'text'],
+                ['Marketplace', 'text'],
+                ['Tahap', 'text'],
+                ['Jumlah Baris', 'number'],
+                ['Total Qty', 'sum'],
+                ['Sudah Discan', 'sum'],
+                ['Dikirim', 'datetime'],
+                ['Dibuat Oleh', 'text'],
+                ['Disetujui Oleh', 'text'],
+                ['Catatan', 'text'],
+            ], $documents())
+            ->sheet('Detail Barang', [
+                ['Tanggal', 'date'],
+                ['No. Dokumen', 'text'],
+                ['Jenis', 'text'],
+                ['Penerima', 'text'],
+                ['No. Resi', 'text'],
+                ['Marketplace', 'text'],
+                ['Tahap', 'text'],
+                ['SKU', 'text'],
+                ['Nama Barang', 'text'],
+                ['Qty', 'sum'],
+                ['Discan', 'sum'],
+                ['Catatan', 'text'],
+            ], $items())
+            ->download('barang-keluar-'.now()->format('Y-m-d-Hi').'.xlsx');
+    }
+
+    /**
+     * Saringan yang sama untuk tabel di layar dan berkas export.
+     */
+    protected function filtered(Request $request): \Illuminate\Database\Eloquent\Builder
+    {
+        return Outbound::query()
             ->search($request->string('search')->trim()->value())
             ->when($request->filled('status'), fn ($query) => $query->atStage($request->string('status')->value()))
             ->when($request->filled('type'), fn ($query) => $query->where('type', $request->string('type')))
             ->fromMarketplace($request->string('marketplace')->value())
             ->dateBetween(DateRange::fromRequest($request))
             ->latest('date')
-            ->latest('id')
+            ->latest('id');
+    }
+
+    public function index(Request $request): View
+    {
+        $outbounds = $this->filtered($request)
+            ->with('user', 'shipmentOrder:id,marketplace')
+            ->withCount('items')
+            ->withSum('items', 'quantity')
+            // Progres scan dinilai dari jumlahnya, jadi baris barang tidak
+            // perlu dimuat satu per satu hanya untuk menampilkan badge.
+            ->withSum('items', 'scanned_quantity')
             ->paginate(10)
             ->withQueryString();
 

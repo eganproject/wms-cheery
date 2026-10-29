@@ -79,6 +79,8 @@ Route::middleware('auth')
         Route::post('inbounds/{inbound}/withdraw', [InboundController::class, 'withdraw'])->name('inbounds.withdraw');
         Route::resource('inbounds', InboundController::class);
 
+        Route::get('outbounds/export', [OutboundController::class, 'export'])->name('outbounds.export');
+        Route::get('outbounds/handover/export', [OutboundHandoverController::class, 'export'])->name('outbounds.handover.export');
         Route::get('outbounds/marketplace', [OutboundMarketplaceController::class, 'create'])->name('outbounds.marketplace');
         Route::post('outbounds/marketplace', [OutboundMarketplaceController::class, 'store'])->name('outbounds.marketplace.store');
         Route::get('outbounds/handover', [OutboundHandoverController::class, 'index'])->name('outbounds.handover');
@@ -95,6 +97,7 @@ Route::middleware('auth')
         Route::post('outbounds/{outbound}/withdraw', [OutboundController::class, 'withdraw'])->name('outbounds.withdraw');
         Route::resource('outbounds', OutboundController::class);
 
+        Route::get('returns/export', [ReturnReceiptController::class, 'export'])->name('returns.export');
         Route::get('returns/marketplace', [ReturnMarketplaceController::class, 'create'])->name('returns.marketplace');
         Route::post('returns/marketplace', [ReturnMarketplaceController::class, 'store'])->name('returns.marketplace.store');
         Route::post('returns/marketplace/manual', [ReturnMarketplaceController::class, 'manual'])->name('returns.marketplace.manual');
@@ -110,11 +113,13 @@ Route::middleware('auth')
         Route::post('returns/{return}/withdraw', [ReturnReceiptController::class, 'withdraw'])->name('returns.withdraw');
         Route::resource('returns', ReturnReceiptController::class)->parameters(['returns' => 'return']);
 
+        Route::get('adjustments/export', [StockAdjustmentController::class, 'export'])->name('adjustments.export');
         Route::post('adjustments/{adjustment}/submit', [StockAdjustmentController::class, 'submit'])->name('adjustments.submit');
         Route::post('adjustments/{adjustment}/approve', [StockAdjustmentController::class, 'approve'])->name('adjustments.approve');
         Route::post('adjustments/{adjustment}/withdraw', [StockAdjustmentController::class, 'withdraw'])->name('adjustments.withdraw');
         Route::resource('adjustments', StockAdjustmentController::class);
 
+        Route::get('disposals/export', [DamagedStockController::class, 'export'])->name('disposals.export');
         Route::post('disposals/{disposal}/submit', [DamagedStockController::class, 'submit'])->name('disposals.submit');
         Route::post('disposals/{disposal}/approve', [DamagedStockController::class, 'approve'])->name('disposals.approve');
         Route::post('disposals/{disposal}/withdraw', [DamagedStockController::class, 'withdraw'])->name('disposals.withdraw');
@@ -139,12 +144,16 @@ Route::middleware('auth')
         Route::post('approvals/{type}/{id}/reject', [ApprovalController::class, 'reject'])->name('approvals.reject');
 
         // Import resi dari TikTok Shop
+        Route::get('orders/export', [OrderController::class, 'export'])->name('orders.export');
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
-        Route::get('orders/packing-list', PackingListController::class)->name('orders.packing');
+        Route::get('orders/packing-list/excel', [PackingListController::class, 'excel'])->name('orders.packing.excel');
+        Route::get('orders/packing-list/pdf', [PackingListController::class, 'pdf'])->name('orders.packing.pdf');
+        Route::get('orders/packing-list', [PackingListController::class, 'index'])->name('orders.packing');
         // Status Resi sudah digabung ke Pesanan; alamat lamanya tetap jalan.
         Route::get('imports/status', fn (\Illuminate\Http\Request $request) => redirect()->route('admin.orders.index', $request->query(), 301))->name('imports.status');
         Route::get('imports/daily/export', [DailyWaybillReportController::class, 'export'])->name('imports.daily.export');
         Route::get('imports/daily', [DailyWaybillReportController::class, 'index'])->name('imports.daily');
+        Route::get('imports/couriers/export', [CourierReportController::class, 'export'])->name('imports.couriers.export');
         Route::get('imports/couriers', CourierReportController::class)->name('imports.couriers');
         Route::post('imports/rematch', [ShipmentSkuMatchController::class, 'all'])->name('imports.rematch');
         Route::post('imports/orders/{order}/rematch', [ShipmentSkuMatchController::class, 'order'])->name('imports.orders.rematch');

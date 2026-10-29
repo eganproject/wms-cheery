@@ -60,6 +60,22 @@ class DateRange
     }
 
     /**
+     * Rentang dalam kalimat pendek, misalnya untuk kepala berkas export.
+     */
+    public function label(): string
+    {
+        $format = fn (string $date) => Carbon::parse($date)->format('d/m/Y');
+
+        return match (true) {
+            $this->isAll() => 'semua tanggal',
+            $this->from !== null && $this->from === $this->to => $format($this->from),
+            $this->from !== null && $this->to !== null => $format($this->from).' – '.$format($this->to),
+            $this->from !== null => 'sejak '.$format($this->from),
+            default => 'sampai '.$format((string) $this->to),
+        };
+    }
+
+    /**
      * Bentuk yang bisa ditempelkan ke tautan agar rentangnya ikut terbawa.
      *
      * @return array<string, string|null>
