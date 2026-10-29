@@ -74,7 +74,7 @@
                         <thead>
                             <tr>
                                 <th>Barang</th>
-                                <th>Kondisi</th>
+                                <th><span class="inline-flex items-center gap-1">Kondisi <x-ui.hint text="Baik = kembali ke stok jual. Rusak = masuk catatan Barang Rusak, tidak bisa dijual." /></span></th>
                                 <th class="text-right">Jumlah</th>
                             </tr>
                         </thead>

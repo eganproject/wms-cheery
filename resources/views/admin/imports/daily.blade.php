@@ -40,15 +40,15 @@
 
 
     <div class="grid grid-cols-2 gap-4 xl:grid-cols-5">
-        <x-ui.stat-card label="Hari Aktif" :value="number_format($summary['days'], 0, ',', '.')"
+        <x-ui.stat-card label="Hari Aktif" info="Jumlah hari yang ada resi masuk pada rentang terpilih." :value="number_format($summary['days'], 0, ',', '.')"
                         icon="calendar" accent :hint="$filters->label()" />
         <x-ui.stat-card label="Total Resi" :value="number_format($summary['orders'], 0, ',', '.')"
                         icon="document" :hint="number_format($summary['units'], 0, ',', '.').' unit dipesan'" />
         <x-ui.stat-card label="Rata-rata Resi" :value="number_format($summary['average_per_day'], 1, ',', '.').' / hari'"
                         icon="chart" :hint="'Dari '.$summary['period_days'].' hari kalender pada filter'" />
-        <x-ui.stat-card label="Belum QC" :value="number_format($summary['awaiting'], 0, ',', '.')"
+        <x-ui.stat-card label="Belum QC" info="Resi yang belum tuntas discan di Stasiun Packing." :value="number_format($summary['awaiting'], 0, ',', '.')"
                         icon="clock" hint="Masih membutuhkan pekerjaan packing" />
-        <x-ui.stat-card label="Kesiapan" :value="$readiness.'%'"
+        <x-ui.stat-card label="Kesiapan" info="Persentase resi yang sudah tidak menunggu packing: lolos QC, sudah dikirim, atau dibatalkan." :value="$readiness.'%'"
                         icon="check-circle" :hint="number_format($summary['shipped'], 0, ',', '.').' sudah dikirim'" />
     </div>
 
@@ -94,16 +94,16 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th>Tanggal Masuk</th>
-                            <th class="px-4 text-right">Resi</th>
-                            <th class="px-4 text-right">Unit</th>
-                            <th class="px-4 text-right">Ekspedisi</th>
+                            <th><span class="inline-flex items-center gap-1">Tanggal Masuk <x-ui.hint text="Tanggal resi diimport ke sistem (bukan tanggal pesanan di marketplace)." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Resi <x-ui.hint text="Jumlah resi yang masuk pada tanggal itu." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Unit <x-ui.hint text="Total unit barang di resi-resi tersebut." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Ekspedisi <x-ui.hint text="Banyaknya ekspedisi berbeda pada tanggal itu." /></span></th>
                             @foreach ($stages as $stage)
                                 <th class="px-4 text-right">
                                     {{ $stage['label'] }}
                                 </th>
                             @endforeach
-                            <th>Kesiapan</th>
+                            <th><span class="inline-flex items-center gap-1">Kesiapan <x-ui.hint text="Bagian resi yang sudah tidak menunggu packing: lolos QC, sudah dikirim, atau dibatalkan." /></span></th>
                         </tr>
                     </thead>
                     <tbody>

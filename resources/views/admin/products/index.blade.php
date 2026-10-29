@@ -37,10 +37,10 @@
     <div class="grid grid-cols-2 gap-3 sm:gap-4 max-xl:[&>*:last-child:nth-child(odd)]:col-span-2 {{ $summary['bundles'] > 0 ? 'xl:grid-cols-5' : 'xl:grid-cols-4' }}">
         <x-ui.stat-card label="Jenis Barang" :value="$summary['total']" icon="box" accent hint="SKU barang di rak" />
         <x-ui.stat-card label="Total Unit" :value="number_format($summary['units'], 0, ',', '.')" icon="chart" hint="Seluruh stok tersedia" />
-        <x-ui.stat-card label="Stok Menipis" :value="$summary['low']" icon="warning" hint="Di bawah batas minimum" />
+        <x-ui.stat-card label="Stok Menipis" info="Barang yang stoknya di bawah atau sama dengan batas minimum masing-masing." :value="$summary['low']" icon="warning" hint="Di bawah batas minimum" />
         <x-ui.stat-card label="Stok Habis" :value="$summary['out']" icon="x-circle" hint="Perlu segera diisi" />
         @if ($summary['bundles'] > 0)
-            <x-ui.stat-card label="Paket Bundling" :value="$summary['bundles']" icon="sparkles"
+            <x-ui.stat-card label="Paket Bundling" info="Barang paket yang stoknya dihitung dari komponen penyusunnya." :value="$summary['bundles']" icon="sparkles"
                             hint="Tanpa stok sendiri, dirakit dari isinya" />
         @endif
     </div>
@@ -236,9 +236,9 @@
                             @endcan
                             <th>Barang</th>
                             <th>Kategori</th>
-                            <th>Lokasi</th>
-                            <th class="text-right">Stok</th>
-                            <th>Status</th>
+                            <th><span class="inline-flex items-center gap-1">Lokasi <x-ui.hint text="Posisi rak tempat barang disimpan." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1">Stok <x-ui.hint text="Saldo stok di gudang. Angka &quot;min.&quot; adalah batas menipis barang ini." /></span></th>
+                            <th><span class="inline-flex items-center gap-1">Status <x-ui.hint text="Aman, Menipis (di bawah batas minimum), atau Habis." /></span></th>
                             <th class="text-right">Aksi</th>
                         </tr>
                     </thead>

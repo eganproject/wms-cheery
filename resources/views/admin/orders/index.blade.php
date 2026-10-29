@@ -40,12 +40,12 @@
 
     {{-- Tab status: hanya proses internal gudang. --}}
     <div class="scrollbar-none mb-4 flex gap-1 overflow-x-auto border-b border-ink-200 text-sm" data-order-tabs>
-        <a href="{{ route('admin.orders.index', $keep(['status'])) }}" title="Seluruh pesanan sesuai filter yang sedang dipakai."
+        <a href="{{ route('admin.orders.index', $keep(['status'])) }}" data-hint-title="Semua pesanan" data-hint="Seluruh pesanan sesuai filter yang sedang dipakai, dari Belum QC sampai Dibatalkan."
            @class(['-mb-px whitespace-nowrap border-b-2 px-3 py-2', 'border-brand-500 font-medium text-ink-950' => $stage === '', 'border-transparent text-ink-500 hover:text-ink-700' => $stage !== ''])>
             Semua <span class="ml-1 text-xs text-ink-400">{{ number_format(array_sum($counts), 0, ',', '.') }}</span>
         </a>
         @foreach (ShipmentOrder::STAGES as $value => $label)
-            <a href="{{ route('admin.orders.index', $keep(['status'], ['status' => $value])) }}" title="{{ $hints[$value] ?? '' }}"
+            <a href="{{ route('admin.orders.index', $keep(['status'], ['status' => $value])) }}" data-hint-title="{{ $label }}" data-hint="{{ $hints[$value] ?? '' }}" @if ($next = OrderController::stageNext()[$value] ?? null) data-hint-next="{{ $next }}" @endif
                @class(['-mb-px whitespace-nowrap border-b-2 px-3 py-2', 'border-brand-500 font-medium text-ink-950' => $stage === $value, 'border-transparent text-ink-500 hover:text-ink-700' => $stage !== $value])>
                 {{ $label }} <span class="ml-1 text-xs text-ink-400">{{ number_format($counts[$value] ?? 0, 0, ',', '.') }}</span>
             </a>
@@ -54,10 +54,10 @@
 
     {{-- Penanda yang perlu dicek orang, bisa dipakai bersama tab mana pun. --}}
     <div class="mb-4 flex flex-wrap items-center gap-1.5">
-        <span class="mr-1 text-[11px] font-medium uppercase tracking-wide text-ink-500">Perlu dicek</span>
+        <span class="mr-1 inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-ink-500">Perlu dicek <x-ui.hint text="Penanda pesanan yang perlu diperiksa orang. Bisa dipakai bersama tab status mana pun; klik lagi untuk melepas." /></span>
         @php $onlyDuplicates = request()->boolean('duplicate'); @endphp
         <a href="{{ route('admin.orders.index', $keep(['duplicate'], ['duplicate' => $onlyDuplicates ? null : 1])) }}"
-           title="Satu nomor pesanan punya lebih dari satu resi, biasanya resi cetak ulang. Berisiko dikirim dua kali."
+           data-hint-title="Resi kembar" data-hint="Satu nomor pesanan punya lebih dari satu resi, biasanya karena resi dicetak ulang. Resi lama masih menunggu dipacking, jadi pesanannya berisiko dikirim dua kali." data-hint-next="Klik untuk menampilkan daftarnya, lalu batalkan resi yang lama di Status Resi."
            @class([$chip, 'font-medium',
                'border-rose-600 bg-rose-600 text-white' => $onlyDuplicates,
                'border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300' => ! $onlyDuplicates && $duplicates,
@@ -71,7 +71,7 @@
         </a>
         @php $onlyUnmatched = request()->boolean('unmatched'); @endphp
         <a href="{{ route('admin.orders.index', $keep(['unmatched'], ['unmatched' => $onlyUnmatched ? null : 1])) }}"
-           title="Ada SKU pesanan yang belum terdaftar di master barang, jadi dokumen gudangnya belum bisa dibuat."
+           data-hint-title="SKU belum terdaftar" data-hint="Ada SKU pesanan yang belum terdaftar di master barang, jadi barangnya tidak bisa ditarik otomatis saat scan." data-hint-next="Daftarkan SKU-nya di menu Barang, lalu tekan Cocokkan Ulang di Import Resi."
            @class([$chip, 'font-medium',
                'border-amber-600 bg-amber-600 text-white' => $onlyUnmatched,
                'border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-300' => ! $onlyUnmatched && $unmatched,
@@ -108,7 +108,7 @@
             @if ($stores->isNotEmpty())
                 @php $storeLimit = 12; @endphp
                 <div class="flex flex-col gap-1.5 sm:flex-row sm:items-start" x-data="{ more: false }">
-                    <span class="w-20 shrink-0 pt-1 text-xs text-ink-500">Toko</span>
+                    <span class="w-20 shrink-0 pt-1 text-xs text-ink-500">Toko <x-ui.hint text="Nama toko dari berkas import Ginee. Pilih satu untuk menyaring pesanannya." /></span>
                     <div class="flex flex-wrap gap-1.5">
                         <a href="{{ route('admin.orders.index', $keep(['store'])) }}"
                            @class([$pill, $pillOn => ! request()->filled('store'), $pillOff => request()->filled('store')])>Semua</a>
@@ -220,9 +220,9 @@
             <table class="min-w-full text-sm" data-order-list>
                 <thead class="bg-ink-50 text-left text-[13px] text-ink-500">
                     <tr>
-                        <th class="h-8 px-4 py-0 font-normal">Barang Dipesan</th>
-                        <th class="h-8 px-3 py-0 font-normal">Pengiriman</th>
-                        <th class="h-8 px-3 py-0 font-normal">Status Gudang</th>
+                        <th class="h-8 px-4 py-0 font-normal"><span class="inline-flex items-center gap-1">Barang Dipesan <x-ui.hint text="SKU dan jumlah per pesanan. SKU berwarna kuning belum terdaftar di master barang." /></span></th>
+                        <th class="h-8 px-3 py-0 font-normal"><span class="inline-flex items-center gap-1">Pengiriman <x-ui.hint text="Ekspedisi, metode kirim, nama pembeli, dan catatan pembeli dari berkas import." /></span></th>
+                        <th class="h-8 px-3 py-0 font-normal"><span class="inline-flex items-center gap-1">Status Gudang <x-ui.hint text="Posisi pesanan di proses gudang, dihitung dari dokumen gudangnya. Status marketplace hanya ditampilkan sebagai keterangan." /></span></th>
                         <th class="h-8 px-4 py-0 text-right font-normal">Aksi</th>
                     </tr>
                 </thead>
@@ -296,7 +296,7 @@
                                 @endif
                             </td>
                             <td class="px-3 py-3">
-                                <x-ui.badge :variant="OrderController::stageTone($orderStage)" title="{{ $hints[$orderStage] ?? '' }}">{{ $order->stageLabel() }}</x-ui.badge>
+                                <x-ui.badge :variant="OrderController::stageTone($orderStage)" class="cursor-help" data-hint-title="{{ $order->stageLabel() }}" data-hint="{{ $hints[$orderStage] ?? '' }}">{{ $order->stageLabel() }}</x-ui.badge>
                                 <p class="mt-1 max-w-56 text-[11px] text-ink-500">{{ $order->stageDetail() }}</p>
                                 @if ($order->order_status)
                                     <p class="mt-1 text-[11px] text-ink-400" title="Status di marketplace saat diimport (hanya keterangan)">Marketplace: {{ $order->order_status }}</p>

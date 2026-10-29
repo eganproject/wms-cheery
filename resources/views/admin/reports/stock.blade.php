@@ -27,14 +27,14 @@
     {{-- Empat angka yang menentukan tindakan: berapa yang tersimpan, berapa
          yang terjual, seberapa cepat berputar, dan berapa yang hampir habis. --}}
     <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <x-ui.stat-card label="Stok Akhir" :value="number_format($summary['closing'], 0, ',', '.')"
+        <x-ui.stat-card label="Stok Akhir" info="Saldo stok pada akhir periode terpilih." :value="number_format($summary['closing'], 0, ',', '.')"
                         icon="box" :hint="number_format($summary['products'], 0, ',', '.').' barang · awal '.number_format($summary['opening'], 0, ',', '.')" />
 
         <x-ui.stat-card label="Qty Keluar" :value="number_format($summary['outgoing'], 0, ',', '.')"
                         icon="logout"
                         :hint="'Operasional · rata-rata '.number_format($summary['per_day'], 1, ',', '.').' unit/hari'" />
 
-        <x-ui.stat-card label="Perputaran" accent icon="trending-up"
+        <x-ui.stat-card label="Perputaran" info="Seberapa cepat stok berputar: qty keluar dibanding rata-rata stok selama periode." accent icon="trending-up"
                         :value="$summary['turnover'] === null ? '—' : number_format($summary['turnover'], 2, ',', '.').'×'"
                         :hint="$summary['cover'] === null
                             ? 'Belum ada barang keluar pada periode ini'
@@ -184,12 +184,12 @@
                         <tr class="text-[11px] text-ink-500">
                             <th class="w-12 pl-6 pr-2 text-center">No</th>
                             <th class="px-4">SKU / Item</th>
-                            <th class="px-4">Klasifikasi</th>
-                            <th class="px-4 text-right">Qty Keluar</th>
-                            <th class="px-4 text-right">Rata-rata/Hari</th>
-                            <th class="px-4 text-right">Kontribusi</th>
-                            <th class="px-4 text-right" title="Jumlah dokumen barang keluar selama periode">Frequency</th>
-                            <th class="px-4 text-right" title="Stok akhir dibagi rata-rata keluar per hari">Days Cover</th>
+                            <th class="px-4"><span class="inline-flex items-center gap-1">Klasifikasi <x-ui.hint text="Fast Moving = penyumbang awal hingga 70% barang keluar, Medium = 70–90%, Slow = sisanya." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Qty Keluar <x-ui.hint text="Total unit keluar selama periode." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Rata-rata/Hari <x-ui.hint text="Qty keluar dibagi jumlah hari periode." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Kontribusi <x-ui.hint text="Persentase barang ini terhadap seluruh qty keluar periode." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Frequency <x-ui.hint text="Jumlah dokumen barang keluar yang memuat barang ini selama periode." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Days Cover <x-ui.hint text="Perkiraan berapa hari stok akhir cukup: stok akhir dibagi rata-rata keluar per hari." /></span></th>
                             <th class="pl-4 pr-6 text-right">Terakhir Keluar</th>
                         </tr>
                     </thead>

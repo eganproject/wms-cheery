@@ -57,9 +57,9 @@
                         <thead>
                             <tr>
                                 <th>Barang</th>
-                                <th class="text-right">Tercatat</th>
-                                <th class="text-right">Hitung Fisik</th>
-                                <th class="text-right">Selisih</th>
+                                <th class="text-right"><span class="inline-flex items-center gap-1">Tercatat <x-ui.hint text="Stok menurut sistem saat dokumen dibuat." /></span></th>
+                                <th class="text-right"><span class="inline-flex items-center gap-1">Hitung Fisik <x-ui.hint text="Jumlah sebenarnya di rak." /></span></th>
+                                <th class="text-right"><span class="inline-flex items-center gap-1">Selisih <x-ui.hint text="Hitung fisik dikurangi tercatat. Selisih ini yang diterapkan ke stok saat disetujui." /></span></th>
                             </tr>
                         </thead>
                         <tbody>

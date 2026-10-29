@@ -75,10 +75,10 @@
                         <tr>
                             <th>Dokumen</th>
                             <th>Pengirim</th>
-                            <th>Jenis</th>
-                            <th>Alasan</th>
-                            <th class="text-right">Total Unit</th>
-                            <th>Status</th>
+                            <th><span class="inline-flex items-center gap-1">Jenis <x-ui.hint text="Marketplace = paket retur dari pembeli online yang discan. Manual = retur lain yang diinput langsung." /></span></th>
+                            <th><span class="inline-flex items-center gap-1">Alasan <x-ui.hint text="Alasan barang dikembalikan, mis. salah kirim, rusak, atau batal." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1">Total Unit <x-ui.hint text="Jumlah unit yang dikembalikan." /></span></th>
+                            <th><span class="inline-flex items-center gap-1">Status <x-ui.hint text="Draft masih bisa diubah. Menunggu = perlu persetujuan. Disetujui = stok sudah diperbarui." /></span></th>
                             <th class="text-right">Aksi</th>
                         </tr>
                     </thead>

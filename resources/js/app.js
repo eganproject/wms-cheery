@@ -3,6 +3,7 @@ import './navigation';
 import './enhance';
 
 import Alpine from 'alpinejs';
+import initHints from './hints';
 import bundleRecipe from './bundle-recipe';
 import cameraScanner from './camera-scanner';
 import commandPalette from './command-palette';
@@ -35,5 +36,7 @@ Alpine.data('resiLookup', resiLookup);
 Alpine.data('returnStation', returnStation);
 Alpine.data('documentScanner', documentScanner);
 Alpine.data('stockPicker', stockPicker);
+
+initHints();
 
 Alpine.start();

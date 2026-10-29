@@ -52,7 +52,7 @@
                         <tr>
                             <th>Pemasok</th>
                             <th>Kontak</th>
-                            <th class="text-right">Dokumen</th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1">Dokumen <x-ui.hint text="Jumlah dokumen barang masuk dari pemasok ini." /></span></th>
                             <th>Status</th>
                             <th class="text-right">Aksi</th>
                         </tr>

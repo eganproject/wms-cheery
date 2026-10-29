@@ -20,8 +20,8 @@
     <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <x-ui.stat-card label="Resi" :value="$import->order_count" icon="document" accent />
         <x-ui.stat-card label="Baris Barang" :value="$import->item_count" icon="box" />
-        <x-ui.stat-card label="SKU Belum Cocok" :value="$import->unmatched_sku_count" icon="warning" />
-        <x-ui.stat-card label="Baris Dibaca" :value="$import->row_count" icon="chart" hint="Termasuk baris tanpa resi" />
+        <x-ui.stat-card label="SKU Belum Cocok" info="Baris barang di berkas ini yang SKU-nya belum ada di master barang." :value="$import->unmatched_sku_count" icon="warning" />
+        <x-ui.stat-card label="Baris Dibaca" info="Jumlah baris di berkas, termasuk baris tanpa nomor resi yang dilewati." :value="$import->row_count" icon="chart" hint="Termasuk baris tanpa resi" />
     </div>
 
     @if ($import->detected_columns)

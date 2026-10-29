@@ -101,6 +101,18 @@
 
     <div id="flash-slot"><x-ui.flash /></div>
 </div>
+
+{{-- Tooltip penjelasan untuk semua elemen [data-hint] dan ikon <x-ui.hint> (resources/js/hints.js). --}}
+<div id="hint-tip" role="tooltip" aria-hidden="true"
+     class="pointer-events-none fixed left-0 top-0 z-[90] hidden w-72 max-w-[calc(100vw-1.5rem)] rounded-xl border border-ink-200 bg-white p-3 text-left opacity-0 shadow-lift transition-opacity duration-150">
+    <span data-part="arrow" class="absolute h-2.5 w-2.5 rotate-45 border-l border-t border-ink-200 bg-white"></span>
+    <p data-part="title" class="relative text-[13px] font-semibold text-ink-950"></p>
+    <p data-part="body" class="relative whitespace-pre-line text-xs leading-relaxed text-ink-600"></p>
+    <p data-part="next" class="relative mt-2 flex gap-1.5 border-t border-ink-100 pt-2 text-xs leading-relaxed text-ink-700">
+        <svg class="mt-px h-4 w-4 shrink-0 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="m12 16 4-4-4-4" /><path d="M8 12h8" /></svg>
+        <span data-part="next-text"></span>
+    </p>
+</div>
 </body>
 </html>
 @endif

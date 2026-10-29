@@ -224,6 +224,28 @@
         @apply inline-block h-2 w-2 shrink-0 rounded-full;
     }
 
+    /* ---------------------------------------------------------- tooltip */
+
+    /* Ikon info <x-ui.hint>: kecil & samar, menyala saat disorot / difokus. */
+    .hint-icon {
+        @apply relative -my-1 ml-0.5 inline-flex h-4 w-4 shrink-0 cursor-help items-center justify-center rounded-full align-middle text-ink-400 transition-colors hover:text-brand-600 focus:outline-none focus-visible:text-brand-600 focus-visible:ring-2 focus-visible:ring-brand-200;
+    }
+
+    /* Area sentuh lebih lebar di layar sentuh tanpa mengubah tampilannya. */
+    .hint-icon::after {
+        content: '';
+        @apply absolute -inset-2;
+    }
+
+    .hint-icon > svg {
+        @apply h-3.5 w-3.5 shrink-0;
+    }
+
+    /* Teks yang punya penjelasan: garis bawah putus-putus tipis sebagai penanda. */
+    .has-hint {
+        @apply cursor-help underline decoration-ink-300 decoration-dotted underline-offset-4;
+    }
+
     /* --------------------------------------------------------- lain-lain */
 
     .scrollbar-thin {

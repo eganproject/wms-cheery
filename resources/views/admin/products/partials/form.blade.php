@@ -73,7 +73,7 @@
                                       required autofocus placeholder="Contoh: Filter Oli Standar" />
                     </x-ui.field>
 
-                    <x-ui.field label="SKU" for="sku" :error="$errors->get('sku')" required>
+                    <x-ui.field label="SKU" info="Kode unik barang. Harus sama persis dengan SKU di marketplace / Ginee agar pesanan bisa dicocokkan otomatis." for="sku" :error="$errors->get('sku')" required>
                         <x-text-input id="sku" name="sku" type="text" :value="old('sku', $product?->sku)"
                                       required class="font-mono uppercase" placeholder="FLT-OLI-STD" />
                         <p class="mt-1.5 text-[11px] text-ink-500" x-show="isBundle" x-cloak>
@@ -92,7 +92,7 @@
                         label lama yang masih bisa terbaca scanner.
                     --}}
                     <div x-show="! isBundle">
-                        <x-ui.field label="Barcode" for="barcode" :error="$errors->get('barcode')"
+                        <x-ui.field label="Barcode" info="Kode batang pada kemasan. Bisa discan sebagai pengganti SKU di Stasiun Packing." for="barcode" :error="$errors->get('barcode')"
                                     hint="Kode yang dibaca scanner saat verifikasi.">
                             <x-text-input id="barcode" name="barcode" type="text" :value="old('barcode', $product?->barcode)"
                                           class="font-mono" placeholder="8991234500035"
@@ -109,7 +109,7 @@
 
             <x-ui.card title="Klasifikasi & Penyimpanan">
                 <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
-                    <x-ui.field label="Kategori" for="category" :error="$errors->get('category')">
+                    <x-ui.field label="Kategori" info="Pengelompokan barang untuk memudahkan pencarian dan laporan." for="category" :error="$errors->get('category')">
                         <x-text-input id="category" name="category" type="text" :value="old('category', $product?->category)"
                                       placeholder="Filter" list="category-options" />
                         <datalist id="category-options">
@@ -119,7 +119,7 @@
                         </datalist>
                     </x-ui.field>
 
-                    <x-ui.field label="Satuan" for="unit" :error="$errors->get('unit')" required>
+                    <x-ui.field label="Satuan" info="Satuan hitung barang, mis. pcs, set, atau box." for="unit" :error="$errors->get('unit')" required>
                         <x-text-input id="unit" name="unit" type="text" :value="old('unit', $product?->unit ?? 'pcs')"
                                       required placeholder="pcs" list="unit-options" />
                         <datalist id="unit-options">
@@ -130,7 +130,7 @@
                     </x-ui.field>
 
                     <div x-show="! isBundle">
-                        <x-ui.field label="Lokasi Rak" for="location" :error="$errors->get('location')">
+                        <x-ui.field label="Lokasi Rak" info="Posisi barang di gudang, mis. A-01-03. Ditampilkan saat packing supaya mudah diambil." for="location" :error="$errors->get('location')">
                             <x-text-input id="location" name="location" type="text" :value="old('location', $product?->location)"
                                           class="font-mono" placeholder="A-01-01"
                                           x-bind:disabled="isBundle" />
@@ -150,7 +150,7 @@
                         validasinya tidak perlu bercabang.
                     --}}
                     <div x-show="! isBundle">
-                        <x-ui.field label="Stok Minimum" for="min_stock" :error="$errors->get('min_stock')"
+                        <x-ui.field label="Stok Minimum" info="Batas stok menipis. Barang muncul di peringatan dan Kebutuhan Restock bila stok tersedia sudah sampai batas ini." for="min_stock" :error="$errors->get('min_stock')"
                                     hint="Sistem menandai barang sebagai menipis bila stok mencapai angka ini." required>
                             <x-text-input id="min_stock" name="min_stock" type="number" min="0"
                                           :value="old('min_stock', $product?->min_stock ?? 0)"

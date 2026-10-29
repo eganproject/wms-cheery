@@ -24,7 +24,7 @@
 
 
     <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <x-ui.stat-card label="Perlu Dipesan" :value="number_format($summary['needing'], 0, ',', '.')"
+        <x-ui.stat-card label="Perlu Dipesan" info="Barang yang saran pesannya lebih dari nol." :value="number_format($summary['needing'], 0, ',', '.')"
                         icon="warning" accent
                         :hint="'dari '.number_format($summary['products'], 0, ',', '.').' barang aktif'" />
 
@@ -35,7 +35,7 @@
                         icon="x-circle"
                         :hint="number_format($summary['thin'], 0, ',', '.').' barang di bawah batas menipis'" />
 
-        <x-ui.stat-card label="Terikat Pesanan" :value="number_format($summary['committed'], 0, ',', '.')"
+        <x-ui.stat-card label="Terikat Pesanan" info="Unit yang sudah dijanjikan ke pembeli tapi belum dikirim; tidak dihitung sebagai stok bebas." :value="number_format($summary['committed'], 0, ',', '.')"
                         icon="clock" hint="Unit sudah dijanjikan, belum dikirim" />
     </div>
 
@@ -129,14 +129,14 @@
                     <thead>
                         <tr>
                             <th>Barang</th>
-                            <th class="px-4 text-right">Stok</th>
-                            <th class="px-4 text-right">Terikat</th>
-                            <th class="px-4 text-right">Tersedia</th>
-                            <th class="px-4 text-right">Batas</th>
-                            <th class="px-4 text-right">Laju</th>
-                            <th class="px-4">Klasifikasi</th>
-                            <th class="px-4">Kondisi</th>
-                            <th class="text-right">Saran Pesan</th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Stok <x-ui.hint text="Saldo di rak saat ini." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Terikat <x-ui.hint text="Unit yang sudah dijanjikan ke pesanan tapi belum dikirim." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Tersedia <x-ui.hint text="Stok dikurangi terikat: yang benar-benar bebas untuk pesanan baru." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Batas <x-ui.hint text="Batas stok menipis yang diatur di master barang." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Laju <x-ui.hint text="Rata-rata unit keluar per hari selama periode yang diamati." /></span></th>
+                            <th class="px-4"><span class="inline-flex items-center gap-1">Klasifikasi <x-ui.hint text="Fast, Medium, atau Slow Moving menurut laju keluar barang." /></span></th>
+                            <th class="px-4"><span class="inline-flex items-center gap-1">Kondisi <x-ui.hint text="Habis, menipis (di bawah batas), atau aman." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1">Saran Pesan <x-ui.hint text="Jumlah yang disarankan dipesan: yang lebih besar antara mengembalikan stok ke batas menipis dan menutup kebutuhan beberapa hari ke depan." /></span></th>
                         </tr>
                     </thead>
                     <tbody>

@@ -79,9 +79,9 @@
                         <tr>
                             <th>Dokumen</th>
                             <th>Penerima</th>
-                            <th>Jenis</th>
-                            <th class="text-right">Total Unit</th>
-                            <th>Status</th>
+                            <th><span class="inline-flex items-center gap-1">Jenis <x-ui.hint text="Marketplace = paket pesanan online yang discan di Stasiun Packing. Manual = pengeluaran lain yang diinput langsung." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1">Total Unit <x-ui.hint text="Jumlah seluruh unit barang di dokumen ini." /></span></th>
+                            <th><span class="inline-flex items-center gap-1">Status <x-ui.hint text="Draft masih bisa diubah. Menunggu = perlu persetujuan. Disetujui = stok sudah berkurang." /></span></th>
                             <th class="text-right">Aksi</th>
                         </tr>
                     </thead>

@@ -67,9 +67,9 @@
                         <tr>
                             <th>Dokumen</th>
                             <th>Pemasok</th>
-                            <th class="text-right">Baris</th>
-                            <th class="text-right">Total Unit</th>
-                            <th>Status</th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1">Baris <x-ui.hint text="Jumlah jenis barang (baris) dalam dokumen." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1">Total Unit <x-ui.hint text="Jumlah seluruh unit yang diterima, termasuk yang rusak." /></span></th>
+                            <th><span class="inline-flex items-center gap-1">Status <x-ui.hint text="Draft masih bisa diubah. Menunggu = perlu persetujuan. Disetujui = stok sudah bertambah." /></span></th>
                             <th class="text-right">Aksi</th>
                         </tr>
                     </thead>

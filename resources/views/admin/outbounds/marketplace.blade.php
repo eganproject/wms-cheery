@@ -97,7 +97,7 @@
                             --}}
                             <label x-show="isItemStage" x-cloak
                                    class="flex shrink-0 items-center gap-1 self-stretch rounded-lg bg-control px-2"
-                                   title="Jumlah yang ditambahkan sekali scan">
+                                   data-hint-title="Pengali scan" data-hint="Jumlah yang ditambahkan sekali scan. Berguna untuk barang yang dikirim banyak sekaligus." data-hint-next="Kembalikan ke 1 setelah selesai supaya scan berikutnya tidak terhitung ganda.">
                                 <span class="text-sm text-ink-500">&times;</span>
                                 <input type="number" min="1" max="9999" inputmode="numeric" x-model.number="bulk"
                                        class="w-10 border-0 bg-transparent p-0 text-center text-base font-semibold text-ink-950 focus:bg-transparent focus:shadow-none focus:ring-0">
@@ -179,6 +179,7 @@
                     <label class="flex cursor-pointer items-center gap-2 px-1 text-sm text-ink-600">
                         <input type="checkbox" x-model="autoContinue">
                         Lanjut otomatis ke resi berikutnya
+                        <x-ui.hint text="Bila dicentang, setelah satu paket lengkap discan, kolom scan langsung siap untuk resi berikutnya tanpa perlu klik apa pun." />
                     </label>
                 </div>
             </div>

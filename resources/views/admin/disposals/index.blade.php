@@ -25,10 +25,10 @@
 
 
     <div class="grid grid-cols-2 gap-4 xl:grid-cols-3">
-        <x-ui.stat-card label="Unit Rusak" :value="number_format($summary['units'], 0, ',', '.')" icon="warning" accent
+        <x-ui.stat-card label="Unit Rusak" info="Unit rusak yang masih menunggu ditangani." :value="number_format($summary['units'], 0, ',', '.')" icon="warning" accent
                         hint="Masih tersimpan di gudang" />
         <x-ui.stat-card label="Jenis Barang" :value="$summary['skus']" icon="box" hint="SKU yang punya stok rusak" />
-        <x-ui.stat-card label="Menunggu Persetujuan" :value="$summary['pending']" icon="clock"
+        <x-ui.stat-card label="Menunggu Persetujuan" info="Dokumen penanganan barang rusak yang belum disetujui." :value="$summary['pending']" icon="clock"
                         hint="Dokumen penanganan" />
     </div>
 

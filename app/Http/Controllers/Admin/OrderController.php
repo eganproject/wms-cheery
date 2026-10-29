@@ -202,6 +202,19 @@ class OrderController extends Controller implements HasMiddleware
         ];
     }
 
+    /**
+     * Langkah berikutnya yang disarankan untuk tiap tab.
+     *
+     * @return array<string, string>
+     */
+    public static function stageNext(): array
+    {
+        return [
+            ShipmentOrder::STAGE_AWAITING_QC => 'Scan resi dan barangnya di Stasiun Packing.',
+            ShipmentOrder::STAGE_CHECKED => 'Serahkan paket ke kurir dari menu Siap Dikirim.',
+        ];
+    }
+
     public static function stageTone(string $stage): string
     {
         return match ($stage) {

@@ -61,8 +61,8 @@
                     <thead>
                         <tr>
                             <th>Sesi</th>
-                            <th>Cakupan</th>
-                            <th>Progres Hitung</th>
+                            <th><span class="inline-flex items-center gap-1">Cakupan <x-ui.hint text="Barang yang dihitung di sesi ini: semua barang atau sebagian (mis. kategori tertentu)." /></span></th>
+                            <th><span class="inline-flex items-center gap-1">Progres Hitung <x-ui.hint text="Berapa barang yang sudah dihitung dibanding seluruh barang di sesi." /></span></th>
                             <th>Status</th>
                             <th class="text-right">Aksi</th>
                         </tr>

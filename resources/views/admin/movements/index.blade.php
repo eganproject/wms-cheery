@@ -20,14 +20,14 @@
 
 
     <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <x-ui.stat-card label="Barang Masuk" :value="'+'.number_format($summary['incoming'], 0, ',', '.')"
+        <x-ui.stat-card label="Barang Masuk" info="Total unit yang menambah stok pada rentang tanggal terpilih." :value="'+'.number_format($summary['incoming'], 0, ',', '.')"
                         icon="login" hint="Unit bertambah pada periode ini" />
-        <x-ui.stat-card label="Barang Keluar" :value="'-'.number_format($summary['outgoing'], 0, ',', '.')"
+        <x-ui.stat-card label="Barang Keluar" info="Total unit yang mengurangi stok pada rentang tanggal terpilih." :value="'-'.number_format($summary['outgoing'], 0, ',', '.')"
                         icon="logout" hint="Unit berkurang pada periode ini" />
-        <x-ui.stat-card label="Selisih Bersih"
+        <x-ui.stat-card label="Selisih Bersih" info="Barang masuk dikurangi barang keluar."
                         :value="($summary['net'] >= 0 ? '+' : '-').number_format(abs($summary['net']), 0, ',', '.')"
                         icon="chart" accent hint="Masuk dikurangi keluar" />
-        <x-ui.stat-card label="Jumlah Mutasi" :value="number_format($summary['entries'], 0, ',', '.')"
+        <x-ui.stat-card label="Jumlah Mutasi" info="Banyaknya baris pergerakan stok yang tercatat." :value="number_format($summary['entries'], 0, ',', '.')"
                         icon="document" :hint="$summary['products'].' barang terlibat'" />
     </div>
 
@@ -97,10 +97,10 @@
                         <tr>
                             <th>Waktu</th>
                             <th>Barang</th>
-                            <th>Sumber</th>
-                            <th class="text-right">Mutasi</th>
-                            <th class="text-right">Saldo</th>
-                            <th>Oleh</th>
+                            <th><span class="inline-flex items-center gap-1">Sumber <x-ui.hint text="Dokumen yang menggerakkan stok: barang masuk, keluar, retur, opname, penyesuaian, atau barang rusak." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1">Mutasi <x-ui.hint text="Perubahan stok: plus (+) berarti stok bertambah, minus (−) berarti berkurang." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1">Saldo <x-ui.hint text="Sisa stok barang tersebut tepat setelah mutasi ini." /></span></th>
+                            <th><span class="inline-flex items-center gap-1">Oleh <x-ui.hint text="Pengguna yang membuat atau menyetujui dokumennya." /></span></th>
                         </tr>
                     </thead>
                     <tbody>

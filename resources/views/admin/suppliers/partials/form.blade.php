@@ -22,7 +22,7 @@
                                       required autofocus placeholder="PT Sumber Otoparts" />
                     </x-ui.field>
 
-                    <x-ui.field label="Nama Kontak" for="contact_name" :error="$errors->get('contact_name')">
+                    <x-ui.field label="Nama Kontak" info="Orang yang dihubungi di pemasok ini." for="contact_name" :error="$errors->get('contact_name')">
                         <x-text-input id="contact_name" name="contact_name" type="text"
                                       :value="old('contact_name', $supplier?->contact_name)" placeholder="Nama sales / PIC" />
                     </x-ui.field>

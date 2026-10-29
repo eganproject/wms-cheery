@@ -20,9 +20,9 @@
                     <thead>
                         <tr>
                             <th>Berkas</th>
-                            <th class="text-right">Resi</th>
-                            <th class="text-right">Baris</th>
-                            <th>SKU</th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1">Resi <x-ui.hint text="Jumlah resi yang terbaca dari berkas ini." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1">Baris <x-ui.hint text="Jumlah baris barang (SKU) dari berkas ini." /></span></th>
+                            <th><span class="inline-flex items-center gap-1">SKU <x-ui.hint text="Apakah semua SKU di berkas sudah terdaftar di master barang." /></span></th>
                             <th>Diimport</th>
                             <th class="text-right">Aksi</th>
                         </tr>
