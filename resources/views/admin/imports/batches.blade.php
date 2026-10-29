@@ -1,6 +1,6 @@
 <x-app-layout title="Riwayat Import">
-    <x-ui.page-header title="Riwayat Import" subtitle="Berkas eksport Ginee yang pernah diproses."
-                      :back="route('admin.imports.index')">
+    <x-ui.page-header title="Import Resi"
+                      subtitle="Data resi hasil eksport Ginee yang dipakai saat scan barang keluar dan retur.">
         <x-slot name="actions">
             @can('imports.create')
                 <x-ui.button :href="route('admin.imports.create')" icon="plus">Import Excel</x-ui.button>
@@ -8,7 +8,9 @@
         </x-slot>
     </x-ui.page-header>
 
-    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
+    @include('admin.imports.partials.tabs', ['batchCount' => $imports->total()])
+
+    <div class="frappe-card overflow-hidden">
         @if ($imports->isEmpty())
             <x-ui.empty-state icon="clock" title="Belum ada riwayat import"
                               description="Berkas yang Anda import akan tercatat di sini." />
@@ -47,8 +49,7 @@
                                 </td>
                                 <td>
                                     <div class="flex items-center justify-end gap-1">
-                                        <a href="{{ route('admin.imports.show', $import) }}" title="Detail"
-                                           class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-950">
+                                        <a href="{{ route('admin.imports.show', $import) }}" title="Detail" class="btn btn-ghost btn-icon">
                                             <x-icon name="eye" class="h-4 w-4" />
                                         </a>
                                         @can('imports.delete')
@@ -64,7 +65,7 @@
                 </table>
             </div>
 
-            <div class="divide-y divide-ink-50 md:hidden">
+            <div class="divide-y divide-ink-100 md:hidden">
                 @foreach ($imports as $import)
                     <a href="{{ route('admin.imports.show', $import) }}" class="block p-4 transition hover:bg-ink-50/50">
                         <p class="truncate text-sm font-medium text-ink-950">{{ $import->filename }}</p>

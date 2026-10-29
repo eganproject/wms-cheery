@@ -1,5 +1,5 @@
 /**
- * Penyelarasan tampilan flatpickr dan Tom Select dengan kontrol ERPNext:
+ * Penyelarasan tampilan flatpickr dan Tom Select dengan panel wmsxshopee:
  * latar abu-abu muda tanpa garis tepi, daftar pilihan putih bergaris tipis,
  * dan sorotan abu-abu (bukan biru) pada pilihan yang aktif.
  */
@@ -9,8 +9,15 @@
 @layer components {
     /* ---------------------------------------------------- Tom Select ---- */
 
+    /*
+        Tema Tom Select disamakan dengan wmsxshopee: kotaknya sama persis dengan
+        .form-control, panah bawah tipis, kotak ketik di dalam kontrol, tombol
+        kosongkan yang muncul saat disorot, chip untuk pilihan ganda, dan tanda
+        centang pada opsi terpilih.
+    */
+
     .ts-wrapper {
-        @apply w-full;
+        @apply relative w-full;
     }
 
     /* Tom Select menyalin kelas <select> ke pembungkusnya; gaya kontrolnya
@@ -24,8 +31,12 @@
     .ts-wrapper .ts-control,
     .ts-wrapper.single .ts-control,
     .ts-wrapper.single.input-active .ts-control {
-        @apply flex min-h-[2rem] items-center rounded-lg border border-transparent bg-control px-2.5 py-1 text-sm text-ink-950 shadow-none;
+        @apply flex min-h-[2rem] w-full cursor-pointer flex-wrap items-center gap-1 overflow-hidden rounded-lg border border-transparent bg-control py-1 pl-2.5 pr-7 text-sm leading-5 text-ink-950 shadow-none transition-colors;
         background-image: none;
+    }
+
+    .ts-wrapper:not(.focus):not(.disabled) .ts-control:hover {
+        @apply bg-ink-200/70;
     }
 
     /* Kolom yang sengaja dibuat lebih tinggi (mis. stasiun scan) tetap tinggi. */
@@ -35,13 +46,26 @@
         @apply min-h-[2.5rem];
     }
 
-    .ts-wrapper.single .ts-control::after {
+    .ts-wrapper.focus .ts-control {
+        @apply border-ink-300 bg-white shadow-sm;
+    }
+
+    .ts-wrapper.disabled .ts-control {
+        @apply cursor-not-allowed bg-ink-50 text-ink-500 opacity-100;
+    }
+
+    .ts-wrapper.is-invalid .ts-control {
+        @apply border-rose-300 bg-rose-50;
+    }
+
+    /* Panah dropdown */
+    .ts-wrapper.single .ts-control::after,
+    .ts-wrapper.multi .ts-control::after {
         content: '';
-        @apply absolute right-2.5 top-1/2 h-0 w-0 -translate-y-1/2 border-0;
-        width: 14px;
-        height: 14px;
+        @apply pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 border-0 bg-ink-400;
         margin-top: 0;
-        background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237c7c7c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='m7 15 5 5 5-5'/%3e%3cpath d='m7 9 5-5 5 5'/%3e%3c/svg%3e") no-repeat center / 14px 14px;
+        -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z'/%3E%3C/svg%3E") center / contain no-repeat;
+        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z'/%3E%3C/svg%3E") center / contain no-repeat;
     }
 
     .ts-wrapper.single.dropdown-active .ts-control::after {
@@ -49,66 +73,126 @@
         border: 0;
     }
 
-    .ts-wrapper.single .ts-control {
-        @apply pr-8;
+    .ts-wrapper.plugin-clear_button.has-items:hover .ts-control::after,
+    .ts-wrapper.plugin-clear_button.has-items.focus .ts-control::after {
+        @apply opacity-0;
     }
 
-    .ts-wrapper.focus .ts-control {
-        @apply border-ink-400 bg-white;
-        box-shadow: var(--focus-default);
+    /* Kotak ketik di dalam kontrol */
+    .ts-wrapper .ts-control > input {
+        @apply m-0 min-w-[2rem] flex-1 border-0 bg-transparent p-0 text-sm text-ink-950 shadow-none outline-none placeholder:text-ink-400 focus:ring-0;
+        min-height: 0 !important;
     }
 
-    .ts-wrapper.disabled .ts-control {
-        @apply bg-ink-50 text-ink-500 opacity-100;
+    .ts-wrapper.single .ts-control > input {
+        @apply min-w-0;
     }
 
-    .ts-control input,
-    .ts-control input::placeholder {
-        @apply text-sm text-ink-950 placeholder:text-ink-400;
+    .ts-wrapper.single.has-items .ts-control > input {
+        @apply absolute -left-[9999px];
     }
 
-    .ts-wrapper.multi .ts-control > div {
-        @apply rounded-md bg-white px-1.5 py-0.5 text-xs text-ink-700 ring-1 ring-inset ring-ink-200;
+    /* Nilai terpilih tetap tampil selama fokus; baru diganti kotak ketik saat pengguna mulai mengetik. */
+    .ts-wrapper.single.has-query .ts-control > input {
+        @apply static;
     }
 
-    /* Ditempel ke <body>, jadi harus berada di atas panel dan modal biasa. */
+    .ts-wrapper.single.has-query .ts-control > .item {
+        @apply hidden;
+    }
+
+    .ts-wrapper.single .ts-control > .item {
+        @apply truncate;
+    }
+
+    .ts-wrapper.single.dropdown-active .ts-control > .item {
+        @apply text-ink-400;
+    }
+
+    /* Pilihan ganda: tiap item berupa chip */
+    .ts-wrapper.multi .ts-control > .item {
+        @apply m-0 inline-flex items-center gap-0.5 rounded-md bg-white py-0.5 pl-1.5 pr-0.5 text-xs text-ink-800 shadow-sm ring-1 ring-ink-200;
+    }
+
+    .ts-wrapper.multi .ts-control > .item.active {
+        @apply bg-ink-950 text-white ring-ink-950;
+    }
+
+    .ts-wrapper .ts-control > .item .remove {
+        @apply ml-0 inline-flex h-4 w-4 items-center justify-center rounded border-0 p-0 text-sm leading-none text-ink-400 no-underline hover:bg-ink-100 hover:text-ink-700;
+    }
+
+    /* Tombol kosongkan */
+    .ts-wrapper .clear-button {
+        @apply absolute right-2 top-1/2 z-[1] flex h-4 w-4 -translate-y-1/2 cursor-pointer items-center justify-center rounded bg-transparent text-base leading-none text-ink-400 opacity-0 hover:text-ink-700;
+        margin: 0;
+    }
+
+    .ts-wrapper.has-items:hover .clear-button,
+    .ts-wrapper.has-items.focus .clear-button {
+        @apply opacity-100;
+    }
+
+    .ts-wrapper.disabled .clear-button {
+        @apply hidden;
+    }
+
+    /* Dropdown — ditempel ke <body>, jadi harus berada di atas panel dan modal biasa. */
     .ts-dropdown {
-        @apply z-[60] mt-1 overflow-hidden rounded-lg border border-ink-100 bg-white p-1 shadow-lift;
+        @apply absolute z-[60] mt-1 overflow-hidden rounded-lg border border-ink-200 bg-white p-0 text-sm text-ink-800 shadow-lg;
+    }
+
+    .ts-dropdown .ts-dropdown-content {
+        @apply scrollbar-thin max-h-64 overflow-y-auto overscroll-contain p-1;
     }
 
     .ts-dropdown .option,
-    .ts-dropdown .create {
-        @apply rounded-md px-2 py-1.5 text-sm text-ink-700;
+    .ts-dropdown .no-results,
+    .ts-dropdown .ts-empty,
+    .ts-dropdown .create,
+    .ts-dropdown .optgroup-header {
+        @apply rounded-md px-2.5 py-1.5;
     }
 
-    .ts-dropdown .active {
-        @apply bg-control text-ink-950;
+    .ts-dropdown .option {
+        @apply cursor-pointer;
     }
 
-    .ts-dropdown .selected {
+    .ts-dropdown .option.active,
+    .ts-dropdown .create.active {
+        @apply bg-ink-100 text-ink-950;
+    }
+
+    .ts-dropdown .option.selected {
         @apply font-medium text-ink-950;
     }
 
-    .ts-dropdown .option[data-selectable].active .highlight {
-        @apply bg-yellow-200 text-ink-950;
-    }
-
-    .ts-dropdown .highlight {
-        @apply rounded-sm bg-yellow-100 text-ink-950;
-    }
-
-    .ts-dropdown .ts-empty,
-    .ts-dropdown .no-results {
-        @apply px-3 py-3 text-center text-xs text-ink-500;
-    }
-
-    .ts-dropdown-content {
-        @apply scrollbar-thin max-h-64;
+    .ts-dropdown .option.selected::after {
+        content: '✓';
+        @apply float-right text-ink-500;
     }
 
     /* Pilihan yang tak tersedia, mis. barang yang sudah dipakai baris lain. */
-    .ts-dropdown .option[data-disabled] {
-        @apply cursor-not-allowed text-ink-300;
+    .ts-dropdown .option[data-disabled],
+    .ts-dropdown .option[data-disabled]:hover {
+        @apply cursor-not-allowed opacity-50;
+    }
+
+    .ts-dropdown .no-results,
+    .ts-dropdown .ts-empty {
+        @apply text-ink-400;
+    }
+
+    .ts-dropdown .create {
+        @apply cursor-pointer text-ink-600;
+    }
+
+    .ts-dropdown .optgroup-header {
+        @apply text-xs font-semibold uppercase text-ink-400;
+    }
+
+    .ts-dropdown .highlight {
+        @apply rounded-sm bg-amber-100 text-inherit;
     }
 
     /* ---------------------------------------------------- flatpickr ----- */

@@ -167,6 +167,26 @@ function submitFilter(container) {
 
 /* ---------------------------------------------------------------- select */
 
+/**
+ * Pengaturan Tom Select disamakan dengan wmsxshopee: kotak ketik ada di dalam
+ * kontrolnya sendiri (nilai terpilih baru diganti saat mulai mengetik), tombol
+ * kosongkan untuk dropdown yang punya opsi kosong, chip ber-tombol hapus untuk
+ * pilihan ganda, dan tanda centang pada opsi terpilih.
+ */
+function emptyOptionText(select) {
+    return select.querySelector('option[value=""]')?.textContent?.trim() || 'Pilih...';
+}
+
+/* Tandai .has-query selama kotak ketik berisi teks; CSS memakainya untuk
+   menyembunyikan nilai terpilih hanya saat pengguna sedang mencari. */
+function trackQuery(tom) {
+    const sync = () => tom.wrapper.classList.toggle('has-query', tom.control_input.value !== '');
+
+    tom.control_input.addEventListener('input', sync);
+    tom.control_input.addEventListener('update', sync);
+    tom.on('blur', sync);
+}
+
 function enhanceSelect(select) {
     if (instances.has(select)) return;
 
@@ -175,18 +195,34 @@ function enhanceSelect(select) {
 
     select.dataset.enhanced = 'true';
 
+    const multiple = select.multiple;
+    const plugins = {};
+
+    if (multiple) {
+        plugins.remove_button = { title: 'Hapus' };
+    } else if (select.querySelector('option[value=""]')) {
+        plugins.clear_button = { title: 'Kosongkan' };
+    }
+
     const tom = new TomSelect(select, {
-        create: false,
-        allowEmptyOption: true,
+        plugins,
+        create: select.hasAttribute('data-create'),
+        allowEmptyOption: false,
+        hidePlaceholder: multiple,
         maxOptions: 500,
-        // Kotak pencarian selalu tersedia, termasuk pada dropdown pendek.
         searchField: ['text', 'value'],
         // Ditempel ke <body> supaya tidak terpotong kartu ber-overflow-hidden.
         dropdownParent: 'body',
-        placeholder: select.dataset.placeholder
-            ?? select.querySelector('option[value=""]')?.textContent?.trim(),
+        placeholder: select.dataset.placeholder ?? emptyOptionText(select),
+        controlInput: '<input type="text" autocomplete="off" size="1">',
         render: {
-            no_results: () => '<div class="ts-empty">Tidak ada hasil</div>',
+            no_results: () => '<div class="no-results">Tidak ada hasil</div>',
+            option_create: (data, escape) => `<div class="create">Tambah <strong>${escape(data.input)}</strong>&hellip;</div>`,
+        },
+        onInitialize() {
+            // Wrapper mewarisi kelas <select> (lebar, dll.), tapi kotaknya digambar oleh .ts-control.
+            this.wrapper.classList.remove('form-control');
+            trackQuery(this);
         },
     });
 
