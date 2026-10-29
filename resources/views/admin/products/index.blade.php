@@ -261,6 +261,11 @@
                                         @if ($product->isBundle())
                                             <x-ui.badge variant="dark" icon="sparkles">Paket</x-ui.badge>
                                         @endif
+                                        @if ($product->isVariant())
+                                            <a href="{{ route('admin.product-groups.show', $product->product_group_id) }}" title="Lihat semua varian">
+                                                <x-ui.badge variant="purple" icon="layers">Varian</x-ui.badge>
+                                            </a>
+                                        @endif
                                     </div>
                                     @if ($product->barcode)
                                         <p class="mt-1 font-mono text-[11px] text-ink-400">Barcode {{ $product->barcode }}</p>
@@ -325,6 +330,9 @@
                                             <x-ui.sku :value="$product->sku" />
                                             @if ($product->isBundle())
                                                 <x-ui.badge variant="dark" icon="sparkles">Paket</x-ui.badge>
+                                            @endif
+                                            @if ($product->isVariant())
+                                                <x-ui.badge variant="purple" icon="layers">Varian</x-ui.badge>
                                             @endif
                                         </div>
                                         <p class="mt-1 truncate text-sm font-semibold text-ink-950">{{ $product->name }}</p>

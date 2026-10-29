@@ -21,8 +21,8 @@ class ProductTemplateService
      * @var array<int, array<int, string|int>>
      */
     protected array $examples = [
-        ['FLT-OLI-STD', 'Filter Oli Standar', '8991234500035', 'Filter', 'pcs', 'A-02-01', 15, 40],
-        ['BSI-IRIDIUM', 'Busi Iridium', '8991234500073', 'Kelistrikan', 'pcs', 'B-02-01', 24, 120],
+        ['FLT-OLI-STD', 'Filter Oli Standar', '8991234500035', 'Filter', 'pcs', 'A-02-01', 15, 40, '', '', ''],
+        ['KAOS-MERAH-L', 'Kaos Polos Merah L', '', 'Atasan', 'pcs', 'C-01-01', 5, 30, 'Kaos Polos', 'Merah', 'L'],
     ];
 
     /**
@@ -38,6 +38,9 @@ class ProductTemplateService
         ['Lokasi Rak', 'Tidak', 'Contoh: A-02-01.'],
         ['Stok Minimum', 'Tidak', 'Batas peringatan stok menipis. Kosong dianggap 0.'],
         ['Stok', 'Tidak', 'Stok saat ini. Selisihnya dicatat otomatis di kartu stok.'],
+        ['Nama Induk', 'Tidak', 'Isi untuk barang bervarian. Baris dengan Nama Induk yang sama dikelompokkan menjadi satu Produk Varian; nama barangnya dibentuk otomatis, mis. "Kaos Polos - Merah / L".'],
+        ['Varian 1', 'Tidak', 'Nilai atribut pertama, mis. Merah. Judul kolom boleh diganti nama atributnya, mis. "Warna".'],
+        ['Varian 2', 'Tidak', 'Nilai atribut kedua, mis. L. Judul kolom boleh diganti, mis. "Ukuran". Kosongkan bila hanya satu atribut.'],
         ['', '', ''],
         ['Catatan', '', 'Judul kolom berlatar hitam wajib diisi, yang berlatar abu-abu boleh dikosongkan.'],
         ['', '', 'Hapus dua baris contoh sebelum berkas diimport.'],

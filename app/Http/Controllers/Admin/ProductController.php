@@ -36,6 +36,7 @@ class ProductController extends Controller implements HasMiddleware
             // fungsi itu juga dipakai sebagai sasaran update massal, dan
             // kueri ber-selectSub tidak bisa dipakai untuk menulis.
             ->withBundleAvailability()
+            ->with('group')
             ->orderBy('name')
             ->paginate(10)
             ->withQueryString();
@@ -97,6 +98,7 @@ class ProductController extends Controller implements HasMiddleware
     {
         return view('admin.products.show', [
             'product' => $product->load([
+                'group.variants',
                 'bundleComponents.component',
                 'partOfBundles.bundle',
             ]),
@@ -117,7 +119,7 @@ class ProductController extends Controller implements HasMiddleware
     public function edit(Product $product): View
     {
         return view('admin.products.edit', [
-            'product' => $product->load('bundleComponents.component'),
+            'product' => $product->load(['bundleComponents.component', 'group']),
             'catalog' => $this->componentCatalog($product),
         ]);
     }
@@ -128,8 +130,18 @@ class ProductController extends Controller implements HasMiddleware
         $components = $data['components'] ?? [];
         unset($data['components']);
 
+        if ($product->isVariant()) {
+            // Nama dan kategori varian selalu mengikuti induknya.
+            unset($data['name'], $data['category']);
+            $data['type'] = Product::TYPE_SINGLE;
+            $data['option1'] = trim($data['option1']);
+            $data['option2'] = $product->group->hasSecondOption() ? trim((string) ($data['option2'] ?? '')) : null;
+        }
+
         DB::transaction(function () use ($product, $data, $components) {
-            $product->update($data);
+            $product->fill($data);
+            $product->fillFromGroup();
+            $product->save();
 
             $this->syncRecipe($product, $components);
         });

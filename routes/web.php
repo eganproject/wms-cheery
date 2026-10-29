@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\OutboundMarketplaceController;
 use App\Http\Controllers\Admin\OutboundScanController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\ProductGroupController;
 use App\Http\Controllers\Admin\ProductImportController;
 use App\Http\Controllers\Admin\RestockReportController;
 use App\Http\Controllers\Admin\ReturnMarketplaceController;
@@ -49,6 +50,10 @@ Route::middleware('auth')
         Route::get('products/import/template', [ProductImportController::class, 'template'])->name('products.import.template');
         Route::patch('products/bulk/min-stock', [ProductController::class, 'bulkMinStock'])->name('products.bulk.min-stock');
         Route::resource('products', ProductController::class);
+        Route::post('product-groups/{product_group}/variants', [ProductGroupController::class, 'addVariants'])->name('product-groups.variants.store');
+        Route::post('product-groups/{product_group}/attach', [ProductGroupController::class, 'attach'])->name('product-groups.attach');
+        Route::delete('product-groups/{product_group}/variants/{product}', [ProductGroupController::class, 'detach'])->name('product-groups.detach');
+        Route::resource('product-groups', ProductGroupController::class);
 
         Route::get('movements/export', [StockMovementController::class, 'export'])->name('movements.export');
         Route::get('movements', [StockMovementController::class, 'index'])->name('movements.index');

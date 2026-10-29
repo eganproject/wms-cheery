@@ -115,6 +115,8 @@
                         ['Lokasi Rak', 'Contoh: A-02-01.', false],
                         ['Stok Minimum', 'Batas peringatan stok menipis.', false],
                         ['Stok', 'Stok saat ini. Selisihnya masuk kartu stok.', false],
+                        ['Nama Induk', 'Untuk barang bervarian. Baris dengan induk sama digabung jadi satu Produk Varian.', false],
+                        ['Varian 1 / Varian 2', 'Nilai atribut, mis. Merah dan L. Judul boleh "Warna" dan "Ukuran".', false],
                     ] as [$column, $desc, $required])
                         <li class="flex items-start gap-2.5">
                             <x-icon :name="$required ? 'check-circle' : 'circle'"

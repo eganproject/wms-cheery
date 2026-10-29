@@ -70,7 +70,7 @@ class ProductImportTest extends TestCase
         $header = $book->getSheetByName('Data Barang')->toArray()[0];
 
         $this->assertSame(
-            ['SKU', 'Nama Barang', 'Barcode', 'Kategori', 'Satuan', 'Lokasi Rak', 'Stok Minimum', 'Stok'],
+            ['SKU', 'Nama Barang', 'Barcode', 'Kategori', 'Satuan', 'Lokasi Rak', 'Stok Minimum', 'Stok', 'Nama Induk', 'Varian 1', 'Varian 2'],
             $header,
         );
     }

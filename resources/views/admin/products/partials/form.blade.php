@@ -5,6 +5,10 @@
 
     $type = old('type', $product?->type ?? \App\Models\Product::TYPE_SINGLE);
 
+    // Varian mengambil nama dan kategori dari produk induknya, dan selalu
+    // barang biasa.
+    $variantGroup = $product?->isVariant() ? $product->group : null;
+
     // Barang yang sudah punya saldo atau jejak mutasi tidak bisa lagi menjadi
     // paket — paket tidak punya saldo, dan yang tersisa akan menggantung tanpa
     // cara menggerakkannya. Pilihannya dikunci di layar, dan ditolak lagi di
@@ -28,6 +32,28 @@
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div class="space-y-6 lg:col-span-2">
             {{-- Jenis barang --}}
+            @if ($variantGroup)
+                <input type="hidden" name="type" value="single">
+                <x-ui.card title="Varian" subtitle="Nama dan kategori mengikuti produk induk. Ubah nilai atribut varian di sini.">
+                    <div class="mb-4 flex items-center gap-3 rounded-xl border border-ink-100 bg-ink-50/50 p-3 text-sm">
+                        <x-icon name="layers" class="h-4 w-4 shrink-0 text-ink-400" />
+                        <span class="min-w-0 flex-1">Varian dari
+                            <a href="{{ route('admin.product-groups.show', $variantGroup) }}" class="font-medium text-ink-950 underline underline-offset-4">{{ $variantGroup->name }}</a>
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                        <x-ui.field :label="$variantGroup->option1_name" for="option1" :error="$errors->get('option1')" required>
+                            <x-text-input id="option1" name="option1" type="text" :value="old('option1', $product->option1)" required />
+                        </x-ui.field>
+                        @if ($variantGroup->hasSecondOption())
+                            <x-ui.field :label="$variantGroup->option2_name" for="option2" :error="$errors->get('option2')" required>
+                                <x-text-input id="option2" name="option2" type="text" :value="old('option2', $product->option2)" required />
+                            </x-ui.field>
+                        @endif
+                    </div>
+                    <x-input-error :messages="$errors->get('type')" class="mt-3" />
+                </x-ui.card>
+            @else
             <x-ui.card title="Jenis" subtitle="Paket bundling dijual sebagai satu SKU, tetapi yang ada di rak hanya barang isinya.">
                 @if ($lockedToSingle)
                     <input type="hidden" name="type" value="single">
@@ -65,13 +91,20 @@
 
                 <x-input-error :messages="$errors->get('type')" class="mt-3" />
             </x-ui.card>
+            @endif
 
             <x-ui.card title="Identitas Barang" subtitle="SKU dan barcode dipakai saat proses scan barang keluar.">
                 <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                    @if ($variantGroup)
+                        <x-ui.field label="Nama Barang" class="sm:col-span-2" hint="Dibentuk otomatis dari nama produk induk dan atribut varian.">
+                            <x-text-input type="text" :value="$product->name" disabled />
+                        </x-ui.field>
+                    @else
                     <x-ui.field label="Nama Barang" for="name" :error="$errors->get('name')" required class="sm:col-span-2">
                         <x-text-input id="name" name="name" type="text" :value="old('name', $product?->name ?? request('name'))"
                                       required autofocus placeholder="Contoh: Filter Oli Standar" />
                     </x-ui.field>
+                    @endif
 
                     <x-ui.field label="SKU" info="Kode unik barang. Harus sama persis dengan SKU di TikTok Shop agar pesanan bisa dicocokkan otomatis." for="sku" :error="$errors->get('sku')" required>
                         <x-text-input id="sku" name="sku" type="text" :value="old('sku', $product?->sku ?? request('sku'))"
@@ -111,7 +144,7 @@
                 <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
                     <x-ui.field label="Kategori" info="Pengelompokan barang untuk memudahkan pencarian dan laporan." for="category" :error="$errors->get('category')">
                         <x-text-input id="category" name="category" type="text" :value="old('category', $product?->category)"
-                                      placeholder="Filter" list="category-options" />
+                                      placeholder="Filter" list="category-options" :disabled="(bool) $variantGroup" />
                         <datalist id="category-options">
                             @foreach (['Pelumas', 'Filter', 'Pengereman', 'Kelistrikan', 'Aksesoris', 'Ban'] as $option)
                                 <option value="{{ $option }}"></option>

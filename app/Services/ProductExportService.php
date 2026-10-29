@@ -38,6 +38,11 @@ class ProductExportService
         // tiap minggu, dan menggesernya membuat berkas yang sudah dikenal
         // terasa asing tanpa alasan.
         ['Jenis', 'type_label', 'text'],
+        // Kolom varian, dengan judul yang sama seperti template import
+        // supaya berkas ini bisa langsung diimport ulang.
+        ['Nama Induk', 'parent_name', 'text'],
+        ['Varian 1', 'option1', 'text'],
+        ['Varian 2', 'option2', 'text'],
     ];
 
     public function download(Builder $query, string $filename): StreamedResponse
@@ -73,7 +78,7 @@ class ProductExportService
         $row = 5;
 
         // Dipotong per 500 baris agar aman untuk data besar.
-        $query->orderBy('name')->chunk(500, function ($products) use ($sheet, &$row) {
+        $query->with('group')->orderBy('name')->chunk(500, function ($products) use ($sheet, &$row) {
             foreach ($products as $product) {
                 foreach ($this->columns as $index => [, $field]) {
                     $sheet->setCellValue([$index + 1, $row], $this->value($product, $field));
@@ -92,6 +97,7 @@ class ProductExportService
             'stock_status' => ucfirst($product->stockStatus()),
             'active_status' => $product->is_active ? 'Aktif' : 'Nonaktif',
             'type_label' => $product->isBundle() ? 'Paket' : 'Barang',
+            'parent_name' => $product->group?->name ?? '-',
             // Kolom stok pada paket berisi ketersediaan turunannya, bukan nol.
             // Nol akan terbaca sebagai "habis" oleh siapa pun yang membuka
             // berkasnya, padahal komponennya bisa saja menumpuk penuh di rak.

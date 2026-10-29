@@ -23,9 +23,22 @@ class UpdateProductRequest extends FormRequest
      */
     public function rules(): array
     {
-        $id = $this->route('product')->id;
+        $product = $this->route('product');
+        $id = $product->id;
 
-        return [
+        /*
+            Varian mengambil nama dan kategorinya dari produk induk. Yang bisa
+            diubah di sini hanya nilai atribut variannya; nama lengkapnya
+            dibentuk ulang dari induk saat disimpan.
+        */
+        $variantRules = $product->isVariant() ? [
+            'name' => ['nullable', 'string', 'max:255'],
+            'category' => ['nullable', 'string', 'max:100'],
+            'option1' => ['required', 'string', 'max:100'],
+            'option2' => [$product->group?->hasSecondOption() ? 'required' : 'nullable', 'string', 'max:100'],
+        ] : [];
+
+        return $variantRules + [
             'sku' => ['required', 'string', 'max:64', Rule::unique('products', 'sku')->ignore($id)],
             'barcode' => ['nullable', 'string', 'max:64', Rule::unique('products', 'barcode')->ignore($id)],
             'name' => ['required', 'string', 'max:255'],
@@ -56,6 +69,16 @@ class UpdateProductRequest extends FormRequest
         $validator->after(function (Validator $validator) {
             $product = $this->route('product');
 
+            if ($product->isVariant()) {
+                if ($this->wantsBundle()) {
+                    $validator->errors()->add('type', 'Varian tidak bisa dijadikan paket bundling. Lepas dulu dari produk induknya.');
+                }
+
+                $this->validateUniqueVariant($validator, $product);
+
+                return;
+            }
+
             if (! $this->wantsBundle() || $product->isBundle()) {
                 return;
             }
@@ -74,6 +97,27 @@ class UpdateProductRequest extends FormRequest
                     .'Buat paket sebagai barang baru, lalu nonaktifkan yang lama.');
             }
         });
+    }
+
+    /**
+     * Dua varian di produk yang sama tidak boleh punya kombinasi atribut sama.
+     */
+    protected function validateUniqueVariant(Validator $validator, Product $product): void
+    {
+        $group = $product->group;
+        $label = \Illuminate\Support\Str::lower(\App\Models\ProductGroup::label(
+            $this->input('option1'),
+            $group->hasSecondOption() ? $this->input('option2') : null,
+        ));
+
+        $taken = $group->variants()
+            ->whereKeyNot($product->id)
+            ->get(['option1', 'option2'])
+            ->contains(fn (Product $sibling) => \Illuminate\Support\Str::lower(\App\Models\ProductGroup::label($sibling->option1, $sibling->option2)) === $label);
+
+        if ($taken) {
+            $validator->errors()->add('option1', 'Kombinasi varian ini sudah dipakai SKU lain di produk yang sama.');
+        }
     }
 
     protected function prepareForValidation(): void
@@ -113,6 +157,8 @@ class UpdateProductRequest extends FormRequest
             'unit' => 'satuan',
             'location' => 'lokasi rak',
             'min_stock' => 'stok minimum',
+            'option1' => $this->route('product')->group?->option1_name ?? 'atribut varian',
+            'option2' => $this->route('product')->group?->option2_name ?? 'atribut kedua',
         ];
     }
 }

@@ -18,6 +18,7 @@ import resiLookup from './resi-lookup';
 import returnStation from './return-station';
 import documentScanner from './scanner';
 import stockPicker from './stock-picker';
+import variantBuilder from './variant-builder';
 
 window.Alpine = Alpine;
 
@@ -36,6 +37,7 @@ Alpine.data('resiLookup', resiLookup);
 Alpine.data('returnStation', returnStation);
 Alpine.data('documentScanner', documentScanner);
 Alpine.data('stockPicker', stockPicker);
+Alpine.data('variantBuilder', variantBuilder);
 
 initHints();
 

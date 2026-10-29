@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 
@@ -28,6 +29,9 @@ class Product extends Model
         'min_stock',
         'is_active',
         'type',
+        'product_group_id',
+        'option1',
+        'option2',
     ];
 
     protected function casts(): array
@@ -42,6 +46,57 @@ class Product extends Model
     public function movements(): HasMany
     {
         return $this->hasMany(StockMovement::class)->latest('id');
+    }
+
+    /* ----------------------------------------------------------- varian -- */
+
+    /**
+     * Produk induk varian ini. Kosong untuk barang tanpa varian.
+     */
+    public function group(): BelongsTo
+    {
+        return $this->belongsTo(ProductGroup::class, 'product_group_id');
+    }
+
+    public function isVariant(): bool
+    {
+        return $this->product_group_id !== null;
+    }
+
+    /**
+     * Label varian saja, mis. "Merah / L". Kosong untuk barang tanpa varian.
+     */
+    public function variantLabel(): string
+    {
+        return $this->isVariant() ? ProductGroup::label($this->option1, $this->option2) : '';
+    }
+
+    /**
+     * Isi nama dan kategori dari induknya. Stok, SKU, barcode, dan lokasi
+     * tidak pernah disentuh: itu milik varian sendiri.
+     */
+    public function fillFromGroup(): static
+    {
+        if ($group = $this->group) {
+            $this->name = $group->variantName($this->option1, $this->option2);
+            $this->category = $group->category;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Gambar barang: gambar varian sendiri bila ada, kalau tidak gambar induk.
+     */
+    public function displayImageUrl(): ?string
+    {
+        $own = $this->attributes['image_path'] ?? null;
+
+        if ($own) {
+            return \Illuminate\Support\Facades\Storage::disk('public')->url($own);
+        }
+
+        return $this->isVariant() ? $this->group?->imageUrl() : null;
     }
 
     /* ------------------------------------------------------------ paket -- */

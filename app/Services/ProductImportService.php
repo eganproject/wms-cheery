@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\Product;
+use App\Models\ProductGroup;
 use App\Models\ProductImport;
+use Illuminate\Support\Arr;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -35,7 +37,33 @@ class ProductImportService
         'min_stock' => ['stokminimum', 'stokmin', 'minstock', 'minimumstock', 'batasminimum', 'minimal'],
         'stock' => ['stok', 'stock', 'stokawal', 'jumlahstok', 'qty', 'quantity', 'saldostok', 'stokakhir'],
         'is_active' => ['status', 'statusbarang', 'aktif', 'isactive'],
+        // Varian (opsional): baris dengan nama induk yang sama dikelompokkan
+        // menjadi satu produk varian.
+        'parent' => ['namainduk', 'induk', 'produkinduk', 'namaprodukinduk', 'parent', 'parentname', 'parentsku'],
+        'option1' => ['varian1', 'variasi1', 'atribut1', 'option1', 'variation1', 'warna', 'color', 'colour', 'model', 'motif'],
+        'option2' => ['varian2', 'variasi2', 'atribut2', 'option2', 'variation2', 'ukuran', 'size'],
     ];
+
+    /**
+     * Judul kolom varian yang terlalu umum untuk dijadikan nama atribut.
+     *
+     * @var array<int, string>
+     */
+    protected const GENERIC_OPTION_TITLES = ['varian1', 'variasi1', 'atribut1', 'option1', 'variation1', 'varian2', 'variasi2', 'atribut2', 'option2', 'variation2'];
+
+    /**
+     * Nama atribut untuk induk baru, dibaca dari judul kolom berkas.
+     *
+     * @var array<string, string>
+     */
+    protected array $optionNames = ['option1' => 'Varian', 'option2' => 'Varian 2'];
+
+    /**
+     * Induk yang sudah ditemukan atau dibuat selama satu import.
+     *
+     * @var array<string, ProductGroup>
+     */
+    protected array $groups = [];
 
     /**
      * Kolom yang wajib ada pada berkas. Dipakai bersama oleh pemeriksaan
@@ -59,6 +87,9 @@ class ProductImportService
         'location' => 'Lokasi Rak',
         'min_stock' => 'Stok Minimum',
         'stock' => 'Stok',
+        'parent' => 'Nama Induk',
+        'option1' => 'Varian 1',
+        'option2' => 'Varian 2',
     ];
 
     public function __construct(protected StockService $stock)
@@ -84,6 +115,16 @@ class ProductImportService
                 throw ValidationException::withMessages([
                     'file' => "Kolom {$label} tidak ditemukan pada berkas. Unduh template untuk melihat susunan kolom yang benar.",
                 ]);
+            }
+        }
+
+        foreach (['option1', 'option2'] as $field) {
+            if (isset($header[$field])) {
+                $title = trim((string) ($rows[$headerIndex][$header[$field]] ?? ''));
+
+                if ($title !== '' && ! in_array($this->slug($title), self::GENERIC_OPTION_TITLES, true)) {
+                    $this->optionNames[$field] = Str::title($title);
+                }
             }
         }
 
@@ -335,6 +376,9 @@ class ProductImportService
                     ? $this->number($this->value($row, $header, 'stock'))
                     : null,
                 'is_active' => $this->boolean($this->value($row, $header, 'is_active')),
+                'parent' => $this->optional($row, $header, 'parent'),
+                'option1' => $this->optional($row, $header, 'option1'),
+                'option2' => $this->optional($row, $header, 'option2'),
             ]);
         }
 
@@ -386,9 +430,18 @@ class ProductImportService
 
             foreach ($entries as $entry) {
                 $stock = $entry['stock'];
-                unset($entry['stock']);
+                $variant = Arr::only($entry, ['parent', 'option1', 'option2']);
+                unset($entry['stock'], $entry['parent'], $entry['option1'], $entry['option2']);
 
                 $product = Product::where('sku', $entry['sku'])->first();
+
+                // Varian hanya untuk barang biasa; paket bundling diabaikan.
+                if (filled($variant['parent']) && ! $product?->isBundle()) {
+                    $group = $this->groupFor($variant['parent'], $entry, filled($variant['option2']));
+                    $entry['product_group_id'] = $group->id;
+                    $entry['option1'] = $variant['option1'] ?? $entry['name'];
+                    $entry['option2'] = $group->hasSecondOption() ? $variant['option2'] : null;
+                }
 
                 if ($product) {
                     /*
@@ -405,13 +458,16 @@ class ProductImportService
                         Barang baru selalu lahir sebagai barang biasa, jadi
                         pemeriksaannya cukup di jalur pembaruan.
                     */
-                    $product->update($product->isBundle()
+                    $product->fill($product->isBundle()
                         ? collect($entry)->except(['barcode', 'location', 'min_stock'])->all()
                         : $entry);
+                    $product->unsetRelation('group');
+                    $product->fillFromGroup()->save();
 
                     $updated++;
                 } else {
-                    $product = Product::create($entry);
+                    $product = new Product($entry);
+                    $product->fillFromGroup()->save();
                     $created++;
                 }
 
@@ -451,6 +507,39 @@ class ProductImportService
 
             return $import->refresh();
         });
+    }
+
+    /**
+     * Produk induk untuk nama yang tertulis di kolom Nama Induk.
+     *
+     * Dicari tanpa membedakan besar kecil huruf; bila belum ada, dibuat
+     * dengan kategori dan satuan dari baris pertama yang menyebutnya.
+     *
+     * @param  array<string, mixed>  $entry
+     */
+    protected function groupFor(string $name, array $entry, bool $hasSecondOption): ProductGroup
+    {
+        $key = Str::lower(trim($name));
+
+        if (! isset($this->groups[$key])) {
+            $this->groups[$key] = ProductGroup::query()->whereRaw('LOWER(name) = ?', [$key])->first()
+                ?? ProductGroup::create([
+                    'name' => trim($name),
+                    'category' => $entry['category'],
+                    'unit' => $entry['unit'],
+                    'option1_name' => $this->optionNames['option1'],
+                    'option2_name' => $hasSecondOption ? $this->optionNames['option2'] : null,
+                ]);
+        }
+
+        $group = $this->groups[$key];
+
+        // Induk baru tanpa atribut kedua, lalu baris berikutnya membawanya.
+        if ($hasSecondOption && ! $group->hasSecondOption() && $group->wasRecentlyCreated) {
+            $group->update(['option2_name' => $this->optionNames['option2']]);
+        }
+
+        return $group;
     }
 
     /**

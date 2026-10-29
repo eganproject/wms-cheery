@@ -102,6 +102,29 @@
                 </dl>
             </x-ui.card>
 
+            @if ($product->isVariant() && $product->group)
+                <x-ui.card title="Varian Produk" :subtitle="$product->group->name">
+                    <x-slot name="actions">
+                        <x-ui.button :href="route('admin.product-groups.show', $product->group)" variant="ghost" size="sm" icon="layers">Lihat Produk</x-ui.button>
+                    </x-slot>
+                    @if ($image = $product->displayImageUrl())
+                        <img src="{{ $image }}" alt="{{ $product->name }}" class="mb-4 aspect-square w-full rounded-lg border border-ink-100 object-cover">
+                    @endif
+                    <ul class="space-y-2">
+                        @foreach ($product->group->variants as $sibling)
+                            <li class="flex items-center justify-between gap-3 text-sm">
+                                <a href="{{ route('admin.products.show', $sibling) }}"
+                                   class="min-w-0 flex-1 truncate {{ $sibling->is($product) ? 'font-semibold text-ink-950' : 'text-ink-700 hover:underline' }}">
+                                    {{ $sibling->variantLabel() }}
+                                    <span class="block font-mono text-[11px] text-ink-400">{{ $sibling->sku }}</span>
+                                </a>
+                                <span class="shrink-0 text-xs text-ink-500">{{ number_format($sibling->stock, 0, ',', '.') }} {{ $sibling->unit }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                </x-ui.card>
+            @endif
+
             {{--
                 Arah sebaliknya: barang biasa yang menjadi isi paket.
 
