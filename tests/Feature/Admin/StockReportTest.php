@@ -60,6 +60,44 @@ class StockReportTest extends TestCase
      * saldo akhir — barang yang sempat menumpuk lalu habis dan barang yang
      * selalu tipis punya biaya simpan yang jauh berbeda.
      */
+    /**
+     * Paket yang batal setelah serah terima mengembalikan stoknya; ia tidak
+     * boleh tetap terhitung laku, dan dokumennya (kembali draft) tidak boleh
+     * terhitung sebagai barang yang dijanjikan.
+     */
+    public function test_a_shipment_reversed_on_the_same_day_is_not_counted_as_sold(): void
+    {
+        $this->receive($this->product, 100, Carbon::now()->subDays(20));
+        $this->ship($this->product, 30, Carbon::now()->subDays(10));
+
+        $this->travelTo(Carbon::now()->subDays(5));
+        $outbound = Outbound::create([
+            'code' => Outbound::nextCode(), 'date' => now(), 'type' => Outbound::TYPE_REGULAR,
+            'recipient' => 'Pembeli', 'status' => Outbound::STATUS_DRAFT,
+        ]);
+        $outbound->items()->create(['product_id' => $this->product->id, 'quantity' => 10]);
+        $order = \App\Models\ShipmentImport::create(['filename' => 'x.csv', 'source' => 'tiktok', 'row_count' => 1])
+            ->orders()->create(['tracking_number' => 'RESI-1', 'cancelled_at' => now()]);
+        $outbound->forceFill(['shipment_order_id' => $order->id])->save();
+        $this->actingAs($this->admin)->post(route('admin.outbounds.submit', $outbound));
+        $this->actingAs($this->admin);
+        app(\App\Services\StockService::class)->reverseOutbound($outbound->refresh(), 'Batal kirim');
+        $this->travelBack();
+
+        $row = $this->reportRow();
+
+        $this->assertSame(70, $row->closing);
+        $this->assertSame(30, $row->sold);
+        $this->assertSame(1, $row->frequency);
+
+        $restock = collect(app(\App\Services\RestockReportService::class)->paginate(
+            new \App\Support\RestockFilters(Carbon::now()->subDays(29)->startOfDay(), Carbon::now()->endOfDay(), 30, view: 'semua'),
+        )->items())->firstOrFail(fn ($row) => $row->sku === 'FLT-OLI-STD');
+
+        $this->assertSame(30, $restock->outgoing);
+        $this->assertSame(0, $restock->committed);
+    }
+
     public function test_turnover_and_days_of_cover_follow_the_period(): void
     {
         $this->receive($this->product, 100, Carbon::now()->subDays(20));

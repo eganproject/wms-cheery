@@ -239,10 +239,8 @@ class Product extends Model
      */
     public static function committedUnits($productIds): \Illuminate\Support\Collection
     {
-        return DB::table('outbound_items as oi')
-            ->join('outbounds as o', 'o.id', '=', 'oi.outbound_id')
+        return Outbound::committedLines()
             ->whereIn('oi.product_id', collect($productIds)->all())
-            ->whereIn('o.status', [Outbound::STATUS_DRAFT, Outbound::STATUS_PENDING])
             ->groupBy('oi.product_id')
             ->select('oi.product_id')
             ->selectRaw('SUM(oi.quantity) as committed')
@@ -264,9 +262,7 @@ class Product extends Model
     public function scopeWithBundleAvailability(Builder $query): Builder
     {
         // Unit yang sudah dijanjikan ke pembeli lain, dipotong lebih dulu.
-        $committed = DB::table('outbound_items as oi')
-            ->join('outbounds as o', 'o.id', '=', 'oi.outbound_id')
-            ->whereIn('o.status', [Outbound::STATUS_DRAFT, Outbound::STATUS_PENDING])
+        $committed = Outbound::committedLines()
             ->groupBy('oi.product_id')
             ->select('oi.product_id')
             ->selectRaw('SUM(oi.quantity) as committed');

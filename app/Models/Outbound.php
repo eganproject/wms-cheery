@@ -371,6 +371,14 @@ class Outbound extends Model
     }
 
     /**
+     * Dokumen yang pesanannya tidak dibatalkan (termasuk dokumen tanpa pesanan).
+     */
+    public function scopeNotCancelled(Builder $query): Builder
+    {
+        return $query->whereDoesntHave('shipmentOrder', fn (Builder $order) => $order->whereNotNull('cancelled_at'));
+    }
+
+    /**
      * Paket marketplace yang sudah lengkap discan tetapi belum diproses.
      *
      * Ini isi antrean "Serah Terima Paket": stasiun packing hanya memverifikasi isi
@@ -453,6 +461,28 @@ class Outbound extends Model
      *
      * @return array<int, string>
      */
+    /**
+     * Baris barang yang sudah dijanjikan ke pembeli: dokumen yang belum
+     * diproses (draft atau menunggu persetujuan).
+     *
+     * Dokumen milik pesanan yang dibatalkan tidak termasuk — termasuk yang
+     * batal setelah serah terima, yang dokumennya kembali ke draft dan
+     * disimpan selamanya sebagai jejak kartu stok. Barangnya kembali ke rak,
+     * jadi menghitungnya sebagai janji membuat ketersediaan paket terlihat
+     * lebih kecil dan laporan restock menyarankan pesan lebih banyak.
+     *
+     * Satu-satunya definisi "dijanjikan"; ketersediaan paket dan laporan
+     * restock sama-sama memakainya.
+     */
+    public static function committedLines(): \Illuminate\Database\Query\Builder
+    {
+        return \Illuminate\Support\Facades\DB::table('outbound_items as oi')
+            ->join('outbounds as o', 'o.id', '=', 'oi.outbound_id')
+            ->leftJoin('shipment_orders as so', 'so.id', '=', 'o.shipment_order_id')
+            ->whereIn('o.status', [self::STATUS_DRAFT, self::STATUS_PENDING])
+            ->whereNull('so.cancelled_at');
+    }
+
     public static function marketplaces(): array
     {
         return ['Shopee', 'Tokopedia', 'TikTok Shop', 'Lazada', 'Blibli', 'Bukalapak'];

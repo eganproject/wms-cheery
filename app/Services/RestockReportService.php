@@ -198,9 +198,16 @@ class RestockReportService
     {
         return DB::table('stock_movements')
             ->select('product_id')
-            ->selectRaw('SUM(quantity) as outgoing')
+            // Paket yang batal setelah serah terima mengembalikan stoknya
+            // atas dokumen barang keluar yang sama; yang kembali itu bukan
+            // permintaan, jadi dikurangkan.
+            ->selectRaw("SUM(CASE WHEN type = 'out' THEN quantity ELSE -quantity END) as outgoing")
             ->where('bucket', StockMovement::BUCKET_GOOD)
-            ->where('type', 'out')
+            ->where(fn (Builder $query) => $query
+                ->where('type', 'out')
+                ->orWhere(fn (Builder $query) => $query
+                    ->where('type', 'in')
+                    ->where('reference_type', Outbound::class)))
             ->whereBetween('created_at', [$filters->from, $filters->to])
             ->groupBy('product_id');
     }
@@ -213,11 +220,9 @@ class RestockReportService
      */
     protected function committed(): Builder
     {
-        return DB::table('outbound_items as oi')
-            ->join('outbounds as o', 'o.id', '=', 'oi.outbound_id')
+        return Outbound::committedLines()
             ->select('oi.product_id')
             ->selectRaw('SUM(oi.quantity) as committed')
-            ->whereIn('o.status', [Outbound::STATUS_DRAFT, Outbound::STATUS_PENDING])
             ->groupBy('oi.product_id');
     }
 }

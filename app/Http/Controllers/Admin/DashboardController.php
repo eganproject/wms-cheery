@@ -47,9 +47,13 @@ class DashboardController extends Controller implements HasMiddleware
             'outbound_month' => Outbound::where('status', Outbound::STATUS_POSTED)
                 ->whereBetween('date', [now()->startOfMonth(), now()->endOfMonth()])
                 ->count(),
-            'outbound_pending' => Outbound::where('status', Outbound::STATUS_DRAFT)->count(),
+            // Draft milik pesanan batal bukan pengiriman yang menunggu:
+            // termasuk dokumen yang batal setelah serah terima, yang kembali
+            // ke draft dan disimpan selamanya sebagai jejak kartu stok.
+            'outbound_pending' => Outbound::where('status', Outbound::STATUS_DRAFT)->notCancelled()->count(),
             'marketplace_pending' => Outbound::where('status', Outbound::STATUS_DRAFT)
                 ->where('type', Outbound::TYPE_MARKETPLACE)
+                ->notCancelled()
                 ->count(),
         ];
 
@@ -61,6 +65,7 @@ class DashboardController extends Controller implements HasMiddleware
             'couriers' => $this->ordersPerCourier(),
             'pendingOutbounds' => Outbound::with('items')
                 ->where('status', Outbound::STATUS_DRAFT)
+                ->notCancelled()
                 ->latest('id')
                 ->take(5)
                 ->get(),

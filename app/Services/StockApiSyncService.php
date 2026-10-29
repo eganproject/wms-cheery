@@ -9,9 +9,29 @@ use Illuminate\Support\Facades\Schema;
 
 class StockApiSyncService
 {
+    protected static ?bool $ready = null;
+
+    /**
+     * Apakah tabel sinkronisasinya sudah ada (belum ada selama migrasi awal).
+     *
+     * Diingat sekali per proses: sinkronisasi berjalan pada setiap
+     * pergerakan stok, dan menanyakan skema basis data tiap kali berarti satu
+     * kueri tambahan per barang pada setiap serah terima paket.
+     */
+    protected static function ready(): bool
+    {
+        // Hanya jawaban "ya" yang diingat, supaya tabel yang baru dibuat di
+        // tengah proses (mis. saat migrasi) tetap terbaca.
+        if (static::$ready !== true) {
+            static::$ready = Schema::hasTable('stock_api_sync_records');
+        }
+
+        return static::$ready;
+    }
+
     public static function sync(Product $product, ?Carbon $changedAt = null): void
     {
-        if (! Schema::hasTable('stock_api_sync_records')) {
+        if (! static::ready()) {
             return;
         }
 
@@ -59,7 +79,7 @@ class StockApiSyncService
 
     public static function markDeleted(Product $product): void
     {
-        if (! Schema::hasTable('stock_api_sync_records')) {
+        if (! static::ready()) {
             return;
         }
         StockApiSyncRecord::query()

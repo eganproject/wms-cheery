@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\ShipmentImport;
 use App\Models\ShipmentImportFailure;
 use App\Models\ShipmentOrder;
+use App\Models\ShipmentOrderItem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -498,6 +499,9 @@ class TikTokImportService
 
             $itemCount = 0;
             $unmatched = 0;
+            $itemRows = [];
+            $now = now();
+            $itemColumns = array_flip((new ShipmentOrderItem)->getFillable());
 
             foreach ($orders as $data) {
                 $items = $data['items'];
@@ -508,11 +512,23 @@ class TikTokImportService
                 foreach ($items as $item) {
                     $productId = $products[strtoupper(trim($item['sku']))] ?? null;
 
-                    $order->items()->create($item + ['product_id' => $productId]);
+                    // Baris barang ditulis borongan di bawah: satu berkas
+                    // berisi ribuan resi, dan satu insert per baris membuat
+                    // import terasa lama.
+                    $itemRows[] = array_intersect_key($item, $itemColumns) + [
+                        'shipment_order_id' => $order->id,
+                        'product_id' => $productId,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
 
                     $itemCount++;
                     $productId ?: $unmatched++;
                 }
+            }
+
+            foreach (array_chunk($itemRows, 500) as $chunk) {
+                ShipmentOrderItem::insert($chunk);
             }
 
             foreach ($failures->chunk(500) as $chunk) {

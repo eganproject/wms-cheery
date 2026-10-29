@@ -54,6 +54,14 @@ class StockReportService
      * dengan cara yang sama seperti saldo layak jual. Tanpa ini laporan
      * periode lampau menampilkan angka rusak hari ini.
      */
+    /**
+     * Terjual bersih: keluar lewat barang keluar, dikurangi yang dibatalkan
+     * setelah serah terima (stoknya masuk lagi atas dokumen yang sama).
+     * Tanpa pengurangan ini paket yang batal di hari yang sama tetap
+     * terhitung laku, dan laju jual serta saran restock ikut membengkak.
+     */
+    protected const NET_SOLD = "SUM(CASE WHEN type = 'out' THEN quantity ELSE -quantity END)";
+
     protected const DAMAGED_CLOSING = '(p.damaged_stock - COALESCE(d.in_after, 0) + COALESCE(d.out_after, 0))';
 
     /**
@@ -98,7 +106,11 @@ class StockReportService
         return $this->contributions[$key] ??= StockContribution::fromLevels(
             DB::query()
                 ->fromSub(
-                    $this->sales($filters)->select('product_id')->selectRaw('SUM(quantity) as quantity')->groupBy('product_id'),
+                    $this->sales($filters)
+                        ->select('product_id')
+                        ->selectRaw(self::NET_SOLD.' as quantity')
+                        ->groupBy('product_id')
+                        ->havingRaw(self::NET_SOLD.' > 0'),
                     'sold',
                 )
                 ->select('quantity')
@@ -292,22 +304,29 @@ class StockReportService
     {
         return DB::table('stock_movements')
             ->select('product_id')
-            ->selectRaw("SUM(CASE WHEN created_at <= ? AND type = 'in' THEN quantity ELSE 0 END) as incoming", [$filters->to])
-            ->selectRaw("SUM(CASE WHEN created_at <= ? AND type = 'out' THEN quantity ELSE 0 END) as outgoing", [$filters->to])
-            ->selectRaw("SUM(CASE WHEN created_at > ? AND type = 'in' THEN quantity ELSE 0 END) as in_after", [$filters->to])
-            ->selectRaw("SUM(CASE WHEN created_at > ? AND type = 'out' THEN quantity ELSE 0 END) as out_after", [$filters->to])
+            ->selectRaw("SUM(CASE WHEN stock_movements.created_at <= ? AND stock_movements.type = 'in' THEN quantity ELSE 0 END) as incoming", [$filters->to])
+            ->selectRaw("SUM(CASE WHEN stock_movements.created_at <= ? AND stock_movements.type = 'out' THEN quantity ELSE 0 END) as outgoing", [$filters->to])
+            ->selectRaw("SUM(CASE WHEN stock_movements.created_at > ? AND stock_movements.type = 'in' THEN quantity ELSE 0 END) as in_after", [$filters->to])
+            ->selectRaw("SUM(CASE WHEN stock_movements.created_at > ? AND stock_movements.type = 'out' THEN quantity ELSE 0 END) as out_after", [$filters->to])
+            // Bersih dari pembatalan setelah serah terima (lihat NET_SOLD).
             ->selectRaw(
-                "SUM(CASE WHEN created_at <= ? AND type = 'out' AND reference_type = ? THEN quantity ELSE 0 END) as sold",
+                "SUM(CASE WHEN stock_movements.created_at <= ? AND reference_type = ? THEN (CASE WHEN stock_movements.type = 'out' THEN quantity ELSE -quantity END) ELSE 0 END) as sold",
                 [$filters->to, Outbound::class],
             )
             // Frekuensi dihitung per dokumen: satu dokumen berisi dua baris
-            // barang yang sama tetap satu kali keluar.
+            // barang yang sama tetap satu kali keluar. Dokumen yang batal
+            // setelah serah terima tidak lagi berstatus terkirim, jadi tidak
+            // ikut terhitung.
             ->selectRaw(
-                "COUNT(DISTINCT CASE WHEN created_at <= ? AND type = 'out' AND reference_type = ? THEN reference_id END) as frequency",
+                "COUNT(DISTINCT CASE WHEN stock_movements.created_at <= ? AND stock_movements.type = 'out' AND reference_type = ? AND sent.id IS NOT NULL THEN reference_id END) as frequency",
                 [$filters->to, Outbound::class],
             )
+            ->leftJoin('outbounds as sent', fn ($join) => $join
+                ->on('sent.id', '=', 'stock_movements.reference_id')
+                ->where('stock_movements.reference_type', Outbound::class)
+                ->where('sent.status', Outbound::STATUS_POSTED))
             ->where('bucket', StockMovement::BUCKET_GOOD)
-            ->where('created_at', '>=', $filters->from)
+            ->where('stock_movements.created_at', '>=', $filters->from)
             ->groupBy('product_id');
     }
 
@@ -331,9 +350,10 @@ class StockReportService
      */
     protected function sales(StockReportFilters $filters): Builder
     {
+        // Masuk atas dokumen barang keluar hanya terjadi saat paket batal
+        // setelah serah terima; ikut dibaca supaya bisa dikurangkan.
         return DB::table('stock_movements')
             ->where('bucket', StockMovement::BUCKET_GOOD)
-            ->where('type', 'out')
             ->where('reference_type', Outbound::class)
             ->whereBetween('created_at', [$filters->from, $filters->to]);
     }
@@ -348,11 +368,15 @@ class StockReportService
     {
         return DB::table('stock_movements')
             ->select('product_id')
-            ->selectRaw('MAX(created_at) as last_out_at')
+            ->selectRaw('MAX(stock_movements.created_at) as last_out_at')
+            // Paket yang batal setelah serah terima tidak dihitung keluar.
+            ->join('outbounds as sent', fn ($join) => $join
+                ->on('sent.id', '=', 'stock_movements.reference_id')
+                ->where('sent.status', Outbound::STATUS_POSTED))
             ->where('bucket', StockMovement::BUCKET_GOOD)
-            ->where('type', 'out')
+            ->where('stock_movements.type', 'out')
             ->where('reference_type', Outbound::class)
-            ->where('created_at', '<=', $filters->to)
+            ->where('stock_movements.created_at', '<=', $filters->to)
             ->groupBy('product_id');
     }
 }
