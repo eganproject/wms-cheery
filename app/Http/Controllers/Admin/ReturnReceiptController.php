@@ -261,7 +261,9 @@ class ReturnReceiptController extends Controller implements HasMiddleware
 
         $data = $request->validated();
 
-        DB::transaction(function () use ($return, $data) {
+        $trackingChanged = ($data['tracking_number'] ?? null) !== $return->tracking_number;
+
+        DB::transaction(function () use ($return, $data, $trackingChanged) {
             $return->update([
                 'date' => $data['date'],
                 'type' => $data['type'],
@@ -277,7 +279,12 @@ class ReturnReceiptController extends Controller implements HasMiddleware
             $return->items()->createMany($this->mergeLines($data['items'] ?? []));
 
             // Isi dokumen berubah, verifikasi sebelumnya tidak lagi sahih.
-            $return->forceFill(['resi_verified_at' => null])->save();
+            // Tautan ke data import milik resi lama; scan resi berikutnya
+            // menautkan ulang ke pesanan yang benar.
+            $return->forceFill(array_merge(
+                ['resi_verified_at' => null],
+                $trackingChanged ? ['shipment_order_id' => null] : [],
+            ))->save();
         });
 
         if ($return->refresh()->requiresResiScan()) {

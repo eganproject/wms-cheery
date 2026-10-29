@@ -192,7 +192,7 @@ class StockOpnameController extends Controller implements HasMiddleware
         $damaged = $data['damaged'] ?? [];
         $baselines = $data['baseline'] ?? [];
 
-        $items = $opname->items()->whereIn('id', array_keys($counts))->get()->keyBy('id');
+        $items = $opname->items()->with('product:id,sku,stock')->whereIn('id', array_keys($counts))->get()->keyBy('id');
 
         $changed = 0;
         $conflicts = [];
@@ -230,6 +230,10 @@ class StockOpnameController extends Controller implements HasMiddleware
                 $item->update([
                     'counted_quantity' => $counted,
                     'damaged_quantity' => $broken,
+                    // Pembandingnya saldo saat rak ini dihitung, bukan saat
+                    // sesi dibuka: paket yang terkirim di antaranya bukan
+                    // selisih opname.
+                    'system_quantity' => $counted === null ? $item->system_quantity : (int) $item->product->stock,
                     'counted_at' => $counted === null ? null : now(),
                     'counted_by' => $counted === null ? null : auth()->id(),
                 ]);

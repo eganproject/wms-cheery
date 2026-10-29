@@ -138,5 +138,13 @@ class ReturnScanService
                 'code' => 'Dokumen sudah diproses dan tidak bisa discan lagi.',
             ]);
         }
+
+        // Dokumen yang sedang diajukan dikunci: mereset atau menambah scan di
+        // sini membuat pengajuan yang sudah lengkap tiba-tiba tidak sah lagi.
+        if ($return->isPending()) {
+            throw ValidationException::withMessages([
+                'code' => 'Dokumen sedang menunggu persetujuan. Tarik kembali pengajuannya dulu untuk scan ulang.',
+            ]);
+        }
     }
 }

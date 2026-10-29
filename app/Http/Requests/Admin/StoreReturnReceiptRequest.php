@@ -21,7 +21,20 @@ class StoreReturnReceiptRequest extends FormRequest
 
     public function withValidator(\Illuminate\Contracts\Validation\Validator $validator): void
     {
-        $validator->after(fn ($validator) => $this->rejectBundleLines($validator));
+        $validator->after(function ($validator) {
+            $this->rejectBundleLines($validator);
+
+            // Barang rusak adalah bagian dari jumlah yang kembali, bukan
+            // tambahan di luarnya. Tanpa batas ini satu baris berjumlah 1
+            // bisa menambah stok rusak berapa pun.
+            foreach ($this->input('items', []) as $index => $item) {
+                $quantity = (int) ($item['quantity'] ?? 0);
+
+                if ((int) ($item['damaged_quantity'] ?? 0) > $quantity) {
+                    $validator->errors()->add("items.{$index}.damaged_quantity", 'Jumlah rusak tidak boleh melebihi jumlah retur pada barisnya.');
+                }
+            }
+        });
     }
 
     public function authorize(): bool
@@ -89,11 +102,12 @@ class StoreReturnReceiptRequest extends FormRequest
                 $quantity = (int) ($item['quantity'] ?? 0);
                 $damaged = (int) ($item['damaged_quantity'] ?? 0);
 
-                // Bila hanya jumlah rusak yang diisi, sisanya layak jual.
-                return $item + [
+                // Layak jual selalu dihitung dari jumlah dikurangi rusak; nilai
+                // kiriman form diabaikan supaya stok tidak bisa digelembungkan.
+                return array_merge($item, [
                     'good_quantity' => max(0, $quantity - $damaged),
                     'damaged_quantity' => $damaged,
-                ];
+                ]);
             })
             ->values()
             ->all();

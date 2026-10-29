@@ -291,7 +291,7 @@ class StockService
      * Hanya baris yang benar-benar dihitung yang dibukukan; baris yang belum
      * disentuh petugas dibiarkan apa adanya, karena tidak dihitung bukan
      * berarti nol. Selisihnya dihitung terhadap saldo pada saat rak
-     * dihitung (saldo sekarang dikurangi pergerakan sesudah hitungan), jadi
+     * dihitung (disimpan pada baris setiap kali dihitung), jadi
      * paket yang terkirim sambil menunggu persetujuan tidak ikut terhapus.
      */
     public function postOpname(StockOpname $opname): void
@@ -320,8 +320,8 @@ class StockService
                 // disetujui. Paket yang terkirim (atau barang yang masuk)
                 // sesudah hitungan tetap tercatat; tanpa ini stoknya kembali
                 // ke angka hitungan seolah paket itu tidak pernah keluar.
-                $atCount = $product->stock - $this->netMovementSince($product->id, $item->counted_at);
-                $difference = $item->counted_quantity - $atCount;
+                // system_quantity diperbarui setiap kali baris dihitung.
+                $difference = $item->counted_quantity - $item->system_quantity;
 
                 if ($difference !== 0) {
                     $this->move(
@@ -361,23 +361,6 @@ class StockService
                 'posted_at' => now(),
             ])->save();
         });
-    }
-
-    /**
-     * Pergerakan bersih saldo layak jual sesudah suatu waktu (masuk dikurangi keluar).
-     */
-    protected function netMovementSince(int $productId, ?\DateTimeInterface $since): int
-    {
-        if ($since === null) {
-            return 0;
-        }
-
-        return (int) StockMovement::query()
-            ->where('product_id', $productId)
-            ->where('bucket', StockMovement::BUCKET_GOOD)
-            ->where('created_at', '>', $since)
-            ->selectRaw("COALESCE(SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END), 0) as net")
-            ->value('net');
     }
 
     /**

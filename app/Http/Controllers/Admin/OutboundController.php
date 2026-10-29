@@ -174,7 +174,10 @@ class OutboundController extends Controller implements HasMiddleware
 
         return view('admin.outbounds.index', [
             'outbounds' => $outbounds,
-            'marketplaces' => Outbound::marketplaces(),
+            // Marketplace barang keluar dibaca dari data import yang tertaut,
+            // jadi pilihannya juga dari sana — bukan daftar tetap yang
+            // sebagian besar isinya tidak pernah cocok dengan apa pun.
+            'marketplaces' => \App\Models\ShipmentOrder::filterOptions('marketplace'),
         ]);
     }
 

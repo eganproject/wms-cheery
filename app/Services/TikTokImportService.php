@@ -555,6 +555,12 @@ class TikTokImportService
                     'cancelled_by' => null,
                     'cancellation_reason' => null,
                 ])->save();
+
+                // Sama seperti tandai batal manual: pengajuan kirim yang masih
+                // antre ditarik, supaya tidak menggantung di kotak persetujuan.
+                $order->outbounds()
+                    ->where('status', \App\Models\Outbound::STATUS_PENDING)
+                    ->update(['status' => \App\Models\Outbound::STATUS_DRAFT, 'submitted_at' => null, 'submitted_by' => null]);
             }
 
             $import->update([

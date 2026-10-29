@@ -148,6 +148,9 @@ class OpnameCountService
         $item->update([
             'counted_quantity' => $counted,
             'damaged_quantity' => $damaged,
+            // Pembandingnya saldo saat rak ini dihitung, bukan saat sesi
+            // dibuka: paket yang terkirim di antaranya bukan selisih opname.
+            'system_quantity' => $counted === null ? $item->system_quantity : (int) $product->stock,
             'counted_at' => $counted === null ? null : now(),
             'counted_by' => $counted === null ? null : auth()->id(),
         ]);

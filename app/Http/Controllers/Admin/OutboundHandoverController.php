@@ -122,7 +122,10 @@ class OutboundHandoverController extends Controller implements HasMiddleware
 
         return view('admin.outbounds.handover', [
             'outbounds' => $outbounds,
-            'marketplaces' => Outbound::marketplaces(),
+            // Marketplace barang keluar dibaca dari data import yang tertaut,
+            // jadi pilihannya juga dari sana — bukan daftar tetap yang
+            // sebagian besar isinya tidak pernah cocok dengan apa pun.
+            'marketplaces' => \App\Models\ShipmentOrder::filterOptions('marketplace'),
             // Sengaja tanpa filter: memindai resi bekerja atas seluruh antrean,
             // bukan hanya atas yang kebetulan tampil di layar.
             'handoverCount' => Outbound::awaitingHandover()->count(),

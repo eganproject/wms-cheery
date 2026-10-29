@@ -210,11 +210,26 @@ class OutboundScanService
             ]);
         }
 
-        // increment() memperbarui nilai pada model yang sama di memori, dan
-        // model itu juga yang ada di $outbound->items — jadi dokumen tidak
-        // perlu dimuat ulang dari database setelahnya. Sebelumnya setiap scan
-        // memuat ulang seluruh baris berikut barangnya sampai tiga kali.
-        $item->increment('scanned_quantity', $quantity);
+        // Kenaikannya bersyarat di database: scanner yang terpicu dua kali
+        // mengirim dua permintaan hampir bersamaan, dan keduanya membaca sisa
+        // yang sama dari memori. Tanpa syarat ini hitungannya bisa melewati
+        // jumlah pesanan.
+        $applied = OutboundItem::whereKey($item->getKey())
+            ->whereRaw('scanned_quantity + ? <= quantity', [$quantity])
+            ->increment('scanned_quantity', $quantity);
+
+        if ($applied === 0) {
+            $item->refresh();
+
+            throw ValidationException::withMessages([
+                'code' => "{$item->product->sku} sudah {$item->scanned_quantity}/{$item->quantity} · scan ganda diabaikan",
+            ]);
+        }
+
+        // Model yang sama ada di $outbound->items, jadi nilainya diperbarui di
+        // memori dan dokumen tidak perlu dimuat ulang dari database.
+        $item->scanned_quantity += $quantity;
+        $item->syncOriginalAttribute('scanned_quantity');
 
         return [
             // SKU, bukan nama barang: nama bisa sepanjang "KABEL BINTIK 0.5MM
@@ -371,6 +386,14 @@ class OutboundScanService
         if ($outbound->isPosted()) {
             throw ValidationException::withMessages([
                 'code' => 'Dokumen sudah diproses dan tidak bisa discan lagi.',
+            ]);
+        }
+
+        // Dokumen yang sedang diajukan dikunci: mereset atau menambah scan di
+        // sini membuat pengajuan yang sudah lengkap tiba-tiba tidak sah lagi.
+        if ($outbound->isPending()) {
+            throw ValidationException::withMessages([
+                'code' => 'Dokumen sedang menunggu persetujuan. Tarik kembali pengajuannya dulu untuk scan ulang.',
             ]);
         }
     }

@@ -319,6 +319,11 @@ class ReturnMarketplaceController extends Controller implements HasMiddleware
      */
     public function finish(Request $request, ReturnReceipt $return): JsonResponse
     {
+        // Tanpa ini, menekan "Terima" dua kali (atau membuka layar lama)
+        // menulis ulang jumlah layak jual/rusak pada dokumen yang sudah
+        // diterima atau sedang diajukan, sebelum persetujuan menolaknya.
+        $this->guardEditable($return);
+
         $return->load('items.product');
 
         $data = $request->validate([
@@ -327,7 +332,7 @@ class ReturnMarketplaceController extends Controller implements HasMiddleware
             'items' => ['array'],
             'items.*.good' => ['required_with:items.*', 'integer', 'min:0'],
             'items.*.damaged' => ['required_with:items.*', 'integer', 'min:0'],
-            'items.*.expected' => ['nullable', 'integer', 'min:1', 'max:999'],
+            'items.*.expected' => ['nullable', 'integer', 'min:1', 'max:1000000'],
         ]);
 
         $checks = $data['items'] ?? [];
