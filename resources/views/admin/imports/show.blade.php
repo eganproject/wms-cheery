@@ -2,6 +2,9 @@
     <x-ui.page-header :title="$import->filename" :subtitle="'Diimport '.$import->created_at->translatedFormat('d F Y H:i').' oleh '.($import->user?->name ?? 'sistem')"
                       :back="route('admin.imports.batches')">
         <x-slot name="actions">
+            @if ($import->failed_row_count > 0)
+                <x-ui.button :href="route('admin.imports.failures', $import)" variant="secondary" icon="download">Unduh Gagal Import</x-ui.button>
+            @endif
             <x-ui.button :href="route('admin.orders.packing', ['import' => $import->id])" variant="secondary" icon="list">Packing List</x-ui.button>
             @can('imports.create')
                 <x-ui.button :href="route('admin.imports.create')" variant="secondary" icon="plus">Import Lagi</x-ui.button>
@@ -22,8 +25,28 @@
         <x-ui.stat-card label="Resi" :value="$import->order_count" icon="document" accent />
         <x-ui.stat-card label="Baris Barang" :value="$import->item_count" icon="box" />
         <x-ui.stat-card label="SKU Belum Cocok" info="Baris barang di berkas ini yang SKU-nya belum ada di master barang." :value="$import->unmatched_sku_count" icon="warning" />
-        <x-ui.stat-card label="Baris Dibaca" info="Jumlah baris di berkas, termasuk baris tanpa nomor resi yang dilewati." :value="$import->row_count" icon="chart" hint="Termasuk baris tanpa resi" />
+        <x-ui.stat-card label="Gagal Diimport" info="Baris berkas yang tidak masuk ke sistem, misalnya resi kosong atau resi yang sudah pernah diimport. Unduh daftarnya untuk melihat alasannya." :value="$import->failed_row_count" icon="x-circle" :hint="'dari '.$import->row_count.' baris dibaca'" />
     </div>
+
+    @if ($import->failed_row_count > 0)
+        <div class="mt-5 rounded-2xl border border-red-100 bg-red-50/60 p-5">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="flex items-center gap-2 text-sm font-semibold text-red-800">
+                        <x-icon name="warning" class="h-4 w-4" /> {{ $import->failed_row_count }} baris gagal diimport
+                    </p>
+                    <p class="mt-1 text-xs text-red-700">Baris ini tidak masuk ke sistem. Unduh daftarnya untuk melihat nomor baris, resi, dan keterangan lengkapnya.</p>
+                </div>
+                <x-ui.button :href="route('admin.imports.failures', $import)" variant="secondary" icon="excel">Unduh Excel</x-ui.button>
+            </div>
+
+            <ul class="mt-4 flex flex-wrap gap-1.5">
+                @foreach ($import->failureSummary as $group)
+                    <li><x-ui.badge variant="danger">{{ $group->reason }} &middot; {{ $group->total }}</x-ui.badge></li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
     @if ($import->detected_columns)
         <div class="mt-5 rounded-2xl border border-ink-100 bg-white p-5">

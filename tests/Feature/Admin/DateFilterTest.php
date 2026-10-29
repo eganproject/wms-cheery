@@ -304,12 +304,14 @@ class DateFilterTest extends TestCase
      */
     public function test_a_re_import_keeps_the_original_upload_date(): void
     {
+        // Resi yang sudah ada dicegat saat diimport ulang, jadi tanggalnya
+        // tetap tanggal pertama kali masuk.
         $this->travelTo(Carbon::parse('2026-08-05 13:00'));
         $this->uploadCsv('SPXID111');
         $this->travelBack();
 
         $this->travelTo(Carbon::parse('2026-08-09 08:00'));
-        $this->uploadCsv('SPXID111');
+        $this->uploadCsv('SPXID111', 'error');
         $this->travelBack();
 
         $this->assertSame(1, ShipmentOrder::count(), 'Resi yang sama diperbarui, bukan digandakan.');
@@ -317,7 +319,7 @@ class DateFilterTest extends TestCase
         $this->assertSame(0, ShipmentOrder::dateBetween(new DateRange('2026-08-09', '2026-08-09'))->count());
     }
 
-    protected function uploadCsv(string $tracking): void
+    protected function uploadCsv(string $tracking, string $flash = 'success'): void
     {
         $csv = "Tracking ID,Seller SKU,Quantity\n{$tracking},{$this->product->sku},1";
 
@@ -326,7 +328,7 @@ class DateFilterTest extends TestCase
 
         $this->actingAs($this->admin)->post(route('admin.imports.store'), [
             'file' => new \Illuminate\Http\UploadedFile($path, 'tiktok.csv', 'text/csv', null, true),
-        ])->assertSessionHas('success');
+        ])->assertSessionHas($flash);
     }
 
     /**

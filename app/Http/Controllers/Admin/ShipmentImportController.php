@@ -7,6 +7,7 @@ use App\Models\ShipmentImport;
 use App\Models\ShipmentOrder;
 use App\Models\ShipmentOrderItem;
 use App\Services\TikTokImportService;
+use App\Services\ShipmentImportFailureExportService;
 use App\Services\ShipmentOrderResolver;
 use App\Support\DateRange;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,6 +18,7 @@ use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Import nomor resi dari berkas eksport pesanan TikTok Shop.
@@ -35,7 +37,7 @@ class ShipmentImportController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:imports.view', only: ['index', 'show', 'batches', 'lookup']),
+            new Middleware('can:imports.view', only: ['index', 'show', 'batches', 'lookup', 'failures']),
             new Middleware('can:imports.create', only: ['create', 'store']),
             new Middleware('can:imports.delete', only: ['destroy']),
         ];
@@ -133,15 +135,21 @@ class ShipmentImportController extends Controller implements HasMiddleware
             $message .= " {$import->unmatched_sku_count} baris memiliki SKU yang belum terdaftar di master barang.";
         }
 
-        $skipped = $this->importer->skippedWithoutTracking();
-
-        if ($skipped > 0) {
-            $message .= " {$skipped} baris dilewati karena Tracking ID belum terbit; import ulang setelah Atur Pengiriman.";
+        if ($import->failed_row_count > 0) {
+            $message .= " {$import->failed_row_count} baris gagal diimport — unduh daftarnya untuk melihat alasannya.";
         }
 
         return redirect()
             ->route('admin.imports.show', $import)
-            ->with($import->unmatched_sku_count > 0 || $skipped > 0 ? 'error' : 'success', $message);
+            ->with($import->unmatched_sku_count > 0 || $import->failed_row_count > 0 ? 'error' : 'success', $message);
+    }
+
+    /**
+     * Unduh baris yang gagal diimport beserta alasannya.
+     */
+    public function failures(ShipmentImport $import, ShipmentImportFailureExportService $exporter): StreamedResponse
+    {
+        return $exporter->download($import);
     }
 
     /**
@@ -150,6 +158,8 @@ class ShipmentImportController extends Controller implements HasMiddleware
     public function show(ShipmentImport $import): View
     {
         $import->load('user');
+        $import->setRelation('failureSummary', $import->failures()->reorder()
+            ->selectRaw('reason, COUNT(*) as total')->groupBy('reason')->orderByDesc('total')->get());
 
         return view('admin.imports.show', [
             'import' => $import,

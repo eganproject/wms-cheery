@@ -103,7 +103,7 @@ class CancelledOrderTest extends TestCase
         $this->uploadCsv([
             ['Tracking ID', 'Seller SKU', 'Quantity', 'Order Status'],
             ['SPXID111', 'FLT-OLI-STD', '2', 'Siap Dikirim'],
-        ])->assertSessionHas('success');
+        ])->assertSessionHas('error');
 
         $order = ShipmentOrder::firstOrFail();
 
@@ -125,9 +125,10 @@ class CancelledOrderTest extends TestCase
         $this->uploadCsv([
             ['Tracking ID', 'Seller SKU', 'Quantity', 'Order Status'],
             ['SPXID111', 'FLT-OLI-STD', '2', 'Siap Dikirim'],
-        ])->assertSessionHas('success');
+        ])->assertSessionHas('error');
 
-        $this->assertSame($order->id, ShipmentOrder::firstOrFail()->id, 'Baris resi harus diperbarui, bukan dibuat ulang.');
+        $this->assertSame($order->id, ShipmentOrder::firstOrFail()->id, 'Baris resi lama tidak boleh dibuat ulang.');
+        $this->assertDatabaseHas('shipment_import_failures', ['tracking_number' => 'SPXID111', 'reason' => 'Resi sudah ada di sistem']);
         $this->assertSame($order->id, $outbound->refresh()->shipment_order_id);
         $this->assertSame(ShipmentOrder::STAGE_HANDOVER, ShipmentOrder::firstOrFail()->stage());
     }

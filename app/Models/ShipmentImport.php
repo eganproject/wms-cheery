@@ -18,6 +18,7 @@ class ShipmentImport extends Model
         'order_count',
         'item_count',
         'unmatched_sku_count',
+        'failed_row_count',
         'detected_columns',
         'user_id',
     ];
@@ -32,6 +33,11 @@ class ShipmentImport extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(ShipmentOrder::class);
+    }
+
+    public function failures(): HasMany
+    {
+        return $this->hasMany(ShipmentImportFailure::class)->orderBy('row_number');
     }
 
     public function user(): BelongsTo

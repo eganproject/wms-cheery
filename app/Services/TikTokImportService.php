@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Product;
 use App\Models\ShipmentImport;
+use App\Models\ShipmentImportFailure;
 use App\Models\ShipmentOrder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
@@ -45,21 +46,15 @@ class TikTokImportService
         'buyer_note' => ['buyermessage'],
     ];
 
-    /** Baris yang dilewati karena resinya belum terbit pada import terakhir. */
-    protected int $skippedWithoutTracking = 0;
-
-    public function skippedWithoutTracking(): int
-    {
-        return $this->skippedWithoutTracking;
-    }
-
     /**
      * Proses berkas dan simpan hasilnya.
+     *
+     * Baris yang tidak bisa masuk tidak menggagalkan seluruh berkas: ia
+     * dicatat bersama alasannya dan bisa diunduh dari halaman detail import.
+     * Hanya berkas yang memang bukan eksport TikTok yang ditolak utuh.
      */
     public function import(UploadedFile $file): ShipmentImport
     {
-        $this->skippedWithoutTracking = 0;
-
         $rows = $this->readRows($file);
 
         if ($rows->isEmpty()) {
@@ -68,7 +63,7 @@ class TikTokImportService
             ]);
         }
 
-        [$header, $headerIndex] = $this->locateHeader($rows);
+        [$header, $headerLine] = $this->locateHeader($rows);
 
         if (! isset($header['tracking_number'])) {
             throw ValidationException::withMessages([
@@ -83,21 +78,15 @@ class TikTokImportService
         }
 
         // Baris judul atau keterangan di atas header ikut dibuang.
-        $rows = $rows->slice($headerIndex + 1)
-            ->reject(fn (array $row) => $this->isDescriptionRow($row, $header))
-            ->values();
+        $rows = $rows
+            ->filter(fn (array $row, int $line) => $line > $headerLine)
+            ->reject(fn (array $row) => $this->isDescriptionRow($row, $header));
 
-        $orders = $this->groupRows($rows, $header);
+        [$orders, $failures] = $this->groupRows($rows, $header);
 
-        if ($orders->isEmpty()) {
-            throw ValidationException::withMessages([
-                'file' => $this->skippedWithoutTracking > 0
-                    ? "Tracking ID masih kosong pada {$this->skippedWithoutTracking} baris. Resi TikTok baru terbit setelah pesanan diatur pengirimannya (Atur Pengiriman), jadi ekspor ulang setelah itu."
-                    : 'Tidak ada baris dengan Tracking ID dan Seller SKU yang bisa diproses.',
-            ]);
-        }
+        [$orders, $failures, $cancellations] = $this->rejectRedundantWaybills($orders, $failures);
 
-        return $this->persist($file, $header, $rows->count(), $orders);
+        return $this->persist($file, $header, $rows->count(), $orders, $failures, $cancellations);
     }
 
     /* ------------------------------------------------------ membaca ------ */
@@ -131,13 +120,15 @@ class TikTokImportService
         fwrite($handle, $contents);
         rewind($handle);
 
+        $line = 0;
+
         while (($row = fgetcsv($handle, 0, $delimiter, '"', '\\')) !== false) {
-            $rows->push(array_map(fn ($value) => trim((string) $value), $row));
+            $rows->put(++$line, array_map(fn ($value) => trim((string) $value), $row));
         }
 
         fclose($handle);
 
-        return $rows->filter(fn (array $row) => collect($row)->filter(fn ($v) => $v !== '')->isNotEmpty())->values();
+        return $rows->filter(fn (array $row) => collect($row)->filter(fn ($v) => $v !== '')->isNotEmpty());
     }
 
     protected function detectDelimiter(string $contents): string
@@ -170,17 +161,18 @@ class TikTokImportService
             ]);
         }
 
+        // Kunci koleksi = nomor baris di Excel, dipakai pada laporan baris gagal.
         return collect($sheet->toArray(null, true, false, false))
-            ->map(fn (array $row) => array_map(fn ($value) => trim((string) $value), $row))
-            ->filter(fn (array $row) => collect($row)->filter(fn ($v) => $v !== '')->isNotEmpty())
-            ->values();
+            ->mapWithKeys(fn (array $row, int $index) => [$index + 1 => array_map(fn ($value) => trim((string) $value), $row)])
+            ->filter(fn (array $row) => collect($row)->filter(fn ($v) => $v !== '')->isNotEmpty());
     }
 
     /* ------------------------------------------------------ pemetaan ----- */
 
     /**
      * Cari baris mana yang menjadi judul kolom: baris pertama di antara
-     * beberapa baris awal yang memuat kolom Tracking ID.
+     * beberapa baris awal yang memuat kolom Tracking ID. Yang dikembalikan
+     * adalah nomor barisnya di berkas.
      *
      * @param  Collection<int, array<int, string>>  $rows
      * @return array{0: array<string, int>, 1: int}
@@ -261,17 +253,19 @@ class TikTokImportService
 
     /**
      * Satu pesanan bisa terdiri dari beberapa baris produk, jadi baris
-     * digabungkan berdasarkan nomor resi.
+     * digabungkan berdasarkan nomor resi. Baris yang tidak bisa dipakai
+     * dikumpulkan terpisah bersama alasannya.
      *
      * @param  Collection<int, array<int, string>>  $rows
      * @param  array<string, int>  $header
-     * @return Collection<string, array<string, mixed>>
+     * @return array{0: Collection<string, array<string, mixed>>, 1: Collection<int, array<string, mixed>>}
      */
-    protected function groupRows(Collection $rows, array $header): Collection
+    protected function groupRows(Collection $rows, array $header): array
     {
         $orders = collect();
+        $failures = collect();
 
-        foreach ($rows as $row) {
+        foreach ($rows as $rowNumber => $row) {
             $tracking = $this->value($row, $header, 'tracking_number');
             $variation = $this->value($row, $header, 'variation');
 
@@ -280,22 +274,39 @@ class TikTokImportService
             // itu ditandai "SKU belum cocok" alih-alih hilang diam-diam.
             $sku = $this->value($row, $header, 'sku') ?? $variation;
 
-            if (blank($sku)) {
-                continue;
-            }
+            $line = [
+                'row_number' => $rowNumber,
+                'order_number' => $this->value($row, $header, 'order_number'),
+                'tracking_number' => $tracking,
+                'sku' => $sku,
+                'product_name' => $this->productName($this->value($row, $header, 'product_name'), $variation),
+                'quantity' => max(1, (int) preg_replace('/[^0-9]/', '', (string) $this->value($row, $header, 'quantity')) ?: 1),
+            ];
 
             if (blank($tracking)) {
-                $this->skippedWithoutTracking++;
+                $failures->push($line + [
+                    'reason' => ShipmentImportFailure::REASON_NO_TRACKING,
+                    'detail' => 'Resi TikTok baru terbit setelah pesanan diatur pengirimannya (Atur Pengiriman). Ekspor ulang setelah itu.',
+                ]);
 
                 continue;
             }
 
-            $key = strtoupper(preg_replace('/\s+/', '', $tracking));
+            if (blank($sku)) {
+                $failures->push($line + [
+                    'reason' => ShipmentImportFailure::REASON_NO_SKU,
+                    'detail' => 'Seller SKU dan Variation sama-sama kosong, jadi barangnya tidak bisa dikenali. Isi Seller SKU produk ini di TikTok Shop.',
+                ]);
+
+                continue;
+            }
+
+            $key = $this->key($tracking);
 
             if (! $orders->has($key)) {
                 $orders->put($key, [
                     'tracking_number' => $tracking,
-                    'order_number' => $this->value($row, $header, 'order_number'),
+                    'order_number' => $line['order_number'],
                     'marketplace' => self::MARKETPLACE,
                     'order_status' => $this->value($row, $header, 'order_status'),
                     'courier' => $this->value($row, $header, 'courier'),
@@ -303,28 +314,128 @@ class TikTokImportService
                     'buyer_note' => $this->value($row, $header, 'buyer_note'),
                     'order_date' => $this->parseDate($this->value($row, $header, 'order_date')),
                     'items' => [],
+                    'lines' => [],
                 ]);
             }
 
             $order = $orders->get($key);
+            $order['lines'][] = $line;
             $skuKey = strtoupper(trim($sku));
-            $quantity = max(1, (int) preg_replace('/[^0-9]/', '', (string) $this->value($row, $header, 'quantity')) ?: 1);
 
             // SKU yang sama dalam satu resi dijumlahkan.
             if (isset($order['items'][$skuKey])) {
-                $order['items'][$skuKey]['quantity'] += $quantity;
+                $order['items'][$skuKey]['quantity'] += $line['quantity'];
             } else {
                 $order['items'][$skuKey] = [
                     'sku' => trim($sku),
-                    'product_name' => $this->productName($this->value($row, $header, 'product_name'), $variation),
-                    'quantity' => $quantity,
+                    'product_name' => $line['product_name'],
+                    'quantity' => $line['quantity'],
                 ];
             }
 
             $orders->put($key, $order);
         }
 
-        return $orders;
+        return [$orders, $failures];
+    }
+
+    protected function key(string $tracking): string
+    {
+        return strtoupper(preg_replace('/\s+/', '', $tracking));
+    }
+
+    /* ------------------------------------------------------ redundansi --- */
+
+    /**
+     * Cegat resi yang berulang, di dalam berkas maupun terhadap data yang
+     * sudah ada. Resi yang dicegat tidak menyentuh data lama sama sekali,
+     * kecuali tanda batal: berkas boleh menambahkan pembatalan, karena
+     * melewatkannya justru bisa membuat pesanan batal tetap dikirim.
+     *
+     * @param  Collection<string, array<string, mixed>>  $orders
+     * @param  Collection<int, array<string, mixed>>  $failures
+     * @return array{0: Collection<string, array<string, mixed>>, 1: Collection<int, array<string, mixed>>, 2: Collection<int, ShipmentOrder>}
+     */
+    protected function rejectRedundantWaybills(Collection $orders, Collection $failures): array
+    {
+        $reject = function (string $key, string $reason, string $detail) use (&$orders, $failures) {
+            foreach ($orders->get($key)['lines'] as $line) {
+                $failures->push($line + ['reason' => $reason, 'detail' => $detail]);
+            }
+
+            $orders->forget($key);
+        };
+
+        // 1. Satu resi di berkas dipakai oleh beberapa Order ID.
+        foreach ($orders as $key => $order) {
+            $numbers = collect($order['lines'])->pluck('order_number')->filter()->unique();
+
+            if ($numbers->count() > 1) {
+                $reject($key, ShipmentImportFailure::REASON_TRACKING_SHARED,
+                    "Resi {$order['tracking_number']} tertulis untuk Order ID {$numbers->implode(', ')}. Satu resi hanya boleh untuk satu pesanan; periksa pesanannya di TikTok Shop.");
+            }
+        }
+
+        // 2. Satu Order ID di berkas muncul dengan beberapa resi.
+        $orders->groupBy(fn (array $order) => $order['order_number'] ?? '', true)
+            ->reject(fn (Collection $group, string $number) => $number === '' || $group->count() < 2)
+            ->each(function (Collection $group, string $number) use ($reject) {
+                $waybills = $group->pluck('tracking_number')->implode(', ');
+
+                foreach ($group->keys() as $key) {
+                    $reject($key, ShipmentImportFailure::REASON_ORDER_SPLIT,
+                        "Order ID {$number} muncul dengan resi {$waybills}. Pastikan resi mana yang berlaku sebelum diimport ulang.");
+                }
+            });
+
+        // 3. Resi yang sudah pernah diimport.
+        $cancellations = collect();
+
+        $existing = $orders->isEmpty() ? collect() : ShipmentOrder::query()
+            ->with('import')
+            ->whereIn(DB::raw("UPPER(REPLACE(tracking_number, ' ', ''))"), $orders->keys()->all())
+            ->get()
+            ->keyBy(fn (ShipmentOrder $order) => $this->key($order->tracking_number));
+
+        foreach ($existing as $key => $old) {
+            $order = $orders->get($key);
+
+            if (! $order) {
+                continue;
+            }
+
+            $detail = "Resi ini sudah diimport {$old->created_at?->translatedFormat('d M Y H:i')}"
+                .($old->import ? " dari berkas \"{$old->import->filename}\"" : '')
+                .($old->order_number ? " untuk Order ID {$old->order_number}" : '')
+                .'. Data lama tidak diubah.';
+
+            if (ShipmentOrder::looksCancelled($order['order_status']) && ! $old->isCancelled()) {
+                $cancellations->push($old);
+                $detail .= ' Status batal dari berkas ini tetap dicatat pada resi lama.';
+            }
+
+            $reject($key, ShipmentImportFailure::REASON_TRACKING_IN_SYSTEM, $detail);
+        }
+
+        // 4. Order ID yang sudah punya resi lain (dan belum dibatalkan).
+        $numbers = $orders->pluck('order_number')->filter()->unique()->values();
+
+        $taken = $numbers->isEmpty() ? collect() : ShipmentOrder::query()
+            ->whereIn('order_number', $numbers->all())
+            ->whereNull('cancelled_at')
+            ->get(['order_number', 'tracking_number'])
+            ->groupBy('order_number');
+
+        foreach ($orders as $key => $order) {
+            $others = $taken->get($order['order_number'] ?? '');
+
+            if ($others) {
+                $reject($key, ShipmentImportFailure::REASON_ORDER_IN_SYSTEM,
+                    "Order ID {$order['order_number']} sudah terdaftar dengan resi {$others->pluck('tracking_number')->implode(', ')}. Bila resi lama memang diganti, batalkan resi lama dulu lalu import ulang.");
+            }
+        }
+
+        return [$orders, $failures->sortBy('row_number')->values(), $cancellations];
     }
 
     protected function productName(?string $name, ?string $variation): ?string
@@ -361,14 +472,22 @@ class TikTokImportService
     /**
      * @param  array<string, int>  $header
      * @param  Collection<string, array<string, mixed>>  $orders
+     * @param  Collection<int, array<string, mixed>>  $failures
+     * @param  Collection<int, ShipmentOrder>  $cancellations
      */
-    protected function persist(UploadedFile $file, array $header, int $rowCount, Collection $orders): ShipmentImport
-    {
+    protected function persist(
+        UploadedFile $file,
+        array $header,
+        int $rowCount,
+        Collection $orders,
+        Collection $failures,
+        Collection $cancellations,
+    ): ShipmentImport {
         // SKU adalah kunci pencocokan ke master barang.
         $products = Product::pluck('id', 'sku')
             ->mapWithKeys(fn ($id, $sku) => [strtoupper(trim($sku)) => $id]);
 
-        return DB::transaction(function () use ($file, $header, $rowCount, $orders, $products) {
+        return DB::transaction(function () use ($file, $header, $rowCount, $orders, $failures, $cancellations, $products) {
             $import = ShipmentImport::create([
                 'filename' => $file->getClientOriginalName(),
                 'source' => 'tiktok',
@@ -382,12 +501,9 @@ class TikTokImportService
 
             foreach ($orders as $data) {
                 $items = $data['items'];
-                unset($data['items']);
+                unset($data['items'], $data['lines']);
 
-                $order = $this->upsertOrder($import, $data);
-
-                // Isi pesanan selalu diambil ulang dari berkas terbaru.
-                $order->items()->delete();
+                $order = $this->createOrder($import, $data);
 
                 foreach ($items as $item) {
                     $productId = $products[strtoupper(trim($item['sku']))] ?? null;
@@ -399,10 +515,37 @@ class TikTokImportService
                 }
             }
 
+            foreach ($failures->chunk(500) as $chunk) {
+                $now = now();
+
+                ShipmentImportFailure::insert($chunk->map(fn (array $failure) => [
+                    'shipment_import_id' => $import->id,
+                    'order_number' => Str::limit((string) $failure['order_number'], 250, '') ?: null,
+                    'tracking_number' => Str::limit((string) $failure['tracking_number'], 250, '') ?: null,
+                    'sku' => Str::limit((string) $failure['sku'], 250, '') ?: null,
+                    'product_name' => $failure['product_name'],
+                    'quantity' => $failure['quantity'],
+                    'row_number' => $failure['row_number'],
+                    'reason' => $failure['reason'],
+                    'detail' => $failure['detail'],
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ])->values()->all());
+            }
+
+            foreach ($cancellations as $order) {
+                $order->forceFill([
+                    'cancelled_at' => now(),
+                    'cancelled_by' => null,
+                    'cancellation_reason' => null,
+                ])->save();
+            }
+
             $import->update([
                 'order_count' => $orders->count(),
                 'item_count' => $itemCount,
                 'unmatched_sku_count' => $unmatched,
+                'failed_row_count' => $failures->count(),
             ]);
 
             return $import->refresh();
@@ -410,30 +553,14 @@ class TikTokImportService
     }
 
     /**
-     * Perbarui baris resi yang sudah ada, atau buat baru.
-     *
-     * Dulu baris lama dihapus lalu dibuat dari nol. Kolom shipment_order_id
-     * pada dokumen barang keluar diatur nullOnDelete, sehingga setiap import
-     * ulang diam-diam memutus tautan dokumen yang sudah ada — termasuk yang
-     * sudah dikirim, yang lalu muncul lagi sebagai "Belum QC" di halaman
-     * Pesanan padahal stoknya sudah berkurang.
-     *
      * @param  array<string, mixed>  $data
      */
-    protected function upsertOrder(ShipmentImport $import, array $data): ShipmentOrder
+    protected function createOrder(ShipmentImport $import, array $data): ShipmentOrder
     {
-        $order = ShipmentOrder::firstOrNew(['tracking_number' => $data['tracking_number']]);
+        $order = new ShipmentOrder($data + ['shipment_import_id' => $import->id]);
 
-        // Import terbaru yang menyebut resi ini menjadi pemiliknya.
-        $order->fill($data + ['shipment_import_id' => $import->id]);
-
-        // Berkas import hanya boleh menambahkan pembatalan, tidak pernah
-        // mencabutnya: petugas yang menandai batal dari aplikasi marketplace
-        // biasanya tahu lebih dulu daripada berkas yang diekspor belakangan.
-        if (ShipmentOrder::looksCancelled($data['order_status'] ?? null) && ! $order->isCancelled()) {
+        if (ShipmentOrder::looksCancelled($data['order_status'] ?? null)) {
             $order->cancelled_at = now();
-            $order->cancelled_by = null;
-            $order->cancellation_reason = null;
         }
 
         $order->save();

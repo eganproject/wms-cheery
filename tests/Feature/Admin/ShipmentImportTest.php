@@ -89,7 +89,7 @@ class ShipmentImportTest extends TestCase
         $this->assertDatabaseCount('shipment_orders', 0);
     }
 
-    public function test_re_importing_the_same_waybill_replaces_the_previous_data(): void
+    public function test_re_importing_the_same_waybill_is_intercepted_and_keeps_the_old_data(): void
     {
         $this->uploadCsv([
             ['Tracking ID', 'Seller SKU', 'Quantity'],
@@ -99,13 +99,14 @@ class ShipmentImportTest extends TestCase
         $this->uploadCsv([
             ['Tracking ID', 'Seller SKU', 'Quantity'],
             ['SPXID111', 'BSI-IRIDIUM', '5'],
-        ]);
+        ])->assertSessionHas('error');
 
         $this->assertDatabaseCount('shipment_orders', 1);
 
         $order = ShipmentOrder::where('tracking_number', 'SPXID111')->firstOrFail();
-        $this->assertSame('BSI-IRIDIUM', $order->items->first()->sku);
-        $this->assertSame(5, $order->totalQuantity());
+        $this->assertSame('FLT-OLI-STD', $order->items->first()->sku);
+        $this->assertSame(2, $order->totalQuantity());
+        $this->assertDatabaseHas('shipment_import_failures', ['tracking_number' => 'SPXID111', 'sku' => 'BSI-IRIDIUM', 'row_number' => 2]);
     }
 
     public function test_import_pages_are_rendered(): void

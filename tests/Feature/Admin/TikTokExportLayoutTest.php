@@ -4,6 +4,7 @@ namespace Tests\Feature\Admin;
 
 use App\Models\Product;
 use App\Models\ShipmentImport;
+use App\Models\ShipmentImportFailure;
 use App\Models\ShipmentOrder;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
@@ -113,10 +114,19 @@ class TikTokExportLayoutTest extends TestCase
         $this->assertSame('tiktok', ShipmentImport::firstOrFail()->source);
     }
 
-    public function test_rows_without_a_tracking_id_are_reported(): void
+    public function test_rows_without_a_tracking_id_are_recorded_as_failures(): void
     {
         $this->upload($this->sample())
-            ->assertSessionHas('error', fn (string $message) => str_contains($message, '1 baris dilewati karena Tracking ID belum terbit'));
+            ->assertSessionHas('error', fn (string $message) => str_contains($message, '1 baris gagal diimport'));
+
+        $failure = ShipmentImportFailure::sole();
+
+        // Baris 1 judul, baris 2 keterangan, jadi pesanan keempat ada di baris 6.
+        $this->assertSame(6, $failure->row_number);
+        $this->assertSame('580000000000000003', $failure->order_number);
+        $this->assertSame(ShipmentImportFailure::REASON_NO_TRACKING, $failure->reason);
+        $this->assertStringContainsString('Atur Pengiriman', $failure->detail);
+        $this->assertSame(1, ShipmentImport::firstOrFail()->failed_row_count);
     }
 
     public function test_the_needed_columns_are_stored(): void
@@ -172,14 +182,122 @@ class TikTokExportLayoutTest extends TestCase
         $this->assertSame('Erika Mini Dress - Erika C', $item->product_name);
     }
 
-    public function test_a_file_where_no_waybill_has_been_issued_is_refused_with_a_hint(): void
+    public function test_a_file_where_no_waybill_has_been_issued_still_lists_every_row(): void
     {
         $this->upload([
             $this->line(['Tracking ID' => '']),
             $this->line(['Order ID' => '580000000000000002', 'Tracking ID' => '']),
-        ])->assertSessionHasErrors(['file' => 'Tracking ID masih kosong pada 2 baris. Resi TikTok baru terbit setelah pesanan diatur pengirimannya (Atur Pengiriman), jadi ekspor ulang setelah itu.']);
+        ])->assertSessionHas('error');
 
-        $this->assertDatabaseCount('shipment_imports', 0);
+        $import = ShipmentImport::sole();
+
+        $this->assertSame(0, $import->order_count);
+        $this->assertSame(2, $import->failed_row_count);
+        $this->assertDatabaseCount('shipment_orders', 0);
+    }
+
+    public function test_a_row_without_any_sku_is_a_failure(): void
+    {
+        $this->upload([$this->line(['Seller SKU' => '', 'Variation' => ''])]);
+
+        $this->assertSame(ShipmentImportFailure::REASON_NO_SKU, ShipmentImportFailure::sole()->reason);
+        $this->assertDatabaseCount('shipment_orders', 0);
+    }
+
+    /* --------------------------------------------------- redundansi ------ */
+
+    public function test_a_waybill_already_in_the_system_is_intercepted(): void
+    {
+        $this->upload($this->sample());
+
+        $this->upload([$this->line(['Seller SKU' => 'Erika C', 'Quantity' => '5'])])
+            ->assertSessionHas('error');
+
+        $order = ShipmentOrder::where('tracking_number', 'JX0000000001')->firstOrFail();
+        $this->assertSame(3, $order->totalQuantity(), 'Data lama tidak boleh berubah.');
+
+        $failure = ShipmentImport::latest('id')->first()->failures->sole();
+        $this->assertSame(ShipmentImportFailure::REASON_TRACKING_IN_SYSTEM, $failure->reason);
+        $this->assertStringContainsString('Untuk Dikirim pesanan.xlsx', $failure->detail);
+    }
+
+    public function test_a_cancellation_on_a_known_waybill_is_still_applied(): void
+    {
+        $this->upload([$this->line()]);
+        $this->upload([$this->line(['Order Status' => 'Dibatalkan'])]);
+
+        $this->assertTrue(ShipmentOrder::sole()->isCancelled());
+        $this->assertStringContainsString('Status batal', ShipmentImportFailure::sole()->detail);
+    }
+
+    public function test_one_waybill_for_several_orders_is_intercepted(): void
+    {
+        $this->upload([
+            $this->line(),
+            $this->line(['Order ID' => '580000000000000009', 'Seller SKU' => 'Farasya 2']),
+            $this->line(['Order ID' => '580000000000000002', 'Tracking ID' => 'JX0000000002']),
+        ]);
+
+        $this->assertSame(['JX0000000002'], ShipmentOrder::pluck('tracking_number')->all());
+        $this->assertSame(2, ShipmentImportFailure::where('reason', ShipmentImportFailure::REASON_TRACKING_SHARED)->count());
+    }
+
+    public function test_one_order_with_several_waybills_in_the_file_is_intercepted(): void
+    {
+        $this->upload([
+            $this->line(),
+            $this->line(['Tracking ID' => 'JX0000000099']),
+        ]);
+
+        $this->assertDatabaseCount('shipment_orders', 0);
+        $this->assertSame(2, ShipmentImportFailure::where('reason', ShipmentImportFailure::REASON_ORDER_SPLIT)->count());
+    }
+
+    public function test_an_order_that_already_has_another_waybill_is_intercepted(): void
+    {
+        $this->upload([$this->line()]);
+        $this->upload([$this->line(['Tracking ID' => 'JX0000000099'])]);
+
+        $this->assertSame(['JX0000000001'], ShipmentOrder::pluck('tracking_number')->all());
+
+        $failure = ShipmentImportFailure::sole();
+        $this->assertSame(ShipmentImportFailure::REASON_ORDER_IN_SYSTEM, $failure->reason);
+        $this->assertStringContainsString('JX0000000001', $failure->detail);
+    }
+
+    public function test_an_order_whose_old_waybill_was_cancelled_can_get_a_new_one(): void
+    {
+        $this->upload([$this->line()]);
+        ShipmentOrder::sole()->forceFill(['cancelled_at' => now()])->save();
+
+        $this->upload([$this->line(['Tracking ID' => 'JX0000000099'])])->assertSessionHas('success');
+
+        $this->assertDatabaseHas('shipment_orders', ['tracking_number' => 'JX0000000099']);
+    }
+
+    /* --------------------------------------------------- unduhan --------- */
+
+    public function test_failures_can_be_downloaded_with_their_reasons(): void
+    {
+        $this->upload($this->sample());
+        $import = ShipmentImport::sole();
+
+        $this->actingAs($this->admin)->get(route('admin.imports.show', $import))
+            ->assertOk()
+            ->assertSee('1 baris gagal diimport')
+            ->assertSee(route('admin.imports.failures', $import));
+
+        $response = $this->actingAs($this->admin)->get(route('admin.imports.failures', $import));
+        $response->assertOk();
+        $this->assertStringContainsString('.xlsx', $response->headers->get('content-disposition'));
+
+        $path = tempnam(sys_get_temp_dir(), 'gagal').'.xlsx';
+        file_put_contents($path, $response->streamedContent());
+        $rows = \PhpOffice\PhpSpreadsheet\IOFactory::load($path)->getActiveSheet()->toArray();
+
+        $this->assertSame(['Baris di Berkas', 'Order ID', 'Tracking ID', 'Seller SKU', 'Nama Produk', 'Qty', 'Alasan Gagal', 'Keterangan'], $rows[3]);
+        $this->assertSame('580000000000000003', $rows[4][1]);
+        $this->assertSame(ShipmentImportFailure::REASON_NO_TRACKING, $rows[4][6]);
     }
 
     public function test_a_cancelled_order_is_flagged(): void
