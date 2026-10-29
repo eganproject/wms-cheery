@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\GeneratesDocumentCode;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Supplier extends Model
 {
+    use GeneratesDocumentCode;
+
     protected $fillable = [
         'code',
         'name',
@@ -46,12 +49,8 @@ class Supplier extends Model
     /**
      * Kode pemasok berikutnya, contoh: SUP-0007.
      */
-    public static function nextCode(): string
+    protected static function codePrefix(): string
     {
-        $last = static::where('code', 'like', 'SUP-%')->max('code');
-
-        $sequence = $last ? ((int) substr($last, -4)) + 1 : 1;
-
-        return 'SUP-'.str_pad((string) $sequence, 4, '0', STR_PAD_LEFT);
+        return 'SUP-';
     }
 }

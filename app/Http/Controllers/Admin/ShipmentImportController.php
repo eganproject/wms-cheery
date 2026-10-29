@@ -58,8 +58,8 @@ class ShipmentImportController extends Controller implements HasMiddleware
 
         return view('admin.imports.index', [
             'orders' => $orders,
-            'marketplaces' => ShipmentOrder::query()->whereNotNull('marketplace')->distinct()->orderBy('marketplace')->pluck('marketplace'),
-            'couriers' => ShipmentOrder::query()->whereNotNull('courier')->distinct()->orderBy('courier')->pluck('courier'),
+            'marketplaces' => ShipmentOrder::filterOptions('marketplace'),
+            'couriers' => ShipmentOrder::filterOptions('courier'),
             'summary' => $this->summary($request),
         ]);
     }
@@ -179,7 +179,21 @@ class ShipmentImportController extends Controller implements HasMiddleware
 
     public function destroy(ShipmentImport $import): RedirectResponse
     {
+        /*
+            Resi yang sudah punya dokumen gudang (sedang/selesai QC kemas,
+            atau sudah dikirim) tidak ikut dihapus diam-diam. Menghapusnya
+            memutus dokumen barang keluar dari pesanannya: marketplace dan
+            status batalnya hilang, dan resi itu bisa diimport lalu dikemas
+            sekali lagi.
+        */
+        $processed = $import->orders()->whereHas('outbound')->count();
+
+        if ($processed > 0) {
+            return back()->with('error', "Data import ini tidak bisa dihapus: {$processed} resinya sudah diproses di QC Kemas atau sudah dikirim. Resi yang batal cukup ditandai batal di halaman Pesanan.");
+        }
+
         $import->delete();
+        ShipmentOrder::forgetFilterOptions();
 
         return redirect()
             ->route('admin.imports.batches')

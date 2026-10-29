@@ -113,6 +113,14 @@ class StockService
         $outbound->loadMissing('items');
 
         DB::transaction(function () use ($outbound, $description) {
+            // Dibaca ulang dengan kunci: dua permintaan batal yang bersamaan
+            // tidak boleh sama-sama mengembalikan stok.
+            if (Outbound::lockForUpdate()->whereKey($outbound->getKey())->value('status') !== Outbound::STATUS_POSTED) {
+                throw ValidationException::withMessages([
+                    'status' => 'Dokumen ini sudah dibatalkan, stoknya sudah dikembalikan.',
+                ]);
+            }
+
             foreach ($outbound->items as $item) {
                 $this->move($item->product_id, 'in', $item->quantity, $outbound, $description);
             }

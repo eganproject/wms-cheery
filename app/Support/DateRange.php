@@ -77,6 +77,32 @@ class DateRange
      * Alamat yang disalin tempel sering rusak sebagian, dan daftar yang tetap
      * tampil lebih berguna daripada halaman galat.
      */
+    /**
+     * Saring kolom tanggal/waktu dengan batas inklusif di kedua ujung.
+     *
+     * Ditulis sebagai `kolom >= awal` dan `kolom < hari setelah akhir`,
+     * bukan `DATE(kolom)`: membungkus kolom dengan fungsi membuat basis data
+     * tidak bisa memakai indeksnya dan harus membaca seluruh tabel — terasa
+     * makin lambat setiap hari karena data resi dan kartu stok terus tumbuh.
+     * Hasilnya sama untuk kolom bertipe date maupun datetime.
+     *
+     * @template TQuery of \Illuminate\Contracts\Database\Query\Builder
+     *
+     * @param  TQuery  $query
+     * @return TQuery
+     */
+    public static function constrain($query, string $column, ?string $from, ?string $to)
+    {
+        $from = static::date($from);
+        $to = static::date($to);
+
+        return $query
+            ->when($from, fn ($query, string $date) => $query->where($column, '>=', $date))
+            ->when($to, fn ($query, string $date) => $query->where(
+                $column, '<', Carbon::parse($date)->addDay()->toDateString(),
+            ));
+    }
+
     protected static function date(mixed $value): ?string
     {
         $trimmed = trim((string) $value);

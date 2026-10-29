@@ -487,7 +487,7 @@ class TikTokImportService
         $products = Product::pluck('id', 'sku')
             ->mapWithKeys(fn ($id, $sku) => [strtoupper(trim($sku)) => $id]);
 
-        return DB::transaction(function () use ($file, $header, $rowCount, $orders, $failures, $cancellations, $products) {
+        $import = DB::transaction(function () use ($file, $header, $rowCount, $orders, $failures, $cancellations, $products) {
             $import = ShipmentImport::create([
                 'filename' => $file->getClientOriginalName(),
                 'source' => 'tiktok',
@@ -550,6 +550,11 @@ class TikTokImportService
 
             return $import->refresh();
         });
+
+        // Marketplace, toko, atau kurir baru bisa ikut masuk bersama berkas ini.
+        ShipmentOrder::forgetFilterOptions();
+
+        return $import;
     }
 
     /**

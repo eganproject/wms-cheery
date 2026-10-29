@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\Concerns\ParsesApiParameters;
 use App\Http\Controllers\Controller;
 use App\Models\StockMovement;
 use App\Support\StockMovementSummary;
+use App\Support\DateRange;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -68,8 +69,7 @@ class StockMovementController extends Controller
             ->when($productId, fn (Builder $query) => $query->where('product_id', (int) $productId))
             ->when($this->text($request, 'sku'), fn (Builder $query, string $sku) => $query
                 ->whereHas('product', fn (Builder $product) => $product->where('sku', $sku)))
-            ->when($from, fn (Builder $query) => $query->whereDate('created_at', '>=', $from->toDateString()))
-            ->when($to, fn (Builder $query) => $query->whereDate('created_at', '<=', $to->toDateString()));
+            ->tap(fn (Builder $query) => DateRange::constrain($query, 'created_at', $from?->toDateString(), $to?->toDateString()));
 
         $summary = StockMovementSummary::of($query());
         $rows = $query()

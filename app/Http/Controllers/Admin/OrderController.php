@@ -92,9 +92,7 @@ class OrderController extends Controller implements HasMiddleware
 
         // Pilihan marketplace, toko, dan kurir dihitung dari seluruh data,
         // bukan hanya yang lolos saringan: memilih yang lain harus tetap mungkin.
-        $distinct = fn (string $column) => ShipmentOrder::query()
-            ->whereNotNull($column)->where($column, '!=', '')
-            ->distinct()->orderBy($column)->pluck($column);
+        $distinct = fn (string $column) => ShipmentOrder::filterOptions($column);
 
         return view('admin.orders.index', [
             'orders' => $orders,

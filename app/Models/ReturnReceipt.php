@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\GeneratesDocumentCode;
 use App\Models\Concerns\FiltersByDate;
 use App\Models\Concerns\HasApprovalWorkflow;
 use Illuminate\Database\Eloquent\Builder;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class ReturnReceipt extends Model
 {
-    use FiltersByDate, HasApprovalWorkflow;
+    use FiltersByDate, GeneratesDocumentCode, HasApprovalWorkflow;
 
     public const STATUS_DRAFT = 'draft';
 
@@ -185,15 +186,9 @@ class ReturnReceipt extends Model
     /**
      * Nomor dokumen berikutnya, contoh: RET-202608-0007.
      */
-    public static function nextCode(): string
+    protected static function codePrefix(): string
     {
-        $prefix = 'RET-'.now()->format('Ym').'-';
-
-        $last = static::where('code', 'like', $prefix.'%')->max('code');
-
-        $sequence = $last ? ((int) substr($last, -4)) + 1 : 1;
-
-        return $prefix.str_pad((string) $sequence, 4, '0', STR_PAD_LEFT);
+        return 'RET-'.now()->format('Ym').'-';
     }
 
     protected function postedLabel(): string

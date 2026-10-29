@@ -189,7 +189,10 @@
                         </div>
                         <p class="mt-1 text-[11px] text-ink-400">
                             {{ $courier->shipped }} sudah dikirim &middot;
-                            <span class="font-medium text-ink-600">{{ $courier->total - $courier->shipped }} menunggu</span>
+                            <span class="font-medium text-ink-600">{{ $courier->total - $courier->shipped - $courier->cancelled }} menunggu</span>
+                            @if ($courier->cancelled > 0)
+                                &middot; {{ $courier->cancelled }} batal
+                            @endif
                         </p>
                     </div>
                 @empty

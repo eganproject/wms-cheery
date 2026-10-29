@@ -537,7 +537,7 @@ class BundleOutboundTest extends TestCase
             ->postJson(route('admin.returns.marketplace.store'), ['code' => 'SPXID111'])
             ->assertOk();
 
-        $return = \App\Models\ReturnReceipt::latest('id')->firstOrFail()->load('items');
+        $return = \App\Models\ReturnReceipt::latest('id')->firstOrFail()->load('items.product');
 
         // Kondisinya dinilai per barang: paket yang isinya sebagian penyok
         // memang tidak bisa digambarkan sebagai satu baris.

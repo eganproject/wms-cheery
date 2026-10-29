@@ -416,6 +416,66 @@ class CancelledOrderTest extends TestCase
         $this->assertSame(0, ShipmentOrder::cancelled()->count());
     }
 
+    /**
+     * Resi yang batal menurut data import tetapi paketnya berangkat kemarin
+     * tidak boleh mengembalikan stok lewat permintaan batal.
+     */
+    public function test_a_waybill_cancelled_after_shipping_on_an_earlier_day_keeps_its_stock_out(): void
+    {
+        $order = $this->makeOrder();
+        $outbound = $this->makePackage($order, scanned: 2);
+        $outbound->forceFill(['resi_verified_at' => now()->subDay()])->save();
+
+        $this->actingAs($this->admin)->post(route('admin.outbounds.handover.process'), ['ids' => [$outbound->id]]);
+        $order->forceFill(['cancelled_at' => now()])->save();
+
+        $this->actingAs($this->admin)->post(route('admin.imports.orders.cancel', $order), [
+            'cancellation_reason' => 'Pembeli minta batal.',
+        ])->assertSessionHas('error');
+
+        $this->assertSame(48, $this->product->refresh()->stock);
+        $this->assertTrue($outbound->refresh()->isPosted());
+    }
+
+    /**
+     * Klik ganda pada "Simpan" pembatalan: stoknya kembali sekali saja.
+     */
+    public function test_cancelling_twice_returns_the_stock_once(): void
+    {
+        $order = $this->makeOrder();
+        $outbound = $this->makePackage($order, scanned: 2);
+
+        $this->actingAs($this->admin)->post(route('admin.outbounds.handover.process'), ['ids' => [$outbound->id]]);
+
+        foreach ([1, 2] as $attempt) {
+            $this->actingAs($this->admin)->post(route('admin.imports.orders.cancel', $order), [
+                'cancellation_reason' => 'Pembeli minta batal.',
+            ]);
+        }
+
+        $this->assertSame(50, $this->product->refresh()->stock);
+    }
+
+    /**
+     * Data import yang resinya sudah dikemas tidak bisa dihapus: dokumen
+     * barang keluarnya akan kehilangan pesanannya.
+     */
+    public function test_an_import_with_processed_waybills_can_not_be_deleted(): void
+    {
+        $order = $this->makeOrder();
+        $this->makePackage($order, scanned: 1);
+
+        $this->actingAs($this->admin)->delete(route('admin.imports.destroy', $order->import))
+            ->assertSessionHas('error');
+
+        $this->assertNotNull($order->fresh());
+
+        $other = $this->makeOrder('SPXID222');
+        $this->actingAs($this->admin)->delete(route('admin.imports.destroy', $other->import))
+            ->assertSessionHas('success');
+        $this->assertNull($other->fresh());
+    }
+
     public function test_the_status_page_lists_cancelled_waybills(): void
     {
         $this->cancel($this->makeOrder());

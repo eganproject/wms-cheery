@@ -81,8 +81,7 @@ class StockMovementController extends Controller implements HasMiddleware
             ->inBucket($request->string('bucket')->value())
             ->when($request->filled('product_id'), fn ($query) => $query->where('product_id', $request->integer('product_id')))
             ->when(in_array($request->input('type'), ['in', 'out'], true), fn ($query) => $query->where('type', $request->input('type')))
-            ->when($range->from, fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
-            ->when($range->to, fn ($query, $date) => $query->whereDate('created_at', '<=', $date));
+            ->tap(fn ($query) => DateRange::constrain($query, 'created_at', $range->from, $range->to));
     }
 
     /**

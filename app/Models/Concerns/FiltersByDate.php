@@ -25,11 +25,7 @@ trait FiltersByDate
      */
     public function scopeDateBetween(Builder $query, DateRange $range): Builder
     {
-        $column = $this->dateFilterColumn();
-
-        return $query
-            ->when(static::dateFilterValue($range->from), fn (Builder $query, string $date) => $query->whereDate($column, '>=', $date))
-            ->when(static::dateFilterValue($range->to), fn (Builder $query, string $date) => $query->whereDate($column, '<=', $date));
+        return DateRange::constrain($query, $this->qualifyColumn($this->dateFilterColumn()), $range->from, $range->to);
     }
 
     /**

@@ -98,6 +98,8 @@ class DashboardController extends Controller implements HasMiddleware
             ->selectRaw('shipment_orders.courier as courier')
             ->selectRaw('COUNT(DISTINCT shipment_orders.id) as total')
             ->selectRaw('COUNT(DISTINCT outbounds.id) as shipped')
+            // Resi batal yang belum berangkat bukan pekerjaan yang menunggu.
+            ->selectRaw('COUNT(DISTINCT CASE WHEN outbounds.id IS NULL AND shipment_orders.cancelled_at IS NOT NULL THEN shipment_orders.id END) as cancelled')
             ->groupBy('shipment_orders.courier')
             ->orderByDesc('total')
             ->get();

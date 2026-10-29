@@ -125,6 +125,19 @@ class OutboundMarketplaceController extends Controller implements HasMiddleware
      */
     protected function documentFor(ShipmentOrder $order): Outbound
     {
+        // Baris pesanannya dikunci lebih dulu: dua stasiun QC yang memindai
+        // resi yang sama pada saat bersamaan tidak boleh sama-sama membuat
+        // dokumen baru untuknya. Yang kedua menunggu, lalu memakai dokumen
+        // yang dibuat yang pertama.
+        return DB::transaction(function () use ($order) {
+            ShipmentOrder::whereKey($order->getKey())->lockForUpdate()->first();
+
+            return $this->openDocumentFor($order);
+        });
+    }
+
+    protected function openDocumentFor(ShipmentOrder $order): Outbound
+    {
         $existing = Outbound::with('items')
             ->where('shipment_order_id', $order->id)
             ->orWhere('tracking_number', $order->tracking_number)

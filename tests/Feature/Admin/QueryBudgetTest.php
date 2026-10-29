@@ -145,6 +145,10 @@ class QueryBudgetTest extends TestCase
     {
         $user = User::findOrFail($this->admin->id);
 
+        // Pilihan saringan disimpan di cache; tiap pengukuran mulai dari
+        // keadaan yang sama supaya yang dibandingkan hanya pertumbuhan data.
+        \Illuminate\Support\Facades\Cache::flush();
+
         DB::flushQueryLog();
         DB::enableQueryLog();
 

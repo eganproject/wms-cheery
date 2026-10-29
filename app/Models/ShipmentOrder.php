@@ -123,10 +123,9 @@ class ShipmentOrder extends Model
      */
     public function cancellationBlocker(): ?string
     {
-        if ($this->isCancelled()) {
-            return null;
-        }
-
+        // Resi yang sudah batal tetapi paketnya terlanjur dikirim tetap
+        // tunduk pada aturan hari QC: tahapnya terbaca "dikirim" di bawah,
+        // jadi stok paket yang berangkat kemarin tidak ikut dikembalikan.
         $stage = $this->stage();
 
         if (! in_array($stage, [self::STAGE_HANDOVER, self::STAGE_SHIPPED], true)) {
@@ -431,18 +430,36 @@ class ShipmentOrder extends Model
      * Mengunggah ulang berkas yang sama tidak menggeser tanggal ini: resinya
      * sudah pernah masuk, dan pengunggahan kedua bukan pekerjaan baru.
      */
-    protected const EFFECTIVE_DATE = 'DATE(shipment_orders.created_at)';
-
     /**
-     * Disaring menurut tanggal unggah.
+     * Pilihan saringan (marketplace, toko, kurir) dari seluruh data resi.
+     *
+     * Membacanya berarti memindai seluruh tabel resi, dan hasilnya hanya
+     * berubah saat ada import — jadi disimpan sebentar di cache dan dibuang
+     * setiap kali import masuk atau dihapus.
+     *
+     * @return \Illuminate\Support\Collection<int, string>
      */
+    public static function filterOptions(string $column)
+    {
+        return collect(\Illuminate\Support\Facades\Cache::remember(
+            "shipment-orders.filter-options.{$column}",
+            now()->addMinutes(30),
+            fn () => static::query()
+                ->whereNotNull($column)->where($column, '!=', '')
+                ->distinct()->orderBy($column)->pluck($column)->all(),
+        ));
+    }
+
+    public static function forgetFilterOptions(): void
+    {
+        foreach (['marketplace', 'store_name', 'courier'] as $column) {
+            \Illuminate\Support\Facades\Cache::forget("shipment-orders.filter-options.{$column}");
+        }
+    }
+
     public function scopeDateBetween(Builder $query, \App\Support\DateRange $range): Builder
     {
-        return $query
-            ->when(static::dateFilterValue($range->from), fn (Builder $query, string $date) => $query
-                ->whereRaw(self::EFFECTIVE_DATE.' >= ?', [$date]))
-            ->when(static::dateFilterValue($range->to), fn (Builder $query, string $date) => $query
-                ->whereRaw(self::EFFECTIVE_DATE.' <= ?', [$date]));
+        return \App\Support\DateRange::constrain($query, 'shipment_orders.created_at', $range->from, $range->to);
     }
 
     /* ------------------------------------------------------ resi kembar -- */

@@ -43,6 +43,12 @@ class ShipmentOrderCancellationController extends Controller implements HasMiddl
 
         $order->load('outbound.items');
 
+        // Klik ganda atau form yang dikirim ulang: resinya sudah batal dan
+        // tidak ada lagi yang perlu dikerjakan.
+        if ($order->isCancelled() && ! $order->outbound?->isPosted()) {
+            return $this->backToStatus($request)->with('error', "Resi {$order->tracking_number} sudah ditandai batal.");
+        }
+
         // Paket yang sudah dikemas atau sudah diserahkan ke kurir hanya bisa
         // dibatalkan pada hari QC kemasnya. Lewat dari itu, pengembaliannya
         // dicatat lewat penerimaan retur.

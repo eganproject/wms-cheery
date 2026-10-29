@@ -29,17 +29,20 @@ class ApprovalService
      */
     public function submit(Model $document): void
     {
-        $this->guardEditable($document);
-        $this->guardReady($document);
+        DB::transaction(function () use ($document) {
+            $this->lockFresh($document);
+            $this->guardEditable($document);
+            $this->guardReady($document);
 
-        $document->forceFill([
-            'status' => $document::STATUS_PENDING,
-            'submitted_at' => now(),
-            'submitted_by' => auth()->id(),
-            'rejected_at' => null,
-            'rejected_by' => null,
-            'rejection_reason' => null,
-        ])->save();
+            $document->forceFill([
+                'status' => $document::STATUS_PENDING,
+                'submitted_at' => now(),
+                'submitted_by' => auth()->id(),
+                'rejected_at' => null,
+                'rejected_by' => null,
+                'rejection_reason' => null,
+            ])->save();
+        });
     }
 
     /**
@@ -47,6 +50,16 @@ class ApprovalService
      */
     public function approve(Model $document): void
     {
+        DB::transaction(fn () => $this->approveLocked($document));
+    }
+
+    /**
+     * Isi approve(), dijalankan di dalam transaksi dengan baris dokumen terkunci.
+     */
+    protected function approveLocked(Model $document): void
+    {
+        $this->lockFresh($document);
+
         if ($document->status === $document::STATUS_POSTED) {
             throw ValidationException::withMessages([
                 'status' => 'Dokumen ini sudah disetujui sebelumnya.',
@@ -98,7 +111,6 @@ class ApprovalService
      */
     public function submitAndApprove(Model $document): void
     {
-        $this->guardReady($document);
 
         /*
             Dokumen benar-benar melewati status diajukan, bukan melompatinya —
@@ -111,13 +123,20 @@ class ApprovalService
             merasa membuatnya.
         */
         DB::transaction(function () use ($document) {
+            // Tanpa ini, dokumen yang sudah diposting bisa diposting ulang
+            // lewat klik ganda atau form yang dikirim ulang: statusnya
+            // ditimpa menjadi diajukan lalu stoknya bergerak dua kali.
+            $this->lockFresh($document);
+            $this->guardEditable($document);
+            $this->guardReady($document);
+
             $document->forceFill([
                 'status' => $document::STATUS_PENDING,
                 'submitted_at' => now(),
                 'submitted_by' => auth()->id(),
             ])->save();
 
-            $this->approve($document);
+            $this->approveLocked($document);
         });
     }
 
@@ -126,20 +145,24 @@ class ApprovalService
      */
     public function reject(Model $document, string $reason): void
     {
-        if (! $document->isPending()) {
-            throw ValidationException::withMessages([
-                'status' => 'Hanya dokumen yang sedang diajukan dapat ditolak.',
-            ]);
-        }
+        DB::transaction(function () use ($document, $reason) {
+            $this->lockFresh($document);
 
-        $document->forceFill([
-            'status' => $document::STATUS_REJECTED,
-            'rejected_at' => now(),
-            'rejected_by' => auth()->id(),
-            'rejection_reason' => $reason,
-            'approved_at' => null,
-            'approved_by' => null,
-        ])->save();
+            if (! $document->isPending()) {
+                throw ValidationException::withMessages([
+                    'status' => 'Hanya dokumen yang sedang diajukan dapat ditolak.',
+                ]);
+            }
+
+            $document->forceFill([
+                'status' => $document::STATUS_REJECTED,
+                'rejected_at' => now(),
+                'rejected_by' => auth()->id(),
+                'rejection_reason' => $reason,
+                'approved_at' => null,
+                'approved_by' => null,
+            ])->save();
+        });
     }
 
     /**
@@ -147,17 +170,38 @@ class ApprovalService
      */
     public function withdraw(Model $document): void
     {
-        if (! $document->isPending()) {
-            throw ValidationException::withMessages([
-                'status' => 'Hanya dokumen yang sedang diajukan dapat ditarik kembali.',
-            ]);
-        }
+        DB::transaction(function () use ($document) {
+            $this->lockFresh($document);
 
-        $document->forceFill([
-            'status' => $document::STATUS_DRAFT,
-            'submitted_at' => null,
-            'submitted_by' => null,
-        ])->save();
+            if (! $document->isPending()) {
+                throw ValidationException::withMessages([
+                    'status' => 'Hanya dokumen yang sedang diajukan dapat ditarik kembali.',
+                ]);
+            }
+
+            $document->forceFill([
+                'status' => $document::STATUS_DRAFT,
+                'submitted_at' => null,
+                'submitted_by' => null,
+            ])->save();
+        });
+    }
+
+    /**
+     * Kunci baris dokumen dan baca ulang statusnya dari basis data.
+     *
+     * Model yang dipegang pemanggil bisa sudah basi: dua klik pada tombol
+     * yang sama, atau dua orang di dua layar, sama-sama memuat dokumen saat
+     * masih draft. Tanpa kunci keduanya lolos pemeriksaan status dan stoknya
+     * bergerak dua kali. Relasi yang sudah dimuat dibiarkan.
+     */
+    protected function lockFresh(Model $document): void
+    {
+        $fresh = $document->newQuery()->lockForUpdate()->find($document->getKey());
+
+        if ($fresh) {
+            $document->setRawAttributes($fresh->getAttributes(), true);
+        }
     }
 
     protected function guardEditable(Model $document): void

@@ -213,7 +213,7 @@ class Product extends Model
         }
 
         $components = $this->relationLoaded('bundleComponents')
-            ? $this->bundleComponents
+            ? $this->bundleComponents->loadMissing('component')
             : $this->bundleComponents()->with('component')->get();
 
         if ($components->isEmpty()) {

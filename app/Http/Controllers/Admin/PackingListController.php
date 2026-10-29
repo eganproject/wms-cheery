@@ -53,9 +53,7 @@ class PackingListController extends Controller implements HasMiddleware
             ->when($search !== '', fn ($rows) => $rows->filter(fn (array $row) => str_contains(mb_strtolower($row['sku'].' '.$row['name']), mb_strtolower($search))))
             ->values();
 
-        $distinct = fn (string $column) => ShipmentOrder::query()
-            ->whereNotNull($column)->where($column, '!=', '')
-            ->distinct()->orderBy($column)->pluck($column);
+        $distinct = fn (string $column) => ShipmentOrder::filterOptions($column);
 
         return view('admin.orders.packing', [
             'list' => $list,
