@@ -188,7 +188,7 @@ class CourierReportTest extends TestCase
             ->assertSee('Beban per Ekspedisi')
             // Tanpa argumen kedua: nilainya ikut di-escape seperti Blade
             // melakukannya, sehingga "&" pada alamat cocok dengan "&amp;".
-            ->assertSee(route('admin.imports.status', [
+            ->assertSee(route('admin.orders.index', [
                 'from' => Carbon::today()->toDateString(),
                 'to' => Carbon::today()->toDateString(),
                 'courier' => 'SPX',

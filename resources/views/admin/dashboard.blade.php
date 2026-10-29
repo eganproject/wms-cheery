@@ -121,15 +121,15 @@
         </x-ui.card>
 
         {{-- Status resi: tahapan alur gudang, dihitung dari dokumennya --}}
-        <x-ui.card title="Status Resi" subtitle="Posisi resi hasil import di alur gudang">
+        <x-ui.card title="Pesanan" subtitle="Posisi resi hasil import di alur gudang">
             @php
                 $stages = [
                     \App\Models\ShipmentOrder::STAGE_AWAITING_QC => ['label' => 'Belum QC', 'icon' => 'clock',
                         'hint' => 'Resi atau barangnya belum tuntas discan', 'tone' => 'text-amber-700 bg-amber-50'],
-                    \App\Models\ShipmentOrder::STAGE_HANDOVER => ['label' => 'Serah Terima', 'icon' => 'check-circle',
-                        'hint' => 'QC selesai, menunggu diproses', 'tone' => 'text-blue-700 bg-blue-100'],
+                    \App\Models\ShipmentOrder::STAGE_HANDOVER => ['label' => 'Sudah QC', 'icon' => 'check-circle',
+                        'hint' => 'QC selesai, menunggu discan di Serah Terima Paket', 'tone' => 'text-blue-700 bg-blue-100'],
                     \App\Models\ShipmentOrder::STAGE_SHIPPED => ['label' => 'Dikirim', 'icon' => 'outbound',
-                        'hint' => 'Disetujui, stok sudah berkurang', 'tone' => 'text-emerald-700 bg-emerald-50'],
+                        'hint' => 'Sudah discan di Serah Terima Paket, stok sudah berkurang', 'tone' => 'text-emerald-700 bg-emerald-50'],
                     \App\Models\ShipmentOrder::STAGE_CANCELLED => ['label' => 'Dibatalkan', 'icon' => 'x-circle',
                         'hint' => 'Batal sebelum berangkat — jangan dikirim', 'tone' => 'text-red-700 bg-red-50'],
                 ];
@@ -158,9 +158,9 @@
             </div>
 
             @can('imports.view')
-                <a href="{{ route('admin.imports.status') }}"
+                <a href="{{ route('admin.orders.index') }}"
                    class="mt-4 flex items-center justify-between rounded-lg bg-control px-3 py-2 text-sm font-medium text-ink-800 transition hover:bg-ink-200">
-                    Lihat status resi
+                    Lihat pesanan
                     <x-icon name="arrow-right" class="h-4 w-4" />
                 </a>
             @endcan

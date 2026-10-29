@@ -41,7 +41,7 @@ class NavigationTest extends TestCase
 
         // Setiap halaman bisa dibuka dengan satu klik dari menu samping.
         foreach (['Beranda', 'Persetujuan', 'Packing List', 'QC Kemas', 'Serah Terima Paket', 'Retur Marketplace',
-            'Status Resi', 'Import Resi', 'Barang Masuk', 'Barang Keluar', 'Penerimaan Retur',
+            'Import Resi', 'Barang Masuk', 'Barang Keluar', 'Penerimaan Retur',
             'Stok Opname', 'Penyesuaian Stok', 'Barang Rusak', 'Pemasok', 'Laporan Stok',
             'Mutasi Stok', 'Kebutuhan Restock', 'Resi per Hari', 'Resi per Ekspedisi',
             'Pengguna', 'Hak Akses', 'Akses API Stok'] as $entry) {

@@ -29,7 +29,6 @@ use App\Http\Controllers\Admin\StockOpnameStationController;
 use App\Http\Controllers\Admin\StockReportController;
 use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\Admin\WaybillStatusController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PackingListController;
 use App\Http\Controllers\ProfileController;
@@ -127,7 +126,8 @@ Route::middleware('auth')
         // Import resi dari TikTok Shop
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
         Route::get('orders/packing-list', PackingListController::class)->name('orders.packing');
-        Route::get('imports/status', WaybillStatusController::class)->name('imports.status');
+        // Status Resi sudah digabung ke Pesanan; alamat lamanya tetap jalan.
+        Route::get('imports/status', fn (\Illuminate\Http\Request $request) => redirect()->route('admin.orders.index', $request->query(), 301))->name('imports.status');
         Route::get('imports/daily/export', [DailyWaybillReportController::class, 'export'])->name('imports.daily.export');
         Route::get('imports/daily', [DailyWaybillReportController::class, 'index'])->name('imports.daily');
         Route::get('imports/couriers', CourierReportController::class)->name('imports.couriers');

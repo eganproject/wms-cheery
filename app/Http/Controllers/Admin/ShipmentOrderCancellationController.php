@@ -70,7 +70,7 @@ class ShipmentOrderCancellationController extends Controller implements HasMiddl
     }
 
     /**
-     * Kembali ke halaman status dengan saringan yang tadi dipakai.
+     * Kembali ke halaman Pesanan dengan saringan yang tadi dipakai.
      *
      * Sama seperti antrean serah terima dan kotak masuk persetujuan: `back()`
      * membaca header Referer yang tidak selalu ada, dan cadangannya di sesi
@@ -78,8 +78,8 @@ class ShipmentOrderCancellationController extends Controller implements HasMiddl
      */
     protected function backToStatus(Request $request): RedirectResponse
     {
-        return redirect()->route('admin.imports.status', array_filter(
-            $request->only(['stage', 'search', 'courier', 'duplicate']),
+        return redirect()->route('admin.orders.index', array_filter(
+            $request->only(OrderController::FILTER_KEYS),
             fn ($value) => filled($value),
         ));
     }

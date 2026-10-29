@@ -15,11 +15,13 @@ use Illuminate\View\View;
 /**
  * Daftar pesanan marketplace, bergaya halaman Pesanan wmsxshopee.
  *
- * Tab statusnya hanya tahapan proses internal gudang (Belum QC, Siap
- * Dikirim, Dikirim, Dibatalkan) — dihitung dari dokumen gudang, sama persis
- * dengan halaman Status Resi. Status dari marketplace tidak dijadikan tab.
+ * Tab statusnya hanya tahapan proses internal gudang (Belum QC, Sudah QC,
+ * Dikirim, Dibatalkan) — dihitung dari dokumen gudang. Status dari
+ * marketplace tidak dijadikan tab. Halaman ini menggantikan Status Resi,
+ * termasuk penanda resi kembar dan pembatalan resi.
  *
- * Halaman ini hanya membaca: tidak ada aksi yang mengubah pesanan.
+ * Satu-satunya aksi yang mengubah data di sini adalah tandai batal / cabut
+ * batal (ShipmentOrderCancellationController), sama seperti di Status Resi dulu.
  */
 class OrderController extends Controller implements HasMiddleware
 {
@@ -41,6 +43,23 @@ class OrderController extends Controller implements HasMiddleware
 
     public const PER_PAGE = [20, 50, 100];
 
+    /** Saringan yang dibawa kembali setelah tandai batal / cabut batal. */
+    public const FILTER_KEYS = [
+        'stage', 'search', 'search_by', 'marketplace', 'store', 'courier',
+        'duplicate', 'unmatched', 'from', 'to', 'range', 'sort', 'per_page',
+    ];
+
+    /**
+     * Nama tab di halaman Pesanan. "Sudah QC" adalah tahap serah terima:
+     * paket lolos QC kemas dan menunggu discan di Serah Terima Paket.
+     */
+    public const STAGE_LABELS = [
+        ShipmentOrder::STAGE_AWAITING_QC => 'Belum QC',
+        ShipmentOrder::STAGE_HANDOVER => 'Sudah QC',
+        ShipmentOrder::STAGE_SHIPPED => 'Dikirim',
+        ShipmentOrder::STAGE_CANCELLED => 'Dibatalkan',
+    ];
+
     public static function middleware(): array
     {
         return [
@@ -50,7 +69,9 @@ class OrderController extends Controller implements HasMiddleware
 
     public function index(Request $request): View
     {
-        $stage = (string) $request->string('status');
+        // `stage` dipakai sejak halaman ini menggantikan Status Resi; `status`
+        // tetap diterima supaya tautan lama tidak rusak.
+        $stage = (string) ($request->input('stage') ?? $request->input('status'));
         $stage = ShipmentOrder::LEGACY_STAGES[$stage] ?? $stage;
         $stage = array_key_exists($stage, ShipmentOrder::STAGES) ? $stage : '';
         $perPage = in_array($request->integer('per_page'), self::PER_PAGE, true) ? $request->integer('per_page') : self::PER_PAGE[0];
@@ -77,6 +98,7 @@ class OrderController extends Controller implements HasMiddleware
         return view('admin.orders.index', [
             'orders' => $orders,
             'stage' => $stage,
+            'onlyDuplicates' => $request->boolean('duplicate'),
             'counts' => $this->counts($request),
             'duplicates' => $this->filtered($request, withFlags: false)->duplicated()->count(),
             'unmatched' => $this->filtered($request, withFlags: false)->whereHas('items', fn (Builder $items) => $items->whereNull('product_id'))->count(),
@@ -182,7 +204,7 @@ class OrderController extends Controller implements HasMiddleware
      */
     protected function counts(Request $request): array
     {
-        return collect(ShipmentOrder::STAGES)
+        return collect(self::STAGE_LABELS)
             ->keys()
             ->mapWithKeys(fn (string $stage) => [$stage => $this->filtered($request)->atStage($stage)->count()])
             ->all();
@@ -197,8 +219,8 @@ class OrderController extends Controller implements HasMiddleware
     {
         return [
             ShipmentOrder::STAGE_AWAITING_QC => 'Resi sudah diimport tapi resi atau barangnya belum tuntas discan di QC Kemas.',
-            ShipmentOrder::STAGE_HANDOVER => 'QC kemas selesai: resi dan semua barang sudah discan. Menunggu diserahkan ke kurir di halaman Serah Terima Paket.',
-            ShipmentOrder::STAGE_SHIPPED => 'Dokumen barang keluar sudah disetujui, stok sudah berkurang.',
+            ShipmentOrder::STAGE_HANDOVER => 'QC kemas selesai: resi dan semua barang sudah discan. Paket menunggu discan di Serah Terima Paket saat diserahkan ke kurir.',
+            ShipmentOrder::STAGE_SHIPPED => 'Paket sudah discan di Serah Terima Paket (diserahkan ke kurir). Dokumen barang keluar disetujui dan stok sudah berkurang.',
             ShipmentOrder::STAGE_CANCELLED => 'Pesanan batal sebelum berangkat. Jangan dikirim.',
         ];
     }

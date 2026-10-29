@@ -1,7 +1,7 @@
 {{--
     Beban kerja per ekspedisi.
 
-    Status Resi menjawab "resi ini sampai mana". Halaman ini menjawab pertanyaan
+    Pesanan menjawab "resi ini sampai mana". Halaman ini menjawab pertanyaan
     yang ditanyakan tiap sore menjelang kurir datang: masing-masing ekspedisi
     hari ini ada berapa, dan berapa yang belum siap.
 
@@ -19,9 +19,9 @@
         'cancelled' => ['label' => 'Batal', 'tone' => 'text-red-700', 'bg' => 'bg-red-50', 'stage' => ShipmentOrder::STAGE_CANCELLED],
     ];
 
-    // Tautan ke Status Resi dengan rentang tanggal dan ekspedisi yang sama,
+    // Tautan ke Pesanan dengan rentang tanggal dan ekspedisi yang sama,
     // supaya angka di sini selalu bisa dibuka menjadi daftar resinya.
-    $detail = fn (string $courier, ?string $stage = null) => route('admin.imports.status', array_filter(
+    $detail = fn (string $courier, ?string $stage = null) => route('admin.orders.index', array_filter(
         $range->toQuery() + ['courier' => $courier, 'stage' => $stage],
         fn ($value) => filled($value),
     ));
@@ -183,7 +183,7 @@
     </div>
 
     <p class="mt-4 text-xs leading-relaxed text-ink-400">
-        Angkanya bisa ditekan untuk membuka daftar resinya di halaman Status Resi, dengan rentang tanggal dan
+        Angkanya bisa ditekan untuk membuka daftar resinya di halaman Pesanan, dengan rentang tanggal dan
         ekspedisi yang sama. <span class="font-medium text-ink-500">Kesiapan</span> adalah bagian resi yang sudah
         lolos QC, sudah dikirim, atau dibatalkan — dengan kata lain yang tidak lagi menunggu pekerjaan packing.
     </p>

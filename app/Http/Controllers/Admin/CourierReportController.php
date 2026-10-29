@@ -16,7 +16,7 @@ use Illuminate\View\View;
 /**
  * Beban kerja per ekspedisi pada suatu rentang tanggal.
  *
- * Halaman Status Resi menjawab "resi ini sampai mana". Halaman ini menjawab
+ * Halaman Pesanan menjawab "resi ini sampai mana". Halaman ini menjawab
  * pertanyaan yang ditanyakan tiap sore menjelang kurir datang: masing-masing
  * ekspedisi hari ini ada berapa, dan berapa yang belum siap.
  *
@@ -57,7 +57,7 @@ class CourierReportController extends Controller implements HasMiddleware
     /**
      * Satu baris per ekspedisi, lengkap dengan sebaran tahapannya.
      *
-     * Tiap tahap dihitung lewat scope yang sudah dipakai halaman Status Resi,
+     * Tiap tahap dihitung lewat scope yang sudah dipakai halaman Pesanan,
      * bukan disusun ulang sebagai satu query raksasa. Keempatnya saling lepas —
      * sebuah resi tidak pernah berada di dua tahap sekaligus — sehingga sisanya
      * bisa dihitung dengan pengurangan, dan angkanya dijamin sama persis dengan

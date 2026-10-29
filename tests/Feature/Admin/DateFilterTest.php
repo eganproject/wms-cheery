@@ -61,7 +61,7 @@ class DateFilterTest extends TestCase
             'stok opname' => ['opname', 'admin.opnames.index'],
             'barang rusak' => ['disposal', 'admin.disposals.index'],
             'data import' => ['order', 'admin.imports.index'],
-            'status resi' => ['order', 'admin.imports.status'],
+            'status resi' => ['order', 'admin.orders.index'],
         ];
     }
 
@@ -287,13 +287,13 @@ class DateFilterTest extends TestCase
         $this->assertSame(0, ShipmentOrder::dateBetween(new DateRange('2026-08-04', '2026-08-04'))->count());
 
         $this->actingAs($this->admin)
-            ->get(route('admin.imports.status', ['from' => '2026-08-05', 'to' => '2026-08-05']))
+            ->get(route('admin.orders.index', ['from' => '2026-08-05', 'to' => '2026-08-05']))
             ->assertOk()
             ->assertSee($order->tracking_number);
 
         // Hari pesanannya tidak lagi menemukan apa pun.
         $this->actingAs($this->admin)
-            ->get(route('admin.imports.status', ['from' => '2026-08-04', 'to' => '2026-08-04']))
+            ->get(route('admin.orders.index', ['from' => '2026-08-04', 'to' => '2026-08-04']))
             ->assertOk()
             ->assertDontSee($order->tracking_number);
     }
@@ -346,7 +346,7 @@ class DateFilterTest extends TestCase
         $this->makeOrder(Carbon::parse('2026-08-06'), 'SPX-BARU');
         $this->makeOrder(Carbon::parse('2026-07-20'), 'SPX-LAMA');
 
-        foreach (['admin.imports.index', 'admin.imports.status'] as $route) {
+        foreach (['admin.imports.index', 'admin.orders.index'] as $route) {
             $html = $this->actingAs($this->admin)
                 ->get($this->page($route, ['range' => DateRange::ALL]))
                 ->assertOk()

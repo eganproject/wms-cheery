@@ -49,7 +49,7 @@ class Navigation
                 'items' => [
                     ['label' => 'Pesanan', 'icon' => 'shopping-cart', 'route' => 'admin.orders.index',
                         'match' => 'admin.orders.index', 'can' => 'imports.view',
-                        'keywords' => 'pesanan order marketplace shopee tiktok resi status proses'],
+                        'keywords' => 'pesanan order marketplace shopee tiktok resi status resi lacak duplikat kembar batal proses'],
                     ['label' => 'Packing List', 'icon' => 'list', 'route' => 'admin.orders.packing',
                         'match' => 'admin.orders.packing', 'can' => 'imports.view',
                         'keywords' => 'packing list picking daftar barang dikemas sisa remaining resi import'],
@@ -63,9 +63,6 @@ class Navigation
                     ['label' => 'Retur Marketplace', 'icon' => 'scan', 'route' => 'admin.returns.marketplace',
                         'match' => ['admin.returns.marketplace', 'admin.returns.scan'], 'can' => 'returns.scan',
                         'keywords' => 'retur scan stasiun pengembalian'],
-                    ['label' => 'Status Resi', 'icon' => 'waybill', 'route' => 'admin.imports.status',
-                        'match' => 'admin.imports.status', 'can' => 'imports.view',
-                        'keywords' => 'resi lacak status pesanan tiktok'],
                     ['label' => 'Import Resi', 'icon' => 'import', 'route' => 'admin.imports.index',
                         'match' => ['admin.imports.index', 'admin.imports.show', 'admin.imports.create', 'admin.imports.batches'],
                         'can' => 'imports.view',

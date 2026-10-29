@@ -2,7 +2,7 @@
     Laporan resi per hari.
 
     Tanggalnya adalah saat resi pertama kali masuk ke sistem melalui import,
-    sama dengan tanggal yang dipakai Status Resi dan Per Ekspedisi. Tahap yang
+    sama dengan tanggal yang dipakai Pesanan dan Per Ekspedisi. Tahap yang
     ditampilkan adalah posisi resi saat laporan dibuka.
 --}}
 @php
@@ -15,7 +15,7 @@
         'cancelled' => ['label' => 'Batal', 'stage' => ShipmentOrder::STAGE_CANCELLED, 'tone' => 'text-red-700', 'bg' => 'bg-red-50'],
     ];
 
-    $detail = fn (string $date, ?string $stage = null) => route('admin.imports.status', array_filter([
+    $detail = fn (string $date, ?string $stage = null) => route('admin.orders.index', array_filter([
         'from' => $date,
         'to' => $date,
         'search' => $filters->search,
