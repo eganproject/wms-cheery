@@ -1,5 +1,5 @@
-<x-app-layout title="Menunggu Persetujuan">
-    <x-ui.page-header title="Menunggu Persetujuan" icon="check-circle"
+<x-app-layout title="Persetujuan">
+    <x-ui.page-header title="Persetujuan" icon="check-circle"
                       subtitle="Dokumen yang diajukan dan menunggu keputusan Anda. Menyetujui berarti stok langsung bergerak.">
         <x-slot name="actions">
             <x-ui.badge :variant="$total > 0 ? 'warning' : 'success'" :icon="$total > 0 ? 'clock' : 'check-circle'">
@@ -9,14 +9,14 @@
     </x-ui.page-header>
 
     {{-- Saring per jenis dokumen --}}
-    <div class="mb-5 flex flex-wrap gap-2">
+    <div class="mb-4 flex flex-wrap gap-1.5">
         <a href="{{ route('admin.approvals.index') }}"
-           class="inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-medium transition {{ request('type') ? 'bg-white text-ink-600 ring-1 ring-inset ring-ink-200 hover:bg-ink-50' : 'bg-ink-950 text-white' }}">
+           class="inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition {{ request('type') ? 'bg-control text-ink-700 hover:bg-ink-200' : 'bg-ink-950 text-white' }}">
             Semua
         </a>
         @foreach (\App\Http\Controllers\Admin\ApprovalController::TYPES as $key => $config)
             <a href="{{ route('admin.approvals.index', ['type' => $key]) }}"
-               class="inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-medium transition {{ request('type') === $key ? 'bg-ink-950 text-white' : 'bg-white text-ink-600 ring-1 ring-inset ring-ink-200 hover:bg-ink-50' }}">
+               class="inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition {{ request('type') === $key ? 'bg-ink-950 text-white' : 'bg-control text-ink-700 hover:bg-ink-200' }}">
                 <x-icon :name="$config['icon']" class="h-3.5 w-3.5" />
                 {{ $config['label'] }}
             </a>
@@ -24,12 +24,12 @@
     </div>
 
     @if ($total === 0)
-        <div class="rounded-2xl border border-ink-100 bg-white shadow-card">
+        <div class="rounded-2xl border border-ink-100 bg-white">
             <div class="flex flex-col items-center justify-center px-6 py-16 text-center">
                 <span class="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
                     <x-icon name="check-circle" class="h-6 w-6" />
                 </span>
-                <h3 class="mt-4 text-sm font-semibold tracking-tight text-ink-950">Tidak ada yang menunggu</h3>
+                <h3 class="mt-4 text-sm font-semibold text-ink-950">Tidak ada yang menunggu</h3>
                 <p class="mt-1 max-w-sm text-sm text-ink-500">
                     Semua dokumen sudah diputuskan. Pengajuan baru akan muncul di sini.
                 </p>
@@ -42,16 +42,16 @@
 
                 <div>
                     <div class="mb-3 flex items-center gap-2">
-                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-ink-950 text-white">
+                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-control text-ink-700">
                             <x-icon :name="$group['icon']" class="h-4 w-4" />
                         </span>
-                        <h2 class="text-sm font-semibold tracking-tight text-ink-950">{{ $group['label'] }}</h2>
+                        <h2 class="text-sm font-semibold text-ink-950">{{ $group['label'] }}</h2>
                         <span class="text-xs text-ink-400">({{ $group['documents']->count() }})</span>
                     </div>
 
                     <div class="space-y-3">
                         @foreach ($group['documents'] as $document)
-                            <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+                            <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
                                 <div class="flex flex-wrap items-start justify-between gap-4 p-5">
                                     <div class="min-w-0 flex-1">
                                         <div class="flex flex-wrap items-center gap-2">
@@ -117,7 +117,7 @@
                                                 @endif
                                                 <textarea name="rejection_reason" rows="2" required
                                                           placeholder="Alasan penolakan…"
-                                                          class="block w-full rounded-xl border-ink-200 bg-white text-xs text-ink-950 placeholder:text-ink-300 shadow-soft transition focus:border-red-500 focus:ring-1 focus:ring-red-500"></textarea>
+                                                          class="block w-full rounded-lg text-xs text-ink-950"></textarea>
                                                 <div class="flex gap-2">
                                                     <x-ui.button type="submit" variant="danger" size="sm" class="flex-1">Kirim</x-ui.button>
                                                     <x-ui.button type="button" variant="secondary" size="sm"

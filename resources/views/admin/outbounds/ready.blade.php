@@ -12,11 +12,10 @@
     langsung hilang dari daftar sekaligus lepas dari centangnya.
 --}}
 <x-app-layout title="Siap Dikirim">
-    <x-ui.page-header title="Siap Dikirim" icon="logout"
+    <x-ui.page-header title="Siap Dikirim" icon="outbound"
                       subtitle="Paket yang sudah lengkap discan dan tinggal diproses pengirimannya.">
     </x-ui.page-header>
 
-    <x-ui.tabs group="outbound" />
 
     <div x-data="dispatchStation({
              url: '{{ route('admin.outbounds.ready.scan') }}',
@@ -29,16 +28,14 @@
 
         @can('outbounds.post')
             {{-- ─────────────── Panel scan resi ─────────────── --}}
-            <div class="mb-4 overflow-hidden rounded-3xl border border-ink-950 bg-ink-950 shadow-lift">
-                <div class="flex items-start justify-between gap-4 px-5 pt-5 sm:px-6 sm:pt-6">
+            <div class="frappe-card mb-4 overflow-hidden">
+                <div class="flex items-start justify-between gap-4 px-4 pt-4 sm:px-5">
                     <div class="min-w-0">
-                        <p class="text-[11px] font-medium uppercase tracking-wider text-white/50">
-                            Serah ke kurir
-                        </p>
-                        <h2 class="mt-1 text-xl font-semibold tracking-tight text-white sm:text-2xl">
+                        <p class="text-xs text-ink-500">Serah ke kurir</p>
+                        <h2 class="mt-0.5 text-lg font-semibold text-ink-950">
                             Scan resi untuk mengirim
                         </h2>
-                        <p class="mt-1 text-xs leading-relaxed text-white/60">
+                        <p class="mt-0.5 text-xs leading-relaxed text-ink-500">
                             {{ auth()->user()->can('outbounds.approve')
                                 ? 'Paket yang resinya discan langsung dikirim dan stoknya berkurang.'
                                 : 'Paket yang resinya discan diajukan untuk disetujui.' }}
@@ -47,17 +44,17 @@
 
                     <dl class="flex shrink-0 items-start gap-4 text-right sm:gap-5">
                         <div>
-                            <dd class="text-lg font-semibold leading-tight text-emerald-400" x-text="sent.length"></dd>
-                            <dt class="text-[10px] uppercase tracking-wider text-white/40">dikirim</dt>
+                            <dd class="text-lg font-semibold leading-tight text-green-700" x-text="sent.length"></dd>
+                            <dt class="text-xs text-ink-500">dikirim</dt>
                         </div>
                         <div>
-                            <dd class="text-lg font-semibold leading-tight text-white" x-text="remaining"></dd>
-                            <dt class="text-[10px] uppercase tracking-wider text-white/40">antre</dt>
+                            <dd class="text-lg font-semibold leading-tight text-ink-950" x-text="remaining"></dd>
+                            <dt class="text-xs text-ink-500">antre</dt>
                         </div>
                     </dl>
                 </div>
 
-                <div class="flex items-stretch gap-2 px-5 pt-4 sm:px-6">
+                <div class="flex items-stretch gap-2 px-4 pt-4 sm:px-5">
                     @include('admin.partials.camera-scan', [
                         'scanTitle' => "'Scan resi untuk mengirim'",
                         'scanHint' => "remaining + ' paket menunggu di antrean.'",
@@ -65,20 +62,20 @@
 
                     <form data-no-ajax @submit.prevent="submit()" class="min-w-0 flex-1">
                         <div class="relative">
-                            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-12 items-center justify-center text-white/30">
-                                <x-icon name="search" class="h-5 w-5" />
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-ink-500">
+                                <x-icon name="search" class="h-[18px] w-[18px]" />
                             </span>
 
                             <input x-ref="input" x-model="code" type="text" autocomplete="off" autocapitalize="off"
                                    spellcheck="false" :disabled="busy"
                                    placeholder="Scan atau ketik nomor resi…"
-                                   class="block h-14 w-full rounded-2xl border-0 bg-white/10 pl-12 pr-24 font-mono text-base tracking-wide text-white placeholder:font-sans placeholder:text-sm placeholder:tracking-normal placeholder:text-white/30 ring-1 ring-inset ring-white/15 transition focus:bg-white/[0.15] focus:ring-2 focus:ring-white disabled:opacity-40">
+                                   class="block h-12 w-full rounded-lg pl-10 pr-24 font-mono text-base text-ink-950 placeholder:font-sans placeholder:text-sm disabled:opacity-50">
 
-                            <div class="absolute inset-y-0 right-0 flex items-center pr-2">
+                            <div class="absolute inset-y-0 right-0 flex items-center pr-1.5">
                                 <button type="submit" :disabled="busy || ! code.trim()"
-                                        class="inline-flex h-10 items-center justify-center rounded-xl bg-white px-4 text-sm font-semibold text-ink-950 transition hover:bg-white/90 disabled:opacity-40">
+                                        class="btn btn-primary h-9 px-3.5 sm:h-9">
                                     <span x-show="! busy">Kirim</span>
-                                    <span x-show="busy" x-cloak class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-ink-950/30 border-t-ink-950"></span>
+                                    <span x-show="busy" x-cloak class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white"></span>
                                 </button>
                             </div>
                         </div>
@@ -86,22 +83,22 @@
                 </div>
 
                 {{-- Ruang umpan balik: selalu ada, hanya isinya berganti. --}}
-                <div class="px-5 pb-5 pt-3 sm:px-6">
-                    <div class="flex min-h-[3.25rem] items-center gap-2.5 rounded-xl px-3 py-2 transition"
+                <div class="px-4 pb-4 pt-3 sm:px-5">
+                    <div class="flex min-h-[3.25rem] items-center gap-2.5 rounded-lg px-3 py-2 transition"
                          :class="feedback
-                            ? (feedback.type === 'success' ? 'bg-emerald-400/15 ring-1 ring-inset ring-emerald-400/25' : 'bg-red-500/15 ring-1 ring-inset ring-red-400/25')
-                            : 'bg-white/[0.04]'">
+                            ? (feedback.type === 'success' ? 'bg-green-100' : 'bg-red-100')
+                            : 'bg-ink-50'">
                         <template x-if="feedback && feedback.type === 'success'">
-                            <x-icon name="check-circle" class="h-4 w-4 shrink-0 text-emerald-300" />
+                            <x-icon name="check-circle" class="h-4 w-4 shrink-0 text-green-700" />
                         </template>
                         <template x-if="feedback && feedback.type === 'error'">
-                            <x-icon name="x-circle" class="h-4 w-4 shrink-0 text-red-300" />
+                            <x-icon name="x-circle" class="h-4 w-4 shrink-0 text-red-600" />
                         </template>
 
                         <p class="overflow-hidden text-xs leading-4"
                            :class="feedback
-                                ? (feedback.type === 'success' ? 'text-emerald-100' : 'text-red-100')
-                                : 'text-white/25'"
+                                ? (feedback.type === 'success' ? 'text-green-800' : 'text-red-700')
+                                : 'text-ink-400'"
                            x-text="feedback ? feedback.message : 'Hasil scan muncul di sini.'"></p>
                     </div>
                 </div>
@@ -109,15 +106,15 @@
 
             {{-- ─────────────── Terkirim pada sesi ini ─────────────── --}}
             <div x-show="sent.length" x-cloak
-                 class="mb-4 overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-card">
-                <div class="flex items-center justify-between gap-3 border-b border-emerald-100 bg-emerald-50/70 px-5 py-2.5">
-                    <p class="text-xs font-semibold uppercase tracking-wider text-emerald-700">Terkirim Sesi Ini</p>
+                 class="frappe-card mb-4 overflow-hidden">
+                <div class="flex items-center justify-between gap-3 border-b border-ink-100 bg-green-50 px-4 py-2.5">
+                    <p class="text-xs text-emerald-700">Terkirim Sesi Ini</p>
                     <p class="text-xs text-emerald-700" x-text="`${sent.length} paket · ${sessionUnits} unit`"></p>
                 </div>
 
                 <ul class="scrollbar-thin max-h-44 divide-y divide-ink-50 overflow-y-auto">
                     <template x-for="entry in sent" :key="entry.id">
-                        <li class="flex items-center gap-3 px-5 py-2.5">
+                        <li class="flex items-center gap-3 px-4 py-2.5">
                             <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
                                 <x-icon name="check" class="h-3 w-3" />
                             </span>
@@ -137,13 +134,13 @@
         @endcan
 
         <form method="GET" action="{{ route('admin.outbounds.ready') }}" data-auto-submit
-              class="mb-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4 shadow-card sm:flex-row sm:items-center">
+              class="frappe-card mb-4 flex flex-col gap-2 p-3 sm:flex-row sm:items-center">
             <div class="relative flex-1">
-                <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-ink-300">
+                <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
                     <x-icon name="search" class="h-4 w-4" />
                 </span>
                 <x-text-input type="search" name="search" :value="request('search')"
-                              placeholder="Cari nomor dokumen, penerima, atau resi..." class="pl-10" />
+                              placeholder="Cari nomor dokumen, penerima, atau resi..." class="pl-8" />
             </div>
 
             <x-ui.select name="marketplace" class="sm:w-44">
@@ -164,7 +161,7 @@
         </form>
 
         @if ($outbounds->isEmpty())
-            <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+            <div class="frappe-card overflow-hidden">
                 <x-ui.empty-state icon="check-circle" title="Tidak ada paket menunggu"
                                   description="Semua paket yang sudah discan sudah diproses. Paket baru muncul di sini begitu selesai discan di stasiun packing.">
                     @can('outbounds.scan')
@@ -200,11 +197,11 @@
                     pernah bekerja: elemen ber-overflow menjadi wadah gulirnya
                     sendiri, sehingga bilahnya ikut hanyut saat halaman digulir.
                 --}}
-                <div class="sticky top-16 z-20 mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink-100 bg-white/95 px-5 py-3 shadow-card backdrop-blur">
+                <div class="sticky top-[calc(var(--navbar-height)+3.75rem)] z-20 mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ink-100 bg-white/95 px-4 py-2 backdrop-blur">
                     <label class="flex cursor-pointer items-center gap-2.5 text-sm text-ink-700">
                         <input type="checkbox" :checked="allChosen" x-on:change="toggleAll()"
                                :disabled="! available.length"
-                               class="h-4 w-4 rounded border-ink-300 text-ink-950 focus:ring-ink-950 disabled:opacity-40">
+                               class="disabled:opacity-40">
                         <span x-text="selected.length
                             ? `${selected.length} paket dipilih`
                             : `Pilih semua (${available.length} paket)`"></span>
@@ -212,14 +209,14 @@
 
                     @can('outbounds.post')
                         <button type="submit" :disabled="! selected.length"
-                                class="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-ink-950 px-4 text-sm font-semibold text-white transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-40">
+                                class="btn btn-primary disabled:cursor-not-allowed disabled:opacity-40">
                             <x-icon :name="auth()->user()->can('outbounds.approve') ? 'check' : 'clock'" class="h-4 w-4" />
                             {{ auth()->user()->can('outbounds.approve') ? 'Proses & Kirim' : 'Ajukan Persetujuan' }}
                         </button>
                     @endcan
                 </div>
 
-                <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+                <div class="frappe-card overflow-hidden">
                     {{--
                         Muncul saat seluruh isi halaman ini sudah discan satu per
                         satu. Tanpa ini kartunya menyusut menjadi bingkai kosong
@@ -242,7 +239,7 @@
                             --}}
                             <li x-show="! isSent({{ $outbound->id }})"
                                 @class([
-                                    'flex items-start gap-3 px-5 py-4 transition',
+                                    'flex items-start gap-3 px-4 py-3 transition',
                                     'bg-red-50/60' => $cancelled,
                                     'hover:bg-ink-50/50' => ! $cancelled,
                                 ])
@@ -266,13 +263,13 @@
                                     --}}
                                     <input type="checkbox" name="ids[]" value="{{ $outbound->id }}" x-model.number="selected"
                                            :disabled="isSent({{ $outbound->id }}) || {{ $cancelled ? 'true' : 'false' }}"
-                                           class="mt-1 h-4 w-4 shrink-0 rounded border-ink-300 text-ink-950 focus:ring-ink-950 disabled:opacity-40">
+                                           class="mt-1 shrink-0 disabled:opacity-40">
 
                                     <div class="min-w-0 flex-1">
                                         <div class="flex flex-wrap items-center gap-2">
                                             <span class="font-mono text-sm font-semibold text-ink-950">{{ $outbound->code }}</span>
                                             @if ($outbound->marketplace)
-                                                <x-ui.badge variant="dark" icon="sparkles">{{ $outbound->marketplace }}</x-ui.badge>
+                                                <x-ui.badge variant="blue">{{ $outbound->marketplace }}</x-ui.badge>
                                             @endif
 
                                             @if ($cancelled)

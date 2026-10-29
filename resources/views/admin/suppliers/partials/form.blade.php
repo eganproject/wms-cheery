@@ -29,27 +29,27 @@
 
                     <x-ui.field label="Nomor Telepon" for="phone" :error="$errors->get('phone')">
                         <div class="relative">
-                            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-ink-300">
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
                                 <x-icon name="phone" class="h-4 w-4" />
                             </span>
                             <x-text-input id="phone" name="phone" type="text" :value="old('phone', $supplier?->phone)"
-                                          class="pl-10" placeholder="08xxxxxxxxxx" />
+                                          class="pl-8" placeholder="08xxxxxxxxxx" />
                         </div>
                     </x-ui.field>
 
                     <x-ui.field label="Email" for="email" :error="$errors->get('email')">
                         <div class="relative">
-                            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-ink-300">
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
                                 <x-icon name="mail" class="h-4 w-4" />
                             </span>
                             <x-text-input id="email" name="email" type="email" :value="old('email', $supplier?->email)"
-                                          class="pl-10" placeholder="sales@pemasok.com" />
+                                          class="pl-8" placeholder="sales@pemasok.com" />
                         </div>
                     </x-ui.field>
 
                     <x-ui.field label="Alamat" for="address" :error="$errors->get('address')" class="sm:col-span-2">
                         <textarea id="address" name="address" rows="2" placeholder="Alamat lengkap pemasok"
-                                  class="block w-full rounded-xl border-ink-200 bg-white text-sm text-ink-950 placeholder:text-ink-300 shadow-soft transition focus:border-ink-950 focus:ring-1 focus:ring-ink-950">{{ old('address', $supplier?->address) }}</textarea>
+                                  class="form-control">{{ old('address', $supplier?->address) }}</textarea>
                     </x-ui.field>
 
                     <x-ui.field label="Catatan" for="note" :error="$errors->get('note')" class="sm:col-span-2">

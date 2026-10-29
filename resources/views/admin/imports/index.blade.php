@@ -11,7 +11,6 @@
         </x-slot>
     </x-ui.page-header>
 
-    <x-ui.tabs group="waybill" />
 
     <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <x-ui.stat-card label="Resi Terdata" :value="number_format($summary['orders'], 0, ',', '.')" icon="document" accent
@@ -30,7 +29,7 @@
                 <p class="text-sm font-semibold text-amber-900">{{ $summary['unmatched'] }} baris memiliki SKU yang belum terdaftar</p>
                 <p class="mt-0.5 text-xs text-amber-800">
                     Pesanan dengan SKU tak dikenal tidak bisa menarik barang otomatis saat scan. Daftarkan SKU-nya di
-                    menu Barang &amp; Stok, lalu cocokkan ulang — pencocokan hanya terjadi saat berkas diunggah, jadi
+                    menu Barang, lalu cocokkan ulang — pencocokan hanya terjadi saat berkas diunggah, jadi
                     barang yang baru didaftarkan tidak terbaca dengan sendirinya.
                 </p>
             </div>
@@ -59,13 +58,13 @@
     @endif
 
     <form method="GET" action="{{ route('admin.imports.index') }}" data-auto-submit
-          class="my-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4 shadow-card">
+          class="my-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4">
         <div class="relative">
-            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-ink-300">
+            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
                 <x-icon name="search" class="h-4 w-4" />
             </span>
             <x-text-input type="search" name="search" :value="request('search')"
-                          placeholder="Cari nomor resi, pesanan, SKU, atau pembeli..." class="pl-10" />
+                          placeholder="Cari nomor resi, pesanan, SKU, atau pembeli..." class="pl-8" />
         </div>
 
         <div class="grid grid-cols-2 gap-3 sm:flex sm:items-center">
@@ -106,7 +105,7 @@
         </div>
     </form>
 
-    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($orders->isEmpty())
             <x-ui.empty-state icon="document" title="Belum ada data resi"
                               description="Import berkas eksport pesanan dari Ginee agar resi bisa dipakai saat scan.">

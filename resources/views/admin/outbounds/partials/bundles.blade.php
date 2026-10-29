@@ -13,11 +13,11 @@
 @endphp
 
 <div x-data="outboundBundles({{ Js::from($rows) }}, {{ Js::from($catalog) }})"
-     class="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+     class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
 
     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-ink-100 px-5 py-4 sm:px-6">
         <div>
-            <h2 class="text-sm font-semibold tracking-tight text-ink-950">Paket Bundling</h2>
+            <h2 class="text-sm font-semibold text-ink-950">Paket Bundling</h2>
             <p class="mt-0.5 text-xs text-ink-500">
                 <template x-if="filledRows">
                     <span>
@@ -55,7 +55,7 @@
                         <div class="flex-1 space-y-1.5">
                             <label class="block text-xs font-medium text-ink-500" x-text="'Paket #' + (index + 1)"></label>
                             <select x-model="row.bundle_id" :name="`bundles[${index}][bundle_id]`"
-                                    class="block w-full rounded-xl border-ink-200 bg-white text-sm text-ink-950 shadow-soft transition focus:border-ink-950 focus:ring-1 focus:ring-ink-950">
+                                    class="form-control">
                                 <option value="">Pilih paket…</option>
                                 <template x-for="item in catalog" :key="item.id">
                                     <option :value="item.id" x-text="`${item.sku} — ${item.name}`"></option>
@@ -84,7 +84,7 @@
                         <div class="w-full space-y-1.5 sm:w-36">
                             <label class="block text-xs font-medium text-ink-500">Jumlah</label>
                             <input type="number" min="1" x-model.number="row.quantity" :name="`bundles[${index}][quantity]`"
-                                   class="block w-full rounded-xl border-ink-200 bg-white text-sm text-ink-950 shadow-soft transition focus:border-ink-950 focus:ring-1 focus:ring-ink-950"
+                                   class="form-control"
                                    :class="isOverAvailable(row) && 'border-red-300 focus:border-red-500 focus:ring-red-500'">
                         </div>
 

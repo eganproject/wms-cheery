@@ -1,5 +1,5 @@
 <x-app-layout title="Detail Barang Keluar">
-    <x-ui.page-header :title="$outbound->code"
+    <x-ui.page-header :title="$outbound->code" :status="$outbound->statusLabel()" :status-variant="$outbound->statusVariant()"
                       :subtitle="$outbound->date->translatedFormat('d F Y').' · '.$outbound->recipient"
                       :back="route('admin.outbounds.index')">
         <x-slot name="actions">
@@ -35,10 +35,10 @@
         <div class="space-y-6 lg:col-span-2">
             {{-- Status verifikasi marketplace --}}
             @if ($outbound->isMarketplace())
-                <div class="overflow-hidden rounded-2xl border {{ $outbound->isReadyToPost() ? 'border-emerald-200 bg-emerald-50' : 'border-ink-100 bg-white' }} p-5 shadow-card sm:p-6">
+                <div class="overflow-hidden rounded-2xl border {{ $outbound->isReadyToPost() ? 'border-emerald-200 bg-emerald-50' : 'border-ink-100 bg-white' }} p-5 sm:p-6">
                     <div class="flex flex-wrap items-start justify-between gap-4">
                         <div class="flex items-start gap-3">
-                            <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl {{ $outbound->isReadyToPost() ? 'bg-emerald-600 text-white' : 'bg-ink-950 text-white' }}">
+                            <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl {{ $outbound->isReadyToPost() ? 'bg-green-100 text-green-700' : 'bg-control text-ink-700' }}">
                                 <x-icon :name="$outbound->isReadyToPost() ? 'check-circle' : 'shield'" class="h-5 w-5" />
                             </span>
                             <div>
@@ -151,20 +151,20 @@
                        :subtitle="$outbound->items->count().' baris · total '.number_format($outbound->totalQuantity(), 0, ',', '.').' unit'"
                        padding="p-0">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-ink-100 text-left">
-                        <thead class="bg-ink-50/60">
+                    <table class="erp-table">
+                        <thead>
                             <tr>
-                                <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Barang</th>
+                                <th>Barang</th>
                                 @if ($outbound->isMarketplace())
-                                    <th class="px-6 py-3.5 text-center text-xs font-semibold uppercase tracking-wider text-ink-500">Discan</th>
+                                    <th class="text-center">Discan</th>
                                 @endif
-                                <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Jumlah</th>
+                                <th class="text-right">Jumlah</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-ink-50">
+                        <tbody>
                             @foreach ($outbound->items as $item)
                                 <tr>
-                                    <td class="px-6 py-3.5">
+                                    <td>
                                         <a href="{{ route('admin.products.show', $item->product) }}"
                                            class="text-sm font-medium text-ink-950 underline-offset-4 hover:underline">
                                             {{ $item->product->name }}
@@ -172,13 +172,13 @@
                                         <div class="mt-1"><x-ui.sku :value="$item->product->sku" /></div>
                                     </td>
                                     @if ($outbound->isMarketplace())
-                                        <td class="px-6 py-3.5 text-center">
+                                        <td class="text-center">
                                             <x-ui.badge :variant="$item->isFullyScanned() ? 'success' : 'neutral'">
                                                 {{ $item->scanned_quantity }}/{{ $item->quantity }}
                                             </x-ui.badge>
                                         </td>
                                     @endif
-                                    <td class="px-6 py-3.5 text-right">
+                                    <td class="text-right">
                                         <span class="text-sm font-semibold text-ink-950">{{ number_format($item->quantity, 0, ',', '.') }}</span>
                                         <span class="text-xs text-ink-400">{{ $item->product->unit }}</span>
                                     </td>

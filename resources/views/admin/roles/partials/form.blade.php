@@ -38,11 +38,11 @@
             </x-ui.card>
 
             @if ($isEdit && $role->is_super_admin)
-                <div class="flex items-start gap-3 rounded-2xl bg-ink-950 p-4 text-white">
-                    <x-icon name="sparkles" class="mt-0.5 h-5 w-5 shrink-0" />
+                <div class="flex items-start gap-3 rounded-lg bg-blue-50 p-3.5 text-blue-900">
+                    <x-icon name="sparkles" class="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
                     <div>
                         <p class="text-sm font-semibold">Role super admin</p>
-                        <p class="mt-0.5 text-sm text-white/60">
+                        <p class="mt-0.5 text-sm text-blue-800/80">
                             Role ini selalu memiliki seluruh hak akses, apa pun pilihan di samping.
                         </p>
                     </div>
@@ -80,7 +80,7 @@
                                 <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-ink-50 text-ink-950 ring-1 ring-ink-100">
                                     <x-icon name="key" class="h-4 w-4" />
                                 </span>
-                                <h3 class="text-sm font-semibold tracking-tight text-ink-950">{{ $group }}</h3>
+                                <h3 class="text-sm font-semibold text-ink-950">{{ $group }}</h3>
                                 <span class="text-xs text-ink-400">({{ $permissions->count() }})</span>
                             </div>
 

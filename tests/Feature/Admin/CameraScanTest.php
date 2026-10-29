@@ -32,10 +32,10 @@ class CameraScanTest extends TestCase
     }
 
     /** Awal jalur SVG ikon kamera — lihat components/icon.blade.php. */
-    protected const CAMERA_ICON = 'M6.827 6.175';
+    protected const CAMERA_ICON = 'M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9';
 
     /** Awal jalur SVG ikon kaca pembesar, yang dulu dipakai tombol ini. */
-    protected const SEARCH_ICON = 'm21 21-5.197-5.197';
+    protected const SEARCH_ICON = 'm21 21-4.3-4.3';
 
     public static function scanPages(): array
     {

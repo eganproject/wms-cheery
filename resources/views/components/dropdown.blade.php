@@ -1,4 +1,4 @@
-@props(['align' => 'right', 'width' => '56', 'contentClasses' => 'bg-white py-1.5'])
+@props(['align' => 'right', 'width' => '56', 'contentClasses' => 'bg-white p-1'])
 
 @php
     $alignmentClasses = match ($align) {
@@ -22,15 +22,15 @@
 
     <div x-show="open"
          x-cloak
-         x-transition:enter="transition ease-out duration-200"
-         x-transition:enter-start="opacity-0 -translate-y-1 scale-95"
-         x-transition:enter-end="opacity-100 translate-y-0 scale-100"
-         x-transition:leave="transition ease-in duration-100"
-         x-transition:leave-start="opacity-100 scale-100"
-         x-transition:leave-end="opacity-0 scale-95"
-         class="absolute z-50 mt-2 {{ $width }} {{ $alignmentClasses }}"
+         x-transition:enter="transition ease-out duration-100"
+         x-transition:enter-start="opacity-0 -translate-y-0.5"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-75"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="absolute z-50 mt-1.5 {{ $width }} {{ $alignmentClasses }}"
          @click="open = false">
-        <div class="overflow-hidden rounded-2xl border border-ink-100 shadow-lift {{ $contentClasses }}">
+        <div class="overflow-hidden rounded-lg border border-ink-100 shadow-lift {{ $contentClasses }}">
             {{ $content }}
         </div>
     </div>

@@ -1,17 +1,17 @@
-<x-guest-layout title="Masuk" heading="Selamat datang kembali" subheading="Masuk ke panel WMS untuk melanjutkan pekerjaan Anda.">
+<x-guest-layout title="Masuk" heading="Masuk ke WMS" subheading="Gunakan akun yang diberikan admin gudang.">
 
     <x-auth-session-status class="mb-6" :status="session('status')" />
 
-    <form method="POST" action="{{ route('login') }}" class="space-y-5">
+    <form method="POST" action="{{ route('login') }}" class="space-y-4">
         @csrf
 
         <x-ui.field label="Email" for="email" :error="$errors->get('email')" required>
             <div class="relative">
-                <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-ink-300">
+                <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
                     <x-icon name="mail" class="h-4 w-4" />
                 </span>
                 <x-text-input id="email" type="email" name="email" :value="old('email')" required autofocus
-                              autocomplete="username" placeholder="nama@perusahaan.com" class="pl-10" />
+                              autocomplete="username" placeholder="nama@perusahaan.com" class="pl-8" />
             </div>
         </x-ui.field>
 
@@ -28,6 +28,6 @@
             <span class="text-xs text-ink-400">Lupa kata sandi? Hubungi admin.</span>
         </div>
 
-        <x-ui.button type="submit" size="lg" class="w-full" icon="login">Masuk</x-ui.button>
+        <x-ui.button type="submit" class="w-full">Masuk</x-ui.button>
     </form>
 </x-guest-layout>

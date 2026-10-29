@@ -1,40 +1,31 @@
-@php
-    $user = auth()->user();
-@endphp
+{{-- Kepala laci menu — hanya di ponsel; di layar lebar logo sudah ada di navbar. --}}
+<div class="flex h-navbar shrink-0 items-center justify-between border-b border-ink-100 px-4 lg:hidden">
+    <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-2">
+        <x-application-logo class="h-6 w-auto" />
+        <span class="text-sm font-semibold text-ink-950">{{ config('app.name', 'WMS') }}</span>
+    </a>
+    <button type="button" @click="sidebarOpen = false" class="btn btn-ghost btn-icon -mr-1" title="Tutup menu">
+        <x-icon name="close" class="h-[18px] w-[18px]" />
+        <span class="sr-only">Tutup menu</span>
+    </button>
+</div>
 
-<div class="flex h-full flex-col bg-white">
-    {{-- Brand --}}
-    <div class="flex h-16 shrink-0 items-center gap-3 border-b border-ink-100 px-5">
-        {{-- Alas terang: lambangnya berwarna merek, dan navy di atas alas
-             hampir hitam praktis tidak terlihat. --}}
-        <span class="inline-flex h-9 w-12 shrink-0 items-center justify-center rounded-xl bg-white ring-1 ring-inset ring-ink-200">
-            <x-application-logo class="h-4 w-9" />
-        </span>
-        <div class="min-w-0">
-            <p class="truncate text-sm font-semibold tracking-tight text-ink-950">{{ config('app.name', 'WMS Otosby') }}</p>
-            <p class="truncate text-[11px] text-ink-400">Warehouse Management</p>
+@include('layouts.nav')
+
+{{-- Akun — hanya di laci ponsel, karena di sana menu akun navbar sulit dijangkau. --}}
+<div class="shrink-0 border-t border-ink-100 p-2 lg:hidden">
+    <div class="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
+        <x-ui.avatar :name="auth()->user()->name" size="sm" />
+        <div class="min-w-0 flex-1">
+            <p class="truncate text-sm font-medium text-ink-950">{{ auth()->user()->name }}</p>
+            <p class="truncate text-xs text-ink-500">{{ auth()->user()->role?->name ?? 'Tanpa role' }}</p>
         </div>
-    </div>
-
-    {{-- Navigation --}}
-    @include('layouts.nav')
-
-    {{-- Account --}}
-    <div class="shrink-0 border-t border-ink-100 p-3">
-        <div class="flex items-center gap-3 rounded-xl px-2 py-2">
-            <x-ui.avatar :name="$user->name" size="sm" />
-            <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-medium text-ink-950">{{ $user->name }}</p>
-                <p class="truncate text-[11px] text-ink-400">{{ $user->role?->name ?? 'Tanpa role' }}</p>
-            </div>
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button type="submit" title="Keluar"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-950">
-                    <x-icon name="logout" class="h-4 w-4" />
-                    <span class="sr-only">Keluar</span>
-                </button>
-            </form>
-        </div>
+        <form method="POST" action="{{ route('logout') }}">
+            @csrf
+            <button type="submit" title="Keluar" class="btn btn-ghost btn-icon">
+                <x-icon name="logout" class="h-4 w-4" />
+                <span class="sr-only">Keluar</span>
+            </button>
+        </form>
     </div>
 </div>

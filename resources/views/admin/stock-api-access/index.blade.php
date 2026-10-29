@@ -2,11 +2,10 @@
     <x-ui.page-header title="Akses API Stok" icon="key"
                       subtitle="Batasi server yang boleh membaca endpoint stok berdasarkan alamat IP sumber." />
 
-    <x-ui.tabs group="access" />
 
     @can('stock-api-access.update')
         <form method="POST" action="{{ route('admin.stock-api-access.store') }}"
-              class="mb-5 rounded-2xl border border-ink-100 bg-white p-5 shadow-card">
+              class="mb-5 rounded-2xl border border-ink-100 bg-white p-5">
             @csrf
             <div class="mb-4">
                 <h2 class="text-sm font-semibold text-ink-950">Izinkan IP baru</h2>
@@ -28,13 +27,13 @@
     @endcan
 
     <form method="GET" action="{{ route('admin.stock-api-access.index') }}" data-auto-submit
-          class="mb-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4 shadow-card sm:flex-row sm:items-center">
+          class="mb-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4 sm:flex-row sm:items-center">
         <div class="relative flex-1">
-            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-ink-300">
+            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
                 <x-icon name="search" class="h-4 w-4" />
             </span>
             <x-text-input type="search" name="search" :value="request('search')"
-                          placeholder="Cari IP atau keterangan..." class="pl-10" />
+                          placeholder="Cari IP atau keterangan..." class="pl-8" />
         </div>
         <x-ui.select name="status" class="sm:w-40">
             <option value="">Semua status</option>
@@ -49,26 +48,26 @@
         @endif
     </form>
 
-    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($ips->isEmpty())
             <x-ui.empty-state icon="key" title="Belum ada IP yang diizinkan"
                               description="API akan menolak semua sumber sampai setidaknya satu IP aktif ditambahkan." />
         @else
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-ink-100 text-left">
-                    <thead class="bg-ink-50/60">
+                <table class="erp-table">
+                    <thead>
                         <tr>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Alamat IP</th>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Keterangan</th>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Status</th>
-                            <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Aksi</th>
+                            <th>Alamat IP</th>
+                            <th>Keterangan</th>
+                            <th>Status</th>
+                            <th class="text-right">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-ink-50">
+                    <tbody>
                         @foreach ($ips as $allowedIp)
-                            <tr class="align-top transition hover:bg-ink-50/50">
+                            <tr class="align-top">
                                 @can('stock-api-access.update')
-                                    <td class="px-6 py-4">
+                                    <td>
                                             <form id="update-ip-{{ $allowedIp->id }}" method="POST"
                                                   action="{{ route('admin.stock-api-access.update', $allowedIp) }}" class="hidden">
                                                 @csrf
@@ -78,12 +77,12 @@
                                                           form="update-ip-{{ $allowedIp->id }}"
                                                           class="min-w-44 font-mono" required />
                                     </td>
-                                    <td class="px-6 py-4">
+                                    <td>
                                             <x-text-input name="label" :value="$allowedIp->label"
                                                           form="update-ip-{{ $allowedIp->id }}"
                                                           placeholder="Tanpa keterangan" class="min-w-56" />
                                     </td>
-                                    <td class="px-6 py-4">
+                                    <td>
                                             <input type="hidden" name="is_active" value="0" form="update-ip-{{ $allowedIp->id }}">
                                             <label class="inline-flex cursor-pointer items-center gap-2">
                                                 <input type="checkbox" name="is_active" value="1"
@@ -93,19 +92,19 @@
                                                 <span class="text-sm text-ink-600">Aktif</span>
                                             </label>
                                     </td>
-                                    <td class="px-6 py-4">
+                                    <td>
                                             <div class="flex items-center justify-end gap-1">
                                                 <x-ui.button type="submit" form="update-ip-{{ $allowedIp->id }}"
                                                              variant="secondary" size="sm" icon="check">Simpan</x-ui.button>
                                 @else
-                                    <td class="px-6 py-4 font-mono text-sm font-semibold text-ink-950">{{ $allowedIp->ip_address }}</td>
-                                    <td class="px-6 py-4 text-sm text-ink-600">{{ $allowedIp->label ?: '—' }}</td>
-                                    <td class="px-6 py-4">
+                                    <td class="font-mono text-sm font-semibold text-ink-950">{{ $allowedIp->ip_address }}</td>
+                                    <td class="text-sm text-ink-600">{{ $allowedIp->label ?: '—' }}</td>
+                                    <td>
                                         <x-ui.badge :variant="$allowedIp->is_active ? 'success' : 'danger'">
                                             {{ $allowedIp->is_active ? 'Aktif' : 'Nonaktif' }}
                                         </x-ui.badge>
                                     </td>
-                                    <td class="px-6 py-4"><div class="flex justify-end">
+                                    <td><div class="flex justify-end">
                                 @endcan
                                                 @can('stock-api-access.delete')
                                                     <x-ui.confirm-delete :action="route('admin.stock-api-access.destroy', $allowedIp)"

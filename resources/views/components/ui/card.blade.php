@@ -1,18 +1,19 @@
-@props(['title' => null, 'subtitle' => null, 'padding' => 'p-5 sm:p-6'])
+@props(['title' => null, 'subtitle' => null, 'padding' => 'p-4 sm:p-5'])
 
-<div {{ $attributes->merge(['class' => 'rounded-2xl border border-ink-100 bg-white shadow-card']) }}>
+{{-- Kartu/seksi bergaris tepi tipis seperti widget dan seksi form ERPNext. --}}
+<div {{ $attributes->merge(['class' => 'frappe-card']) }}>
     @if ($title || $subtitle || isset($actions))
-        <div class="flex flex-wrap items-start justify-between gap-3 border-b border-ink-100 px-5 py-4 sm:px-6">
-            <div>
+        <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-ink-100 px-4 py-3 sm:px-5">
+            <div class="min-w-0">
                 @if ($title)
-                    <h2 class="text-sm font-semibold tracking-tight text-ink-950">{{ $title }}</h2>
+                    <h2 class="text-base font-semibold text-ink-950">{{ $title }}</h2>
                 @endif
                 @if ($subtitle)
                     <p class="mt-0.5 text-xs text-ink-500">{{ $subtitle }}</p>
                 @endif
             </div>
             @isset($actions)
-                <div class="flex items-center gap-2">{{ $actions }}</div>
+                <div class="flex flex-wrap items-center gap-2">{{ $actions }}</div>
             @endisset
         </div>
     @endif

@@ -7,7 +7,7 @@
     "belum sempat dihitung".
 --}}
 <x-app-layout title="Hitung Stok Opname">
-    <x-ui.page-header :title="$opname->code"
+    <x-ui.page-header :title="$opname->code" :status="$opname->statusLabel()" :status-variant="$opname->statusVariant()"
                       :subtitle="$opname->scopeLabel().' · '.$opname->date->translatedFormat('d F Y')"
                       :back="route('admin.opnames.index')">
         <x-slot name="actions">
@@ -96,18 +96,18 @@
                         progressUrl: '{{ route('admin.opnames.station.progress', $opname) }}',
                         counted: {{ $counted }},
                      })" class="space-y-4">
-                    <div class="rounded-2xl border border-ink-950 bg-ink-950 p-4 shadow-lift">
+                    <div class="frappe-card p-3">
                         <form data-no-ajax @submit.prevent="jump()">
                             <div class="relative">
-                                <span class="pointer-events-none absolute inset-y-0 left-0 flex w-12 items-center justify-center text-white/30">
-                                    <x-icon name="search" class="h-5 w-5" />
+                                <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-ink-500">
+                                    <x-icon name="search" class="h-[18px] w-[18px]" />
                                 </span>
                                 <input x-ref="scan" x-model="code" type="text" autocomplete="off" autocapitalize="off"
                                        spellcheck="false" placeholder="Scan barcode atau ketik SKU untuk melompat…"
-                                       class="block h-12 w-full rounded-xl border-0 bg-white/10 pl-12 pr-4 font-mono text-sm text-white placeholder:font-sans placeholder:text-sm placeholder:text-white/30 ring-1 ring-inset ring-white/15 focus:bg-white/[0.15] focus:ring-2 focus:ring-white">
+                                       class="block h-11 w-full rounded-lg pl-10 pr-4 font-mono text-sm text-ink-950 placeholder:font-sans">
                             </div>
                         </form>
-                        <p class="mt-2 h-4 text-[11px]" :class="message.type === 'error' ? 'text-red-300' : 'text-white/50'"
+                        <p class="mt-2 h-4 text-[11px]" :class="message.type === 'error' ? 'text-red-600' : 'text-ink-500'"
                            x-text="message.text || 'Tidak ada di halaman ini? Pencariannya dilanjutkan ke seluruh sesi.'"></p>
                     </div>
 
@@ -117,7 +117,7 @@
                         akan menghapus angka yang sedang diketik petugas.
                     --}}
                     <div x-cloak x-show="behind !== 0"
-                         class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-2.5 text-xs text-amber-800 ring-1 ring-inset ring-amber-200">
+                         class="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-orange-100 px-4 py-2.5 text-xs text-orange-800">
                         <span class="flex items-start gap-2">
                             <x-icon name="users" class="mt-px h-3.5 w-3.5 shrink-0" />
                             <span x-text="liveNote"></span>
@@ -139,7 +139,7 @@
                           @submit="pruneUntouched()">
                         @csrf
 
-                        <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+                        <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
                             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-ink-100 px-5 py-3">
                                 <div class="flex flex-wrap items-center gap-1.5">
                                     {{-- "Berselisih" menunjukkan angka sistem tanpa
@@ -151,16 +151,16 @@
                                     ]) as $value => $label)
                                         <a href="{{ route('admin.opnames.show', array_filter(['opname' => $opname->id, 'filter' => $value, 'search' => request('search')])) }}"
                                            @class([
-                                               'rounded-lg px-2.5 py-1 text-xs font-medium transition',
+                                               'inline-flex h-6 items-center rounded-full px-2.5 text-xs font-medium transition',
                                                'bg-ink-950 text-white' => request('filter', '') === $value,
-                                               'text-ink-500 hover:bg-ink-100' => request('filter', '') !== $value,
+                                               'bg-control text-ink-700 hover:bg-ink-200' => request('filter', '') !== $value,
                                            ])>{{ $label }}</a>
                                     @endforeach
                                 </div>
 
                                 @can('opnames.update')
                                     <button type="submit"
-                                            class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-ink-950 px-3 text-xs font-semibold text-white transition hover:bg-ink-800">
+                                            class="btn btn-primary">
                                         <x-icon name="check" class="h-3.5 w-3.5" /> Simpan Hitungan
                                     </button>
                                 @endcan
@@ -241,7 +241,7 @@
 
                                                     <div class="flex flex-1 gap-2 sm:flex-none">
                                                         <div class="flex-1 sm:w-24 sm:flex-none">
-                                                            <label class="mb-1 block text-center text-[10px] font-medium uppercase tracking-wider text-ink-400"
+                                                            <label class="mb-1 block text-center text-[11px] text-ink-400"
                                                                    for="count-{{ $item->id }}">Bagus</label>
                                                             <input id="count-{{ $item->id }}"
                                                                    type="number" min="0" max="999999" inputmode="numeric"
@@ -253,7 +253,7 @@
                                                                    placeholder="—"
                                                                    @change="autosave({{ $item->id }})"
                                                                    @disabled(! auth()->user()->can('opnames.update'))
-                                                                   class="h-12 w-full rounded-xl border-ink-200 text-center text-base font-semibold tabular-nums shadow-sm focus:border-ink-950 focus:ring-ink-950 sm:h-11 sm:text-sm">
+                                                                   class="h-12 w-full rounded-lg text-center text-base font-semibold tabular-nums sm:h-11 sm:text-sm">
                                                         </div>
 
                                                         {{--
@@ -263,7 +263,7 @@
                                                             diselidiki, sedangkan rusak bisa diklaim ke pemasok.
                                                         --}}
                                                         <div class="flex-1 sm:w-24 sm:flex-none">
-                                                            <label class="mb-1 block text-center text-[10px] font-medium uppercase tracking-wider text-red-400"
+                                                            <label class="mb-1 block text-center text-[11px] text-red-400"
                                                                    for="damaged-{{ $item->id }}">Rusak</label>
                                                             <input id="damaged-{{ $item->id }}"
                                                                    type="number" min="0" max="999999" inputmode="numeric"
@@ -274,7 +274,7 @@
                                                                    placeholder="0"
                                                                    @change="autosave({{ $item->id }})"
                                                                    @disabled(! auth()->user()->can('opnames.update'))
-                                                                   class="h-12 w-full rounded-xl border-ink-200 text-center text-base font-semibold tabular-nums text-red-700 shadow-sm placeholder:font-normal placeholder:text-ink-300 focus:border-red-500 focus:ring-red-500 sm:h-11 sm:text-sm">
+                                                                   class="h-12 w-full rounded-lg text-center text-base font-semibold tabular-nums text-red-700 placeholder:font-normal sm:h-11 sm:text-sm">
                                                         </div>
                                                     </div>
                                                 </div>
@@ -292,28 +292,28 @@
                 {{-- Sesi terkunci: hasilnya dibaca, tidak diubah. --}}
                 <x-ui.card title="Hasil Hitung" :subtitle="$counted.' dari '.$total.' SKU dihitung'" padding="p-0">
                     <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-ink-100 text-left">
-                            <thead class="bg-ink-50/60">
+                        <table class="erp-table">
+                            <thead>
                                 <tr>
-                                    <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Barang</th>
-                                    <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Tercatat</th>
-                                    <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Hitung</th>
-                                    <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Selisih</th>
-                                    <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Dihitung Oleh</th>
+                                    <th>Barang</th>
+                                    <th class="text-right">Tercatat</th>
+                                    <th class="text-right">Hitung</th>
+                                    <th class="text-right">Selisih</th>
+                                    <th>Dihitung Oleh</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-ink-50">
+                            <tbody>
                                 @foreach ($items as $item)
                                     <tr>
-                                        <td class="px-6 py-3.5">
+                                        <td>
                                             <p class="text-sm font-medium text-ink-950">{{ $item->product->name }}</p>
                                             <div class="mt-1"><x-ui.sku :value="$item->product->sku" /></div>
                                         </td>
-                                        <td class="px-6 py-3.5 text-right text-sm tabular-nums text-ink-500">{{ $item->system_quantity }}</td>
-                                        <td class="px-6 py-3.5 text-right text-sm font-semibold tabular-nums text-ink-950">
+                                        <td class="text-right text-sm tabular-nums text-ink-500">{{ $item->system_quantity }}</td>
+                                        <td class="text-right text-sm font-semibold tabular-nums text-ink-950">
                                             {{ $item->isCounted() ? $item->counted_quantity : '—' }}
                                         </td>
-                                        <td class="px-6 py-3.5 text-right">
+                                        <td class="text-right">
                                             <span @class([
                                                 'text-sm font-semibold tabular-nums',
                                                 'text-emerald-600' => $item->difference() > 0,
@@ -330,7 +330,7 @@
                                                 <p class="text-[11px] font-medium text-red-600">{{ $item->damaged_quantity }} rusak</p>
                                             @endif
                                         </td>
-                                        <td class="px-6 py-3.5">
+                                        <td>
                                             <p class="text-xs text-ink-600">{{ $item->counter?->name ?? '—' }}</p>
                                             @if ($item->counted_at)
                                                 <p class="text-[11px] text-ink-400">{{ $item->counted_at->translatedFormat('d M, H:i') }}</p>
@@ -395,9 +395,8 @@
                 @if ($reveal && $counted > 0)
                     <div class="border-t border-ink-100 pt-4">
                         <div class="flex items-baseline justify-between gap-3">
-                            <p class="text-xs font-semibold uppercase tracking-wider text-ink-400">Akurasi Catatan</p>
-                            <p class="text-2xl font-semibold tracking-tight
-                                      text-{{ $accuracyTone }}-600">
+                            <p class="text-xs text-ink-400">Akurasi Catatan</p>
+                            <p class="text-2xl font-semibold text-{{ $accuracyTone }}-600">
                                 {{ $accuracy }}%
                             </p>
                         </div>

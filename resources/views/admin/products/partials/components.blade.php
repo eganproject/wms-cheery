@@ -2,10 +2,10 @@
     Editor isi paket. Berada di dalam x-data="bundleRecipe(...)" milik
     formulir induknya, jadi tidak punya state sendiri.
 --}}
-<div class="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+<div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-ink-100 px-5 py-4 sm:px-6">
         <div>
-            <h2 class="text-sm font-semibold tracking-tight text-ink-950">Isi Paket</h2>
+            <h2 class="text-sm font-semibold text-ink-950">Isi Paket</h2>
             <p class="mt-0.5 text-xs text-ink-500">
                 <span x-text="filledRows"></span> barang &middot;
                 <span class="font-medium text-ink-950" x-text="totalUnits"></span> unit per paket &middot;
@@ -32,7 +32,7 @@
                         <div class="flex-1 space-y-1.5">
                             <label class="block text-xs font-medium text-ink-500" x-text="'Barang #' + (index + 1)"></label>
                             <select x-model="row.component_id" :name="`components[${index}][component_id]`"
-                                    class="block w-full rounded-xl border-ink-200 bg-white text-sm text-ink-950 shadow-soft transition focus:border-ink-950 focus:ring-1 focus:ring-ink-950">
+                                    class="form-control">
                                 <option value="">Pilih barang…</option>
                                 <template x-for="item in catalog" :key="item.id">
                                     <option :value="item.id" x-text="`${item.sku} — ${item.name}`"></option>
@@ -62,7 +62,7 @@
                         <div class="w-full space-y-1.5 sm:w-36">
                             <label class="block text-xs font-medium text-ink-500">Per paket</label>
                             <input type="number" min="1" x-model.number="row.quantity" :name="`components[${index}][quantity]`"
-                                   class="block w-full rounded-xl border-ink-200 bg-white text-sm text-ink-950 shadow-soft transition focus:border-ink-950 focus:ring-1 focus:ring-ink-950">
+                                   class="form-control">
                         </div>
 
                         {{-- Berapa paket yang bisa dibentuk dari barang ini saja --}}

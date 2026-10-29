@@ -8,16 +8,15 @@
         </x-slot>
     </x-ui.page-header>
 
-    <x-ui.tabs group="outbound" />
 
     <form method="GET" action="{{ route('admin.outbounds.index') }}" data-auto-submit
-          class="mb-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4 shadow-card">
+          class="mb-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4">
         <div class="relative">
-            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-ink-300">
+            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
                 <x-icon name="search" class="h-4 w-4" />
             </span>
             <x-text-input type="search" name="search" :value="request('search')"
-                          placeholder="Cari nomor dokumen, penerima, atau resi..." class="pl-10" />
+                          placeholder="Cari nomor dokumen, penerima, atau resi..." class="pl-8" />
         </div>
 
         <div class="grid grid-cols-2 gap-3 sm:flex sm:items-center">
@@ -63,7 +62,7 @@
         </div>
     </form>
 
-    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($outbounds->isEmpty())
             <x-ui.empty-state icon="logout" title="Belum ada dokumen"
                               description="Buat dokumen barang keluar untuk mencatat pengiriman.">
@@ -75,52 +74,52 @@
             </x-ui.empty-state>
         @else
             <div class="hidden overflow-x-auto md:block">
-                <table class="min-w-full divide-y divide-ink-100 text-left">
-                    <thead class="bg-ink-50/60">
+                <table class="erp-table">
+                    <thead>
                         <tr>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Dokumen</th>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Penerima</th>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Jenis</th>
-                            <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Total Unit</th>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Status</th>
-                            <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Aksi</th>
+                            <th>Dokumen</th>
+                            <th>Penerima</th>
+                            <th>Jenis</th>
+                            <th class="text-right">Total Unit</th>
+                            <th>Status</th>
+                            <th class="text-right">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-ink-50">
+                    <tbody>
                         @foreach ($outbounds as $outbound)
-                            <tr class="transition hover:bg-ink-50/50">
-                                <td class="px-6 py-4">
+                            <tr>
+                                <td>
                                     <p class="font-mono text-sm font-medium text-ink-950">{{ $outbound->code }}</p>
                                     <p class="text-xs text-ink-400">{{ $outbound->date->translatedFormat('d M Y') }}</p>
                                 </td>
-                                <td class="px-6 py-4">
+                                <td>
                                     <p class="text-sm text-ink-800">{{ $outbound->recipient }}</p>
                                     @if ($outbound->tracking_number)
                                         <p class="font-mono text-[11px] text-ink-400">{{ $outbound->tracking_number }}</p>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4">
+                                <td>
                                     @if ($outbound->isMarketplace())
                                         <x-ui.badge variant="dark" icon="sparkles">{{ $outbound->marketplace }}</x-ui.badge>
                                     @else
                                         <x-ui.badge variant="outline">Reguler</x-ui.badge>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 text-right text-sm font-semibold text-ink-950">
+                                <td class="text-right text-sm font-semibold text-ink-950">
                                     {{ number_format((int) $outbound->items_sum_quantity, 0, ',', '.') }}
                                 </td>
-                                <td class="px-6 py-4">
+                                <td>
                                     {{-- Tahap, bukan kolom status: lihat Outbound::stage(). --}}
                                     <x-ui.badge :variant="$outbound->stageVariant()" :icon="$outbound->stageIcon()">
                                         {{ $outbound->stageLabel() }}
                                     </x-ui.badge>
                                 </td>
-                                <td class="px-6 py-4">
+                                <td>
                                     <div class="flex items-center justify-end gap-1">
                                         @if ($outbound->isEditable() && $outbound->isMarketplace())
                                             @can('outbounds.scan')
                                                 <a href="{{ route('admin.outbounds.scan', $outbound) }}" title="Verifikasi scan"
-                                                   class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-ink-950 px-3 text-xs font-medium text-white transition hover:bg-ink-800">
+                                                   class="btn btn-primary">
                                                     <x-icon name="search" class="h-3.5 w-3.5" /> Scan
                                                 </a>
                                             @endcan

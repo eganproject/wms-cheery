@@ -21,21 +21,21 @@
 
                     <x-ui.field label="Email" for="email" :error="$errors->get('email')" required>
                         <div class="relative">
-                            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-ink-300">
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
                                 <x-icon name="mail" class="h-4 w-4" />
                             </span>
                             <x-text-input id="email" name="email" type="email" :value="old('email', $user?->email)"
-                                          required placeholder="nama@perusahaan.com" class="pl-10" />
+                                          required placeholder="nama@perusahaan.com" class="pl-8" />
                         </div>
                     </x-ui.field>
 
                     <x-ui.field label="Nomor Telepon" for="phone" :error="$errors->get('phone')">
                         <div class="relative">
-                            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-ink-300">
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
                                 <x-icon name="phone" class="h-4 w-4" />
                             </span>
                             <x-text-input id="phone" name="phone" type="text" :value="old('phone', $user?->phone)"
-                                          placeholder="08xxxxxxxxxx" class="pl-10" />
+                                          placeholder="08xxxxxxxxxx" class="pl-8" />
                         </div>
                     </x-ui.field>
                 </div>
@@ -109,8 +109,7 @@
                                 ]));
                             @endphp
 
-                            <label class="flex cursor-pointer gap-3 rounded-xl border p-3.5 transition
-                                          has-[:checked]:border-ink-950 has-[:checked]:bg-ink-50/70 border-ink-100 hover:bg-ink-50/50">
+                            <label class="flex cursor-pointer gap-3 rounded-xl border p-3.5 transition has-[:checked]:border-ink-950 has-[:checked]:bg-ink-50/70 border-ink-100 hover:bg-ink-50/50">
                                 <input type="radio" name="role_id" value="{{ $role->id }}" required
                                        @checked(old('role_id', $user?->role_id) == $role->id)
                                        class="mt-0.5 h-4 w-4 shrink-0 border-ink-300 text-ink-950 focus:ring-ink-950">

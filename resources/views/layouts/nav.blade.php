@@ -1,91 +1,56 @@
 {{--
-    Menu samping.
+    Menu samping bergaya sidebar workspace ERPNext.
 
-    Halaman yang sebenarnya melihat objek yang sama digabung menjadi satu
-    entri, lalu dipisah dengan tab di dalam halamannya — lihat App\Support\
-    SectionTabs. Menu ini menjawab "saya mau mengerjakan apa", bukan
-    "ada halaman apa saja".
+    Isinya dibaca dari App\Support\Navigation: halaman dikelompokkan menurut
+    pekerjaannya, dan setiap halaman bisa dibuka dengan satu klik. Kelompok
+    bisa dilipat; kelompok yang memuat halaman aktif selalu terbuka.
 
     Ditukar ulang setiap navigasi AJAX supaya status menu aktif tetap akurat.
 --}}
 @php
-    use App\Support\SectionTabs;
+    $sections = \App\Support\Navigation::sections();
 @endphp
 
-<nav data-sidebar-nav class="scrollbar-thin flex-1 space-y-6 overflow-y-auto px-3 py-5">
-    <div class="space-y-1">
-        <p class="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-ink-400">Umum</p>
+<nav data-sidebar-nav class="scrollbar-thin min-h-0 flex-1 overflow-y-auto px-2 py-3 lg:px-0 lg:py-4 lg:pr-2">
+    @foreach ($sections as $section)
+        @if ($section['label'] === null)
+            <div class="mb-3 space-y-px">
+                @foreach ($section['items'] as $item)
+                    <x-ui.nav-item :href="$item['href']" :icon="$item['icon']" :active="$item['active']" :badge="$item['badge']">
+                        {{ $item['label'] }}
+                    </x-ui.nav-item>
+                @endforeach
+            </div>
+        @else
+            <div x-data="{
+                    storageKey: 'wms.nav.{{ $section['key'] }}',
+                    open: true,
+                    init() {
+                        @if (! $section['active'])
+                            try { this.open = localStorage.getItem(this.storageKey) !== 'closed' } catch (e) {}
+                        @endif
+                    },
+                    toggle() {
+                        this.open = ! this.open;
+                        try { localStorage.setItem(this.storageKey, this.open ? 'open' : 'closed') } catch (e) {}
+                    },
+                 }"
+                 class="mb-2">
+                <button type="button" @click="toggle()" :aria-expanded="open.toString()"
+                        class="group flex w-full items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-medium uppercase tracking-[0.04em] text-ink-500 transition hover:text-ink-950">
+                    <span class="flex-1 truncate">{{ $section['label'] }}</span>
+                    <x-icon name="chevron-down" class="h-3.5 w-3.5 shrink-0 transition-transform duration-150"
+                            x-bind:class="open ? '' : '-rotate-90'" />
+                </button>
 
-        <x-ui.nav-item :href="route('admin.dashboard')" icon="dashboard" :active="request()->routeIs('admin.dashboard')">
-            Dashboard
-        </x-ui.nav-item>
-
-        @can('approvals.view')
-            @php $pendingApprovals = \App\Support\ApprovalCounter::pending(); @endphp
-            <x-ui.nav-item :href="route('admin.approvals.index')" icon="check-circle"
-                           :active="request()->routeIs('admin.approvals.*')"
-                           :badge="$pendingApprovals > 0 ? (string) $pendingApprovals : null">
-                Menunggu Persetujuan
-            </x-ui.nav-item>
-        @endcan
-    </div>
-
-    @canany(['products.view', 'movements.view', 'reports.view', 'suppliers.view', 'inbounds.view', 'outbounds.view', 'returns.view', 'adjustments.view', 'opnames.view', 'disposals.view', 'imports.view'])
-        <div class="space-y-1">
-            <p class="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-ink-400">Gudang</p>
-
-            {{-- Barang, mutasi stoknya, dan pemasoknya — satu entri, tiga tab. --}}
-            @if ($stockHref = SectionTabs::firstHref('stock'))
-                <x-ui.nav-item :href="$stockHref" icon="box" :active="SectionTabs::isActive('stock')">
-                    Barang &amp; Stok
-                </x-ui.nav-item>
-            @endif
-
-            @can('inbounds.view')
-                <x-ui.nav-item :href="route('admin.inbounds.index')" icon="login" :active="request()->routeIs('admin.inbounds.*')">
-                    Barang Masuk
-                </x-ui.nav-item>
-            @endcan
-
-            {{-- Dokumen keluar, antrean siap kirim, dan stasiun packing. --}}
-            @if ($outboundHref = SectionTabs::firstHref('outbound'))
-                <x-ui.nav-item :href="$outboundHref" icon="logout" :active="request()->routeIs('admin.outbounds.*')">
-                    Barang Keluar
-                </x-ui.nav-item>
-            @endif
-
-            @can('returns.view')
-                <x-ui.nav-item :href="route('admin.returns.index')" icon="refresh" :active="request()->routeIs('admin.returns.*')">
-                    Penerimaan Retur
-                </x-ui.nav-item>
-            @endcan
-
-            {{-- Hitung fisik dan koreksi manual — dua cara menuju hasil yang sama. --}}
-            @if ($adjustmentHref = SectionTabs::firstHref('adjustment'))
-                <x-ui.nav-item :href="$adjustmentHref" icon="sliders" :active="SectionTabs::isActive('adjustment')">
-                    Opname &amp; Penyesuaian
-                </x-ui.nav-item>
-            @endif
-
-            {{-- Status resi dan berkas importnya. --}}
-            @if ($waybillHref = SectionTabs::firstHref('waybill'))
-                <x-ui.nav-item :href="$waybillHref" icon="search" :active="request()->routeIs('admin.imports.*')">
-                    Resi
-                </x-ui.nav-item>
-            @endif
-        </div>
-    @endcanany
-
-    @canany(['users.view', 'roles.view', 'permissions.view', 'stock-api-access.view'])
-        <div class="space-y-1">
-            <p class="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-ink-400">Pengaturan</p>
-
-            {{-- Pengguna, role, dan matriks hak aksesnya. --}}
-            @if ($accessHref = SectionTabs::firstHref('access'))
-                <x-ui.nav-item :href="$accessHref" icon="users" :active="SectionTabs::isActive('access')">
-                    Pengguna &amp; Akses
-                </x-ui.nav-item>
-            @endif
-        </div>
-    @endcanany
+                <div x-show="open" class="mt-0.5 space-y-px">
+                    @foreach ($section['items'] as $item)
+                        <x-ui.nav-item :href="$item['href']" :icon="$item['icon']" :active="$item['active']" :badge="$item['badge']">
+                            {{ $item['label'] }}
+                        </x-ui.nav-item>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+    @endforeach
 </nav>

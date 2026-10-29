@@ -5,7 +5,7 @@
     yang rusak" dan "sudah diapakan" — jadi tidak dipisah ke dua menu.
 --}}
 <x-app-layout title="Barang Rusak">
-    <x-ui.page-header title="Barang Rusak & Pengeluaran" icon="trash"
+    <x-ui.page-header title="Barang Rusak" icon="trash"
                       subtitle="Saldo barang rusak, beserta dokumen setiap barang yang keluar di luar penjualan.">
         <x-slot name="actions">
             @can('disposals.create')
@@ -23,7 +23,6 @@
         </x-slot>
     </x-ui.page-header>
 
-    <x-ui.tabs group="stock" />
 
     <div class="grid grid-cols-2 gap-4 xl:grid-cols-3">
         <x-ui.stat-card label="Unit Rusak" :value="number_format($summary['units'], 0, ',', '.')" icon="warning" accent
@@ -39,13 +38,13 @@
         pencariannya ikut terbawa apa adanya lewat kolom tersembunyi.
     --}}
     <form method="GET" action="{{ route('admin.disposals.index') }}" data-auto-submit
-          class="mt-5 flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-ink-100 bg-white p-4 shadow-card">
+          class="mt-5 flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-ink-100 bg-white p-4">
         @if (request()->filled('search'))
             <input type="hidden" name="search" value="{{ request('search') }}">
         @endif
 
         <div>
-            <p class="mb-2 text-xs font-medium uppercase tracking-wider text-ink-400">Riwayat penanganan</p>
+            <p class="mb-2 text-xs text-ink-400">Riwayat penanganan</p>
             <x-ui.date-filter label="Tanggal penanganan" />
         </div>
 
@@ -87,7 +86,7 @@
 
                             <div class="w-20 shrink-0 text-right">
                                 <p class="text-xs tabular-nums text-ink-500">{{ number_format($product->stock, 0, ',', '.') }}</p>
-                                <p class="text-[10px] uppercase tracking-wider text-ink-400">layak jual</p>
+                                <p class="text-[11px] text-ink-400">layak jual</p>
                             </div>
                         </li>
                     @endforeach

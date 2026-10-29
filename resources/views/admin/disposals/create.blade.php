@@ -43,7 +43,7 @@
                       :back="route('admin.disposals.index')" />
 
     @if ($products->isEmpty())
-        <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+        <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
             <x-ui.empty-state icon="check-circle" :title="'Tidak ada stok '.$balanceLabel"
                               :description="$fromGood
                                   ? 'Belum ada barang dengan saldo layak jual. Catat barang masuk terlebih dahulu.'
@@ -66,12 +66,12 @@
                     {{-- Tanpa overflow-hidden: daftar hasil pencarian menjulur
                          keluar kartunya dan akan terpotong bila dikurung. --}}
                     <div x-data="stockPicker({{ Js::from($catalog) }}, {{ Js::from($initial) }})"
-                         class="rounded-2xl border border-ink-100 bg-white shadow-card">
+                         class="rounded-2xl border border-ink-100 bg-white">
 
                         {{-- Kepala: pencarian --}}
                         <div class="border-b border-ink-100 px-5 py-4 sm:px-6">
                             <div class="flex flex-wrap items-baseline justify-between gap-2">
-                                <h2 class="text-sm font-semibold tracking-tight text-ink-950">Barang yang Dikeluarkan</h2>
+                                <h2 class="text-sm font-semibold text-ink-950">Barang yang Dikeluarkan</h2>
                                 <p class="text-xs text-ink-500">
                                     <span class="font-medium text-ink-950" x-text="picked.length"></span> barang
                                     &middot; <span class="font-medium text-ink-950" x-text="totalUnits"></span> unit
@@ -90,7 +90,7 @@
                                        x-on:keydown.arrow-up.prevent="move(-1)"
                                        x-on:keydown.enter.prevent="pickHighlighted()"
                                        x-on:keydown.escape.prevent="open = false"
-                                       class="h-12 w-full rounded-xl border-ink-200 pl-10 pr-4 text-sm text-ink-950 placeholder:text-ink-300 shadow-soft transition focus:border-ink-950 focus:ring-1 focus:ring-ink-950">
+                                       class="h-12 w-full rounded-lg pl-10 pr-4 text-sm text-ink-950">
 
                                 {{-- Hasil pencarian --}}
                                 <div x-show="open" x-cloak x-transition.opacity.duration.120ms
@@ -123,7 +123,7 @@
 
                                                     <div class="shrink-0 text-right">
                                                         <p class="text-sm font-semibold tabular-nums text-ink-950" x-text="item.available"></p>
-                                                        <p class="text-[10px] uppercase tracking-wider text-ink-400"
+                                                        <p class="text-[11px] text-ink-400"
                                                            x-text="item.unit"></p>
                                                     </div>
                                                 </button>
@@ -169,7 +169,7 @@
 
                                     {{-- Jumlah: tombol untuk layar sentuh, ketikan untuk angka besar. --}}
                                     <div class="flex items-center gap-2">
-                                        <div class="flex items-center rounded-xl border border-ink-200 shadow-soft"
+                                        <div class="flex items-center rounded-xl border border-ink-200"
                                              :class="isOverBalance(row) && 'border-red-300'">
                                             <button type="button" x-on:click="step(row, -1)" tabindex="-1"
                                                     class="inline-flex h-11 w-10 items-center justify-center rounded-l-xl text-ink-500 transition hover:bg-ink-50 hover:text-ink-950">
@@ -242,8 +242,7 @@
 
                             <div class="space-y-2">
                                 @foreach (DamagedDisposal::actionsFor($bucket) as $value => $label)
-                                    <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition
-                                                  has-[:checked]:border-ink-950 has-[:checked]:bg-ink-50/70 border-ink-100">
+                                    <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition has-[:checked]:border-ink-950 has-[:checked]:bg-ink-50/70 border-ink-100">
                                         <input type="radio" name="action" value="{{ $value }}" x-model="action" required
                                                class="mt-0.5 h-4 w-4 shrink-0 border-ink-300 text-ink-950 focus:ring-ink-950">
                                         <span class="min-w-0">
@@ -281,7 +280,7 @@
                             <div>
                                 <x-input-label for="note" value="Catatan (opsional)" />
                                 <textarea id="note" name="note" rows="2"
-                                          class="mt-1.5 w-full rounded-xl border-ink-200 text-sm shadow-sm focus:border-ink-950 focus:ring-ink-950"
+                                          class="form-control"
                                           placeholder="Misal: nomor berita acara pemusnahan.">{{ old('note') }}</textarea>
                             </div>
                         </div>

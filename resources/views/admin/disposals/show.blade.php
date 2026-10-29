@@ -1,5 +1,5 @@
 <x-app-layout title="Detail Penanganan Barang Rusak">
-    <x-ui.page-header :title="$disposal->code"
+    <x-ui.page-header :title="$disposal->code" :status="$disposal->statusLabel()" :status-variant="$disposal->statusVariant()"
                       :subtitle="$disposal->actionLabel().' · '.$disposal->date->translatedFormat('d F Y')"
                       :back="route('admin.disposals.index')">
         <x-slot name="actions">
@@ -28,28 +28,28 @@
                    :subtitle="$disposal->items->count().' baris · total '.number_format($disposal->totalQuantity(), 0, ',', '.').' unit'"
                    padding="p-0">
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-ink-100 text-left">
-                    <thead class="bg-ink-50/60">
+                <table class="erp-table">
+                    <thead>
                         <tr>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Barang</th>
-                            <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Sisa Rusak</th>
-                            <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Ditangani</th>
+                            <th>Barang</th>
+                            <th class="text-right">Sisa Rusak</th>
+                            <th class="text-right">Ditangani</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-ink-50">
+                    <tbody>
                         @foreach ($disposal->items as $item)
                             <tr>
-                                <td class="px-6 py-3.5">
+                                <td>
                                     <a href="{{ route('admin.products.show', $item->product) }}"
                                        class="text-sm font-medium text-ink-950 underline-offset-4 hover:underline">
                                         {{ $item->product->name }}
                                     </a>
                                     <div class="mt-1"><x-ui.sku :value="$item->product->sku" /></div>
                                 </td>
-                                <td class="px-6 py-3.5 text-right text-sm tabular-nums text-ink-500">
+                                <td class="text-right text-sm tabular-nums text-ink-500">
                                     {{ $item->product->damaged_stock }} {{ $item->product->unit }}
                                 </td>
-                                <td class="px-6 py-3.5 text-right">
+                                <td class="text-right">
                                     <span class="text-sm font-semibold tabular-nums text-ink-950">
                                         {{ number_format($item->quantity, 0, ',', '.') }}
                                     </span>

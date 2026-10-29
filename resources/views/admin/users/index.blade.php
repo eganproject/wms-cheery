@@ -1,5 +1,5 @@
 <x-app-layout title="Pengguna">
-    <x-ui.page-header title="Manajemen Pengguna" icon="users"
+    <x-ui.page-header title="Pengguna" icon="users"
                       subtitle="Kelola akun, role, dan status akses pengguna sistem.">
         <x-slot name="actions">
             @can('users.create')
@@ -8,17 +8,16 @@
         </x-slot>
     </x-ui.page-header>
 
-    <x-ui.tabs group="access" />
 
     {{-- Toolbar --}}
     <form method="GET" action="{{ route('admin.users.index') }}" data-auto-submit
-          class="mb-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4 shadow-card sm:flex-row sm:items-center">
+          class="mb-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4 sm:flex-row sm:items-center">
         <div class="relative flex-1">
-            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-ink-300">
+            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
                 <x-icon name="search" class="h-4 w-4" />
             </span>
             <x-text-input type="search" name="search" :value="request('search')"
-                          placeholder="Cari nama, email, atau telepon..." class="pl-10" />
+                          placeholder="Cari nama, email, atau telepon..." class="pl-8" />
         </div>
 
         <div class="grid grid-cols-2 gap-3 sm:flex sm:items-center">
@@ -47,7 +46,7 @@
     </form>
 
     {{-- Table --}}
-    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($users->isEmpty())
             <x-ui.empty-state icon="users" title="Pengguna tidak ditemukan"
                               description="Coba ubah kata kunci pencarian atau tambahkan pengguna baru.">
@@ -60,21 +59,21 @@
         @else
             {{-- Desktop --}}
             <div class="hidden overflow-x-auto md:block">
-                <table class="min-w-full divide-y divide-ink-100 text-left">
-                    <thead class="bg-ink-50/60">
+                <table class="erp-table">
+                    <thead>
                         <tr>
-                            <th scope="col" class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Pengguna</th>
-                            <th scope="col" class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Role</th>
-                            <th scope="col" class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Kontak</th>
-                            <th scope="col" class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Status</th>
-                            <th scope="col" class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Terakhir Masuk</th>
-                            <th scope="col" class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Aksi</th>
+                            <th scope="col">Pengguna</th>
+                            <th scope="col">Role</th>
+                            <th scope="col">Kontak</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Terakhir Masuk</th>
+                            <th scope="col" class="text-right">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-ink-50">
+                    <tbody>
                         @foreach ($users as $user)
-                            <tr class="transition hover:bg-ink-50/50">
-                                <td class="px-6 py-4">
+                            <tr>
+                                <td>
                                     <div class="flex items-center gap-3">
                                         <x-ui.avatar :name="$user->name" size="sm" />
                                         <div class="min-w-0">
@@ -83,7 +82,7 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4">
+                                <td>
                                     @if ($user->role)
                                         <x-ui.badge :variant="$user->role->is_super_admin ? 'dark' : 'neutral'" icon="shield">
                                             {{ $user->role->name }}
@@ -92,19 +91,19 @@
                                         <span class="text-xs text-ink-300">—</span>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 text-sm text-ink-600">
+                                <td class="text-sm text-ink-600">
                                     {{ $user->phone ?: '—' }}
                                 </td>
-                                <td class="px-6 py-4">
+                                <td>
                                     <x-ui.badge :variant="$user->is_active ? 'success' : 'danger'"
                                                 :icon="$user->is_active ? 'check-circle' : 'x-circle'">
                                         {{ $user->is_active ? 'Aktif' : 'Nonaktif' }}
                                     </x-ui.badge>
                                 </td>
-                                <td class="px-6 py-4 text-sm text-ink-500">
+                                <td class="text-sm text-ink-500">
                                     {{ $user->last_login_at?->diffForHumans() ?? 'Belum pernah' }}
                                 </td>
-                                <td class="px-6 py-4">
+                                <td>
                                     <div class="flex items-center justify-end gap-1">
                                         <a href="{{ route('admin.users.show', $user) }}" title="Detail"
                                            class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-950">

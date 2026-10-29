@@ -1,33 +1,31 @@
-@props(['group'])
+@props(['group' => null])
 
 @php
-    $tabs = \App\Support\SectionTabs::for($group);
+    $tabs = \App\Support\Navigation::tabs();
 @endphp
 
 {{--
-    Tab antar halaman sekelompok. Setiap tab adalah tautan ke route-nya
-    sendiri, jadi hanya data tab yang dibuka yang di-query.
+    Tab bergaris bawah ala form ERPNext, berisi halaman lain di kelompok menu
+    yang sama. Setiap tab adalah tautan ke route-nya sendiri, jadi hanya data
+    tab yang dibuka yang di-query.
 --}}
 @if (count($tabs) > 1)
-    <div class="mb-5 flex items-center gap-1 overflow-x-auto rounded-2xl border border-ink-100 bg-white p-1.5 shadow-card">
-        @foreach ($tabs as $tab)
-            <a href="{{ $tab['href'] }}" @if ($tab['active']) aria-current="page" @endif
-               @class([
-                   'inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition',
-                   'bg-ink-950 text-white shadow-soft' => $tab['active'],
-                   'text-ink-600 hover:bg-ink-100 hover:text-ink-950' => ! $tab['active'],
-               ])>
-                <x-icon :name="$tab['icon']" class="h-4 w-4 shrink-0 {{ $tab['active'] ? 'text-white' : 'text-ink-400' }}" />
-                {{ $tab['label'] }}
+    <div {{ $attributes->merge(['class' => 'scrollbar-none -mx-4 overflow-x-auto border-b border-ink-100 px-4 sm:mx-0 sm:px-0']) }}>
+        <nav data-page-tabs class="flex min-w-max items-center gap-5" aria-label="Halaman terkait">
+            @foreach ($tabs as $tab)
+                <a href="{{ $tab['href'] }}" @if ($tab['active']) aria-current="page" @endif
+                   @class([
+                       '-mb-px inline-flex h-9 shrink-0 items-center gap-1.5 border-b-2 text-sm transition-colors',
+                       'border-ink-950 font-medium text-ink-950' => $tab['active'],
+                       'border-transparent text-ink-500 hover:text-ink-950' => ! $tab['active'],
+                   ])>
+                    {{ $tab['label'] }}
 
-                @if ($tab['badge'])
-                    <span @class([
-                        'rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums',
-                        'bg-white/15 text-white' => $tab['active'],
-                        'bg-ink-100 text-ink-600' => ! $tab['active'],
-                    ])>{{ $tab['badge'] }}</span>
-                @endif
-            </a>
-        @endforeach
+                    @if ($tab['badge'])
+                        <span class="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-control px-1.5 text-[11px] font-medium leading-none text-ink-700 tabular-nums">{{ $tab['badge'] }}</span>
+                    @endif
+                </a>
+            @endforeach
+        </nav>
     </div>
 @endif

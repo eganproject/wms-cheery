@@ -22,7 +22,6 @@
         </x-slot>
     </x-ui.page-header>
 
-    <x-ui.tabs group="stock" />
 
     <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <x-ui.stat-card label="Perlu Dipesan" :value="number_format($summary['needing'], 0, ',', '.')"
@@ -41,27 +40,27 @@
     </div>
 
     <div class="mt-4 flex flex-wrap items-center gap-2 text-xs">
-        <span class="rounded-lg bg-white px-2.5 py-1.5 text-ink-600 ring-1 ring-inset ring-ink-200">
+        <span class="rounded-full bg-control px-2.5 py-1 text-ink-600">
             Laju keluar diamati <span class="font-semibold text-ink-950">{{ $filters->label() }}</span>
             ({{ $filters->days() }} hari)
         </span>
-        <span class="rounded-lg bg-ink-950 px-2.5 py-1.5 font-medium text-white">
+        <span class="rounded-full bg-blue-100 px-2.5 py-1 font-medium text-blue-700">
             Disiapkan untuk {{ $filters->coverDays }} hari ke depan
         </span>
-        <span class="rounded-lg bg-ink-50 px-2.5 py-1.5 text-ink-500 ring-1 ring-inset ring-ink-200">
+        <span class="rounded-full bg-control px-2.5 py-1 text-ink-500">
             Barang nonaktif tidak dihitung
         </span>
     </div>
 
     <form method="GET" action="{{ route('admin.reports.restock') }}" data-auto-submit
-          class="my-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4 shadow-card">
+          class="my-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div class="relative flex-1">
-                <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-ink-300">
+                <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
                     <x-icon name="search" class="h-4 w-4" />
                 </span>
                 <x-text-input type="search" name="search" :value="$filters->search"
-                              placeholder="Cari barang, SKU, atau kategori..." class="pl-10" />
+                              placeholder="Cari barang, SKU, atau kategori..." class="pl-8" />
             </div>
 
             <x-ui.select name="view" class="sm:w-44">
@@ -100,7 +99,7 @@
                     yang akan menipis" — barang laris bisa masih di atas batas
                     hari ini dan tetap habis pekan depan.
                 --}}
-                <label class="flex h-[2.625rem] items-center gap-2 rounded-xl border border-ink-200 bg-white px-3 shadow-soft">
+                <label class="flex h-[2.625rem] items-center gap-2 rounded-xl border border-ink-200 bg-white px-3">
                     <span class="whitespace-nowrap text-xs text-ink-500">Siapkan untuk</span>
                     <input type="number" name="cover" min="1" max="365" inputmode="numeric"
                            value="{{ $filters->coverDays }}"
@@ -120,34 +119,34 @@
         </div>
     </form>
 
-    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($rows->isEmpty())
             <x-ui.empty-state icon="check-circle" title="Tidak ada yang perlu dipesan"
                               description="Seluruh barang yang cocok dengan saringan ini masih cukup untuk periode yang disiapkan." />
         @else
             <div class="hidden overflow-x-auto lg:block">
-                <table class="min-w-full divide-y divide-ink-100 text-left">
-                    <thead class="bg-ink-50/60">
+                <table class="erp-table">
+                    <thead>
                         <tr>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Barang</th>
-                            <th class="px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Stok</th>
-                            <th class="px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Terikat</th>
-                            <th class="px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Tersedia</th>
-                            <th class="px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Batas</th>
-                            <th class="px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Laju</th>
-                            <th class="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Klasifikasi</th>
-                            <th class="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Kondisi</th>
-                            <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Saran Pesan</th>
+                            <th>Barang</th>
+                            <th class="px-4 text-right">Stok</th>
+                            <th class="px-4 text-right">Terikat</th>
+                            <th class="px-4 text-right">Tersedia</th>
+                            <th class="px-4 text-right">Batas</th>
+                            <th class="px-4 text-right">Laju</th>
+                            <th class="px-4">Klasifikasi</th>
+                            <th class="px-4">Kondisi</th>
+                            <th class="text-right">Saran Pesan</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-ink-50">
+                    <tbody>
                         @foreach ($rows as $row)
                             @php
                                 $badge = $row->urgencyBadge();
                                 $movementBadge = $row->movementBadge();
                             @endphp
-                            <tr class="transition hover:bg-ink-50/50">
-                                <td class="px-6 py-4 align-top">
+                            <tr>
+                                <td class="align-top">
                                     <a href="{{ route('admin.products.show', $row->id) }}"
                                        class="text-sm font-medium text-ink-950 underline-offset-4 hover:underline">
                                         {{ $row->name }}
@@ -158,49 +157,49 @@
                                             <span class="font-mono text-[11px] text-ink-400">{{ $row->location }}</span>
                                         @endif
                                         @if ($row->damaged > 0)
-                                            <span class="rounded-md bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-red-700">
+                                            <span class="rounded-md bg-red-50 px-1.5 py-0.5 text-[11px] text-red-700">
                                                 {{ $row->damaged }} rusak
                                             </span>
                                         @endif
                                     </div>
                                 </td>
 
-                                <td class="px-4 py-4 text-right align-top text-sm tabular-nums text-ink-500">
+                                <td class="px-4 text-right align-top text-sm tabular-nums text-ink-500">
                                     {{ number_format($row->stock, 0, ',', '.') }}
                                 </td>
 
-                                <td class="px-4 py-4 text-right align-top text-sm tabular-nums {{ $row->committed > 0 ? 'font-medium text-amber-700' : 'text-ink-300' }}">
+                                <td class="px-4 text-right align-top text-sm tabular-nums {{ $row->committed > 0 ? 'font-medium text-amber-700' : 'text-ink-300' }}">
                                     {{ $row->committed > 0 ? '−'.number_format($row->committed, 0, ',', '.') : '—' }}
                                 </td>
 
-                                <td class="px-4 py-4 text-right align-top">
+                                <td class="px-4 text-right align-top">
                                     <p class="text-sm font-semibold tabular-nums {{ $row->isOutOfStock() ? 'text-red-700' : 'text-ink-950' }}">
                                         {{ number_format($row->available(), 0, ',', '.') }}
                                     </p>
                                     <p class="text-[11px] text-ink-400">{{ $row->unit }}</p>
                                 </td>
 
-                                <td class="px-4 py-4 text-right align-top text-sm tabular-nums text-ink-500">
+                                <td class="px-4 text-right align-top text-sm tabular-nums text-ink-500">
                                     {{ number_format($row->minStock, 0, ',', '.') }}
                                 </td>
 
-                                <td class="px-4 py-4 text-right align-top">
+                                <td class="px-4 text-right align-top">
                                     <p class="text-sm tabular-nums text-ink-700">{{ number_format($row->perDay(), 1, ',', '.') }}</p>
                                     <p class="text-[11px] text-ink-400">/hari</p>
                                 </td>
 
-                                <td class="px-4 py-4 align-top">
+                                <td class="px-4 align-top">
                                     <x-ui.badge :variant="$movementBadge['variant']">{{ $movementBadge['label'] }}</x-ui.badge>
                                     <p class="mt-1 text-[11px] tabular-nums text-ink-400">
                                         {{ number_format($row->velocity30Days(), 1, ',', '.') }}/30 hari
                                     </p>
                                 </td>
 
-                                <td class="px-4 py-4 align-top">
+                                <td class="px-4 align-top">
                                     <x-ui.badge :variant="$badge['variant']">{{ $badge['label'] }}</x-ui.badge>
                                 </td>
 
-                                <td class="px-6 py-4 text-right align-top">
+                                <td class="text-right align-top">
                                     @if ($row->needsRestock())
                                         <p class="text-base font-semibold tabular-nums text-ink-950">
                                             {{ number_format($row->suggested(), 0, ',', '.') }}
@@ -244,22 +243,22 @@
 
                         <div class="mt-3 grid grid-cols-4 gap-2 text-center">
                             <div class="rounded-lg bg-ink-50/70 py-2">
-                                <p class="text-[10px] uppercase tracking-wider text-ink-400">Stok</p>
+                                <p class="text-[11px] text-ink-400">Stok</p>
                                 <p class="text-sm font-semibold tabular-nums text-ink-700">{{ number_format($row->stock, 0, ',', '.') }}</p>
                             </div>
                             <div class="rounded-lg bg-amber-50 py-2">
-                                <p class="text-[10px] uppercase tracking-wider text-amber-600">Terikat</p>
+                                <p class="text-[11px] text-amber-600">Terikat</p>
                                 <p class="text-sm font-semibold tabular-nums text-amber-700">{{ number_format($row->committed, 0, ',', '.') }}</p>
                             </div>
                             <div class="rounded-lg py-2 {{ $row->isOutOfStock() ? 'bg-red-50' : 'bg-ink-50/70' }}">
-                                <p class="text-[10px] uppercase tracking-wider {{ $row->isOutOfStock() ? 'text-red-600' : 'text-ink-400' }}">Tersedia</p>
+                                <p class="text-[11px] {{ $row->isOutOfStock() ? 'text-red-600' : 'text-ink-400' }}">Tersedia</p>
                                 <p class="text-sm font-semibold tabular-nums {{ $row->isOutOfStock() ? 'text-red-700' : 'text-ink-700' }}">
                                     {{ number_format($row->available(), 0, ',', '.') }}
                                 </p>
                             </div>
-                            <div class="rounded-lg bg-ink-950 py-2">
-                                <p class="text-[10px] uppercase tracking-wider text-white/60">Pesan</p>
-                                <p class="text-sm font-semibold tabular-nums text-white">{{ number_format($row->suggested(), 0, ',', '.') }}</p>
+                            <div class="rounded-lg bg-blue-100 py-2">
+                                <p class="text-[11px] text-blue-700">Pesan</p>
+                                <p class="text-sm font-semibold tabular-nums text-blue-800">{{ number_format($row->suggested(), 0, ',', '.') }}</p>
                             </div>
                         </div>
 

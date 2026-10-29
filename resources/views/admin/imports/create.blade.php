@@ -17,7 +17,7 @@
                         <input type="file" name="file" accept=".xlsx,.xls,.csv,.txt" class="sr-only" required
                                @change="name = $event.target.files[0]?.name ?? ''">
 
-                        <span class="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-ink-950 text-white">
+                        <span class="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-control text-ink-700">
                             <x-icon name="document" class="h-6 w-6" />
                         </span>
 
@@ -63,7 +63,7 @@
                                 <span class="block text-xs font-semibold text-ink-950">
                                     {{ $column }}
                                     @if ($required)
-                                        <span class="ml-1 rounded bg-ink-950 px-1 py-px text-[10px] font-medium text-white">wajib</span>
+                                        <span class="ml-1 rounded bg-red-100 px-1 py-px text-[11px] font-medium text-red-700">wajib</span>
                                     @endif
                                 </span>
                                 <span class="block text-xs text-ink-500">{{ $desc }}</span>
@@ -74,7 +74,7 @@
             </x-ui.card>
 
             <div class="rounded-2xl border border-ink-100 bg-ink-50/60 p-5">
-                <p class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-ink-400">
+                <p class="flex items-center gap-2 text-xs text-ink-400">
                     <x-icon name="info" class="h-3.5 w-3.5" /> Cara kerja
                 </p>
                 <ul class="mt-3 space-y-2 text-xs leading-relaxed text-ink-600">

@@ -45,16 +45,16 @@
                             ['value' => 'single', 'icon' => 'box', 'label' => 'Barang', 'desc' => 'Punya wujud di rak dan punya stok sendiri.'],
                             ['value' => 'bundle', 'icon' => 'sparkles', 'label' => 'Paket Bundling', 'desc' => 'Tidak punya stok — dihitung dari isinya.'],
                         ] as $option)
-                            <label class="relative flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition"
-                                   :class="type === '{{ $option['value'] }}' ? 'border-ink-950 bg-ink-950 text-white shadow-soft' : 'border-ink-100 hover:border-ink-200 hover:bg-ink-50/60'">
+                            <label class="relative flex cursor-pointer items-start gap-3 rounded-lg border p-3.5 transition"
+                                   :class="type === '{{ $option['value'] }}' ? 'border-ink-950 bg-white ring-1 ring-ink-950' : 'border-ink-200 hover:border-ink-300 hover:bg-ink-50'">
                                 <input type="radio" name="type" value="{{ $option['value'] }}" x-model="type" class="sr-only">
                                 <span class="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition"
-                                      :class="type === '{{ $option['value'] }}' ? 'bg-white/10 text-white' : 'bg-ink-50 text-ink-950 ring-1 ring-ink-100'">
+                                      :class="type === '{{ $option['value'] }}' ? 'bg-ink-950 text-white' : 'bg-control text-ink-700'">
                                     <x-icon :name="$option['icon']" class="h-4 w-4" />
                                 </span>
                                 <span class="min-w-0">
                                     <span class="block text-sm font-semibold">{{ $option['label'] }}</span>
-                                    <span class="block text-xs" :class="type === '{{ $option['value'] }}' ? 'text-white/60' : 'text-ink-500'">
+                                    <span class="block text-xs" :class="type === '{{ $option['value'] }}' ? 'text-ink-500' : 'text-ink-500'">
                                         {{ $option['desc'] }}
                                     </span>
                                 </span>
@@ -169,8 +169,8 @@
 
                     <template x-if="isBundle">
                         <div class="rounded-xl border border-ink-100 bg-ink-50/50 p-4">
-                            <p class="text-xs font-medium uppercase tracking-wider text-ink-400">Bisa dirakit sekarang</p>
-                            <p class="mt-1 text-2xl font-semibold tracking-tight text-ink-950">
+                            <p class="text-xs text-ink-400">Bisa dirakit sekarang</p>
+                            <p class="mt-1 text-2xl font-semibold text-ink-950">
                                 <span x-text="availability"></span>
                                 <span class="text-sm font-normal text-ink-400">paket</span>
                             </p>
@@ -183,8 +183,8 @@
 
                     @if ($isEdit)
                         <div class="rounded-xl border border-ink-100 bg-ink-50/50 p-4" x-show="! isBundle">
-                            <p class="text-xs font-medium uppercase tracking-wider text-ink-400">Stok saat ini</p>
-                            <p class="mt-1 text-2xl font-semibold tracking-tight text-ink-950">
+                            <p class="text-xs text-ink-400">Stok saat ini</p>
+                            <p class="mt-1 text-2xl font-semibold text-ink-950">
                                 {{ number_format($product->stock, 0, ',', '.') }}
                                 <span class="text-sm font-normal text-ink-400">{{ $product->unit }}</span>
                             </p>

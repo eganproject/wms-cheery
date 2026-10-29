@@ -24,7 +24,7 @@
         <x-ui.card class="lg:col-span-1">
             <div class="flex flex-col items-center text-center">
                 <x-ui.avatar :name="$user->name" size="xl" />
-                <h2 class="mt-4 text-lg font-semibold tracking-tight text-ink-950">{{ $user->name }}</h2>
+                <h2 class="mt-4 text-lg font-semibold text-ink-950">{{ $user->name }}</h2>
                 <p class="text-sm text-ink-500">{{ $user->email }}</p>
 
                 <div class="mt-3 flex flex-wrap items-center justify-center gap-1.5">
@@ -64,11 +64,11 @@
                 <x-ui.empty-state icon="shield" title="Belum memiliki role"
                                   description="Tetapkan role agar pengguna mendapatkan hak akses." />
             @elseif ($user->role->is_super_admin)
-                <div class="flex items-start gap-3 rounded-xl bg-ink-950 p-4 text-white">
-                    <x-icon name="sparkles" class="mt-0.5 h-5 w-5 shrink-0" />
+                <div class="flex items-start gap-3 rounded-lg bg-blue-50 p-3.5 text-blue-900">
+                    <x-icon name="sparkles" class="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
                     <div>
                         <p class="text-sm font-semibold">Akses penuh</p>
-                        <p class="mt-0.5 text-sm text-white/60">
+                        <p class="mt-0.5 text-sm text-blue-800/80">
                             Role super admin memiliki seluruh hak akses sistem secara otomatis.
                         </p>
                     </div>
@@ -80,7 +80,7 @@
                 <div class="space-y-5">
                     @foreach ($user->role->permissions->groupBy('group') as $group => $permissions)
                         <div>
-                            <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-400">{{ $group }}</p>
+                            <p class="mb-2 text-xs text-ink-400">{{ $group }}</p>
                             <div class="flex flex-wrap gap-1.5">
                                 @foreach ($permissions as $permission)
                                     <x-ui.badge variant="outline" icon="check">{{ $permission->name }}</x-ui.badge>

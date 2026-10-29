@@ -76,7 +76,7 @@
     ];
 @endphp
 
-<div data-date-range {{ $attributes->merge(['class' => 'flex flex-col gap-2']) }}>
+<div data-date-range {{ $attributes->merge(['class' => 'flex flex-col gap-1.5']) }}>
     <input type="hidden" name="from" value="{{ $range->from }}" data-date-range-from>
     <input type="hidden" name="to" value="{{ $range->to }}" data-date-range-to>
 
@@ -88,9 +88,9 @@
         <input type="hidden" name="range" value="{{ \App\Support\DateRange::ALL }}">
     @endif
 
-    <div class="relative sm:w-64">
-        <span class="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-10 items-center justify-center text-ink-300">
-            <x-icon name="calendar" class="h-4 w-4" />
+    <div class="relative sm:w-56">
+        <span class="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-8 items-center justify-center text-ink-500">
+            <x-icon name="calendar" class="h-3.5 w-3.5" />
         </span>
 
         {{--
@@ -100,7 +100,7 @@
         --}}
         <input type="text" data-date-range-input readonly autocomplete="off"
                value="{{ $rangeCaption }}" placeholder="Semua tanggal" title="{{ $label }}"
-               class="block h-[2.625rem] w-full cursor-pointer rounded-xl border-ink-200 bg-white pl-10 pr-9 text-sm text-ink-950 placeholder:text-ink-300 shadow-soft transition focus:border-ink-950 focus:ring-1 focus:ring-ink-950">
+               class="form-control cursor-pointer pl-8">
 
         {{--
             Tidak ada tombol hapus di kolomnya.
@@ -112,7 +112,7 @@
     </div>
 
     @if ($openEnd)
-        <p class="text-[11px] text-ink-400">{{ $openEnd }}</p>
+        <p class="text-[11px] text-ink-500">{{ $openEnd }}</p>
     @endif
 
     {{--
@@ -123,7 +123,7 @@
         halaman dibuang — hasil yang menyusut membuat halaman ketiga sering
         kosong.
     --}}
-    <div class="flex flex-wrap items-center gap-1.5">
+    <div class="flex flex-wrap items-center gap-1">
         @foreach ($presets as $preset => [$start, $end])
             @php
                 $active = ! $range->isAll()
@@ -138,9 +138,9 @@
                    'page' => null,
                ]) }}"
                @class([
-                   'inline-flex h-7 items-center rounded-lg px-2.5 text-[11px] font-medium transition',
+                   'inline-flex h-6 items-center rounded-full px-2.5 text-xs transition',
                    'bg-ink-950 text-white' => $active,
-                   'bg-ink-50 text-ink-600 ring-1 ring-inset ring-ink-200 hover:bg-ink-100' => ! $active,
+                   'bg-control text-ink-700 hover:bg-ink-200' => ! $active,
                ])>{{ $preset }}</a>
         @endforeach
 
@@ -159,9 +159,9 @@
                'page' => null,
            ]) }}"
            @class([
-               'inline-flex h-7 items-center gap-1 rounded-lg px-2.5 text-[11px] font-medium transition',
+               'inline-flex h-6 items-center gap-1 rounded-full px-2.5 text-xs transition',
                'bg-ink-950 text-white' => $range->isAll(),
-               'bg-white text-ink-500 ring-1 ring-inset ring-ink-200 hover:bg-ink-50' => ! $range->isAll(),
+               'bg-control text-ink-700 hover:bg-ink-200' => ! $range->isAll(),
            ])>
             <x-icon name="calendar" class="h-3 w-3" />
             Semua tanggal

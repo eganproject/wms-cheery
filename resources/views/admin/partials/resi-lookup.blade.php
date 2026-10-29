@@ -54,7 +54,7 @@
 
                     <template x-if="order.matched">
                         <button type="button" x-on:click="apply()"
-                                class="mt-2.5 inline-flex h-8 items-center gap-1.5 rounded-lg bg-ink-950 px-3 text-xs font-medium text-white transition hover:bg-ink-800">
+                                class="btn btn-primary mt-2.5">
                             <x-icon name="refresh" class="h-3.5 w-3.5" />
                             Ambil Barang dari Pesanan Ini
                         </button>

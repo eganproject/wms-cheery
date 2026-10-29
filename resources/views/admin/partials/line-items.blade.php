@@ -35,11 +35,11 @@
 @endphp
 
 <div x-data="lineItems({{ Js::from($initial) }}, {{ Js::from($catalog) }})"
-     class="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+     class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
 
     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-ink-100 px-5 py-4 sm:px-6">
         <div>
-            <h2 class="text-sm font-semibold tracking-tight text-ink-950">Baris Barang</h2>
+            <h2 class="text-sm font-semibold text-ink-950">Baris Barang</h2>
             <p class="mt-0.5 text-xs text-ink-500">
                 <span x-text="filledRows"></span> baris &middot; total <span class="font-medium text-ink-950" x-text="totalQuantity"></span> unit
                 @if ($withActual)
@@ -68,7 +68,7 @@
 
     @if ($products->isEmpty())
         <x-ui.empty-state icon="box" title="Belum ada barang aktif"
-                          description="Tambahkan barang di menu Barang &amp; Stok sebelum membuat dokumen.">
+                          description="Tambahkan barang di menu Barang sebelum membuat dokumen.">
             @can('products.create')
                 <x-slot name="action">
                     <x-ui.button :href="route('admin.products.create')" icon="plus">Tambah Barang</x-ui.button>
@@ -84,7 +84,7 @@
                         <div class="flex-1 space-y-1.5">
                             <label class="block text-xs font-medium text-ink-500" x-text="'Barang #' + (index + 1)"></label>
                             <select x-model="row.product_id" :name="`items[${index}][product_id]`"
-                                    class="block w-full rounded-xl border-ink-200 bg-white text-sm text-ink-950 shadow-soft transition focus:border-ink-950 focus:ring-1 focus:ring-ink-950">
+                                    class="form-control">
                                 <option value="">Pilih barang…</option>
                                 <template x-for="product in products" :key="product.id">
                                     <option :value="product.id" x-text="`${product.sku} — ${product.name}`"></option>
@@ -105,7 +105,7 @@
                                         <span x-text="product(row).sku"></span>
                                     </span>
                                     <template x-if="product(row).is_bundle">
-                                        <span class="inline-flex items-center rounded-full bg-ink-950 px-2 py-0.5 text-[11px] font-medium text-white">Paket</span>
+                                        <span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700">Paket</span>
                                     </template>
                                     <span class="text-[11px] text-ink-400"
                                           x-text="product(row).is_bundle
@@ -120,7 +120,7 @@
                         <div class="w-full space-y-1.5 sm:w-36">
                             <label class="block text-xs font-medium text-ink-500">Jumlah</label>
                             <input type="number" min="1" x-model.number="row.quantity" :name="`items[${index}][quantity]`"
-                                   class="block w-full rounded-xl border-ink-200 bg-white text-sm text-ink-950 shadow-soft transition focus:border-ink-950 focus:ring-1 focus:ring-ink-950"
+                                   class="form-control"
                                    @if ($checkStock) :class="isOverStock(row) && 'border-red-300 focus:border-red-500 focus:ring-red-500'" @endif>
                         </div>
                         @endunless
@@ -136,7 +136,7 @@
                             <div class="w-full space-y-1.5 sm:w-28">
                                 <label class="block text-xs font-medium text-ink-500">Hitung Fisik</label>
                                 <input type="number" min="0" x-model.number="row.actual" :name="`items[${index}][actual_quantity]`"
-                                       class="block w-full rounded-xl border-ink-200 bg-white text-sm font-semibold text-ink-950 shadow-soft transition focus:border-ink-950 focus:ring-1 focus:ring-ink-950">
+                                       class="block w-full rounded-lg text-sm font-semibold text-ink-950">
                             </div>
 
                             <div class="w-full space-y-1.5 sm:w-28">
@@ -153,7 +153,7 @@
                             <div class="w-full space-y-1.5 sm:w-28">
                                 <label class="block text-xs font-medium text-ink-500">Rusak</label>
                                 <input type="number" min="0" x-model.number="row.damaged" :name="`items[${index}][damaged_quantity]`"
-                                       class="block w-full rounded-xl border-ink-200 bg-white text-sm text-ink-950 shadow-soft transition focus:border-ink-950 focus:ring-1 focus:ring-ink-950"
+                                       class="form-control"
                                        :class="isOverChecked(row) && 'border-red-300 focus:border-red-500 focus:ring-red-500'">
                                 <p class="text-[11px] text-emerald-600" x-text="`${goodOf(row)} layak jual`"></p>
                             </div>
@@ -164,13 +164,13 @@
                             <div class="w-full space-y-1.5 sm:w-28">
                                 <label class="block text-xs font-medium text-ink-500">Rusak</label>
                                 <input type="number" min="0" x-model.number="row.damaged" :name="`items[${index}][damaged_quantity]`"
-                                       class="block w-full rounded-xl border-ink-200 bg-white text-sm text-ink-950 shadow-soft transition focus:border-ink-950 focus:ring-1 focus:ring-ink-950">
+                                       class="form-control">
                             </div>
 
                             <div class="w-full space-y-1.5 sm:w-28">
                                 <label class="block text-xs font-medium text-ink-500">Hilang</label>
                                 <input type="number" min="0" x-model.number="row.missing" :name="`items[${index}][missing_quantity]`"
-                                       class="block w-full rounded-xl border-ink-200 bg-white text-sm text-ink-950 shadow-soft transition focus:border-ink-950 focus:ring-1 focus:ring-ink-950">
+                                       class="form-control">
                                 <p class="text-[11px] text-emerald-600" x-text="`${goodOf(row)} layak jual`"></p>
                             </div>
                         @endif
@@ -179,7 +179,7 @@
                         <div class="w-full space-y-1.5 sm:w-52">
                             <label class="block text-xs font-medium text-ink-500">Catatan</label>
                             <input type="text" x-model="row.note" :name="`items[${index}][note]`" placeholder="Opsional"
-                                   class="block w-full rounded-xl border-ink-200 bg-white text-sm text-ink-950 placeholder:text-ink-300 shadow-soft transition focus:border-ink-950 focus:ring-1 focus:ring-ink-950">
+                                   class="form-control">
                         </div>
 
                         {{-- Hapus baris --}}

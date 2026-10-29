@@ -1,5 +1,5 @@
 <x-app-layout title="Detail Barang Masuk">
-    <x-ui.page-header :title="$inbound->code" :subtitle="$inbound->date->translatedFormat('d F Y').' · '.($inbound->supplier?->name ?: 'Tanpa pemasok')"
+    <x-ui.page-header :title="$inbound->code" :status="$inbound->statusLabel()" :status-variant="$inbound->statusVariant()" :subtitle="$inbound->date->translatedFormat('d F Y').' · '.($inbound->supplier?->name ?: 'Tanpa pemasok')"
                       :back="route('admin.inbounds.index')">
         <x-slot name="actions">
             @if ($inbound->isEditable())
@@ -29,26 +29,26 @@
         <div class="space-y-6 lg:col-span-2">
             <x-ui.card title="Baris Barang" :subtitle="$inbound->items->count().' baris · total '.number_format($inbound->totalQuantity(), 0, ',', '.').' unit'" padding="p-0">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-ink-100 text-left">
-                        <thead class="bg-ink-50/60">
+                    <table class="erp-table">
+                        <thead>
                             <tr>
-                                <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Barang</th>
-                                <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Catatan</th>
-                                <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Jumlah</th>
+                                <th>Barang</th>
+                                <th>Catatan</th>
+                                <th class="text-right">Jumlah</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-ink-50">
+                        <tbody>
                             @foreach ($inbound->items as $item)
                                 <tr>
-                                    <td class="px-6 py-3.5">
+                                    <td>
                                         <a href="{{ route('admin.products.show', $item->product) }}"
                                            class="text-sm font-medium text-ink-950 underline-offset-4 hover:underline">
                                             {{ $item->product->name }}
                                         </a>
                                         <div class="mt-1"><x-ui.sku :value="$item->product->sku" /></div>
                                     </td>
-                                    <td class="px-6 py-3.5 text-sm text-ink-500">{{ $item->note ?: '—' }}</td>
-                                    <td class="px-6 py-3.5 text-right">
+                                    <td class="text-sm text-ink-500">{{ $item->note ?: '—' }}</td>
+                                    <td class="text-right">
                                         <span class="text-sm font-semibold text-ink-950">{{ number_format($item->quantity, 0, ',', '.') }}</span>
                                         <span class="text-xs text-ink-400">{{ $item->product->unit }}</span>
                                     </td>

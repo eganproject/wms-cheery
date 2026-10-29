@@ -21,6 +21,19 @@ class ApprovalCounter
 {
     public static function pending(): int
     {
+        // Navbar dan menu samping sama-sama menampilkan angka ini; cukup
+        // dihitung sekali per permintaan.
+        $attributes = request()->attributes;
+
+        if (! $attributes->has('approval.pending')) {
+            $attributes->set('approval.pending', static::count());
+        }
+
+        return $attributes->get('approval.pending');
+    }
+
+    protected static function count(): int
+    {
         $queries = collect([Inbound::class, Outbound::class, ReturnReceipt::class, StockAdjustment::class, StockOpname::class, DamagedDisposal::class])
             ->map(fn (string $model) => $model::pending()->toBase()->selectRaw('1 as pending'));
 

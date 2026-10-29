@@ -42,7 +42,7 @@
 
                 <input type="text" name="cancellation_reason" required maxlength="255"
                        placeholder="Alasan pembatalan…"
-                       class="block w-full rounded-lg border-ink-200 bg-white text-[11px] text-ink-950 placeholder:text-ink-300 shadow-soft transition focus:border-red-500 focus:ring-1 focus:ring-red-500">
+                       class="block w-full rounded-lg border-ink-200 bg-white text-[11px] text-ink-950 placeholder:text-ink-300 transition focus:border-red-500 focus:ring-1 focus:ring-red-500">
 
                 <div class="flex gap-1.5">
                     <x-ui.button type="submit" variant="danger" size="sm" class="flex-1">Simpan</x-ui.button>

@@ -38,7 +38,6 @@
         </x-slot>
     </x-ui.page-header>
 
-    <x-ui.tabs group="waybill" />
 
     <div class="grid grid-cols-2 gap-4 xl:grid-cols-5">
         <x-ui.stat-card label="Hari Aktif" :value="number_format($summary['days'], 0, ',', '.')"
@@ -54,14 +53,14 @@
     </div>
 
     <form method="GET" action="{{ route('admin.imports.daily') }}" data-auto-submit
-          class="my-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4 shadow-card">
+          class="my-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div class="relative flex-1">
-                <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-ink-300">
+                <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
                     <x-icon name="search" class="h-4 w-4" />
                 </span>
                 <x-text-input type="search" name="search" :value="$filters->search"
-                              placeholder="Cari nomor resi, pesanan, pembeli, atau SKU..." class="pl-10" />
+                              placeholder="Cari nomor resi, pesanan, pembeli, atau SKU..." class="pl-8" />
             </div>
 
             <x-ui.select name="courier" class="sm:w-52">
@@ -86,44 +85,44 @@
         </div>
     </form>
 
-    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($rows->isEmpty())
             <x-ui.empty-state icon="calendar" title="Tidak ada resi pada rentang ini"
                               description="Tanggal akan muncul setelah ada resi yang masuk melalui import pada rentang yang dipilih." />
         @else
             <div class="hidden overflow-x-auto lg:block">
-                <table class="min-w-full divide-y divide-ink-100 text-left">
-                    <thead class="bg-ink-50/60">
+                <table class="erp-table">
+                    <thead>
                         <tr>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Tanggal Masuk</th>
-                            <th class="px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Resi</th>
-                            <th class="px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Unit</th>
-                            <th class="px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Ekspedisi</th>
+                            <th>Tanggal Masuk</th>
+                            <th class="px-4 text-right">Resi</th>
+                            <th class="px-4 text-right">Unit</th>
+                            <th class="px-4 text-right">Ekspedisi</th>
                             @foreach ($stages as $stage)
-                                <th class="px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">
+                                <th class="px-4 text-right">
                                     {{ $stage['label'] }}
                                 </th>
                             @endforeach
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Kesiapan</th>
+                            <th>Kesiapan</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-ink-50">
+                    <tbody>
                         @foreach ($rows as $row)
-                            <tr class="transition hover:bg-ink-50/50">
-                                <td class="px-6 py-4">
+                            <tr>
+                                <td>
                                     <a href="{{ $detail($row->date) }}"
                                        class="text-sm font-medium text-ink-950 underline-offset-4 hover:underline">
                                         {{ \Illuminate\Support\Carbon::parse($row->date)->translatedFormat('d F Y') }}
                                     </a>
                                 </td>
-                                <td class="px-4 py-4 text-right text-sm font-semibold tabular-nums text-ink-950">
+                                <td class="px-4 text-right text-sm font-semibold tabular-nums text-ink-950">
                                     <a href="{{ $detail($row->date) }}" class="hover:underline">{{ number_format($row->total, 0, ',', '.') }}</a>
                                 </td>
-                                <td class="px-4 py-4 text-right text-sm tabular-nums text-ink-500">{{ number_format($row->units, 0, ',', '.') }}</td>
-                                <td class="px-4 py-4 text-right text-sm tabular-nums text-ink-500">{{ number_format($row->couriers, 0, ',', '.') }}</td>
+                                <td class="px-4 text-right text-sm tabular-nums text-ink-500">{{ number_format($row->units, 0, ',', '.') }}</td>
+                                <td class="px-4 text-right text-sm tabular-nums text-ink-500">{{ number_format($row->couriers, 0, ',', '.') }}</td>
 
                                 @foreach ($stages as $key => $stage)
-                                    <td class="px-4 py-4 text-right">
+                                    <td class="px-4 text-right">
                                         @if ($row->{$key} > 0)
                                             <a href="{{ $detail($row->date, $stage['stage']) }}"
                                                class="inline-flex rounded-lg px-2 py-1 text-sm font-semibold tabular-nums transition hover:opacity-80 {{ $stage['bg'] }} {{ $stage['tone'] }}">
@@ -135,10 +134,10 @@
                                     </td>
                                 @endforeach
 
-                                <td class="px-6 py-4">
+                                <td>
                                     <div class="flex items-center gap-2">
                                         <div class="h-1.5 w-24 overflow-hidden rounded-full bg-ink-100">
-                                            <div class="h-full rounded-full {{ $row->readiness() === 100 ? 'bg-emerald-500' : 'bg-ink-950' }}"
+                                            <div class="h-full rounded-full {{ $row->readiness() === 100 ? 'bg-green-500' : 'bg-blue-500' }}"
                                                  style="width: {{ $row->readiness() }}%"></div>
                                         </div>
                                         <span class="text-xs tabular-nums text-ink-500">{{ $row->readiness() }}%</span>
@@ -168,13 +167,13 @@
                         </div>
 
                         <div class="mt-3 grid grid-cols-5 gap-1.5 text-center">
-                            <a href="{{ $detail($row->date) }}" class="rounded-lg bg-ink-950 py-2 text-white">
-                                <p class="text-[9px] uppercase tracking-wider text-white/60">Resi</p>
+                            <a href="{{ $detail($row->date) }}" class="rounded-lg bg-control py-2 text-ink-950">
+                                <p class="text-[11px] text-ink-500">Resi</p>
                                 <p class="text-sm font-semibold tabular-nums">{{ $row->total }}</p>
                             </a>
                             @foreach ($stages as $key => $stage)
                                 <a href="{{ $detail($row->date, $stage['stage']) }}" class="rounded-lg py-2 {{ $stage['bg'] }}">
-                                    <p class="text-[9px] uppercase tracking-wider {{ $stage['tone'] }}">{{ $stage['label'] }}</p>
+                                    <p class="text-[11px] {{ $stage['tone'] }}">{{ $stage['label'] }}</p>
                                     <p class="text-sm font-semibold tabular-nums {{ $stage['tone'] }}">{{ $row->{$key} }}</p>
                                 </a>
                             @endforeach

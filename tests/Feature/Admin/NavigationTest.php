@@ -11,8 +11,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Struktur navigasi: menu samping menjawab "mau mengerjakan apa", sedangkan
- * sudut pandang berbeda atas objek yang sama dipisah lewat tab di halamannya.
+ * Struktur navigasi ala ERPNext: menu samping dikelompokkan menurut pekerjaan,
+ * dan halaman sekelompok saling terhubung lewat tab di kepala halaman.
  */
 class NavigationTest extends TestCase
 {
@@ -30,63 +30,68 @@ class NavigationTest extends TestCase
 
     /* --------------------------------------------------- menu samping ---- */
 
-    public function test_the_sidebar_groups_related_pages_behind_one_entry(): void
+    public function test_the_sidebar_groups_pages_by_the_work_they_serve(): void
     {
         $sidebar = $this->sidebar();
 
-        // Entri yang tersisa di menu samping.
-        foreach (['Barang &amp; Stok', 'Barang Masuk', 'Barang Keluar', 'Penerimaan Retur',
-            'Opname &amp; Penyesuaian', 'Resi', 'Pengguna &amp; Akses'] as $entry) {
+        // Kelompok menu mengikuti pekerjaan, seperti sidebar workspace ERPNext.
+        foreach (['Penjualan Marketplace', 'Transaksi Stok', 'Master Data', 'Laporan', 'Pengaturan'] as $group) {
+            $this->assertStringContainsString($group, $sidebar);
+        }
+
+        // Setiap halaman bisa dibuka dengan satu klik dari menu samping.
+        foreach (['Beranda', 'Persetujuan', 'Stasiun Packing', 'Siap Dikirim', 'Retur Marketplace',
+            'Status Resi', 'Import Resi', 'Barang Masuk', 'Barang Keluar', 'Penerimaan Retur',
+            'Stok Opname', 'Penyesuaian Stok', 'Barang Rusak', 'Pemasok', 'Laporan Stok',
+            'Mutasi Stok', 'Kebutuhan Restock', 'Resi per Hari', 'Resi per Ekspedisi',
+            'Pengguna', 'Hak Akses', 'Akses API Stok'] as $entry) {
             $this->assertStringContainsString($entry, $sidebar);
         }
-
-        // Yang sudah menjadi tab tidak lagi menjadi entri menu tersendiri.
-        foreach (['Mutasi Stok', 'Siap Dikirim', 'Stasiun Packing', 'Hak Akses', 'Import Resi',
-            'Pemasok', 'Stok Opname'] as $moved) {
-            $this->assertStringNotContainsString($moved, $sidebar);
-        }
     }
 
-    public function test_the_sidebar_stays_short(): void
+    public function test_the_sidebar_hides_pages_the_user_may_not_open(): void
     {
-        // Sembilan tautan: lebih dari itu dan menu ini kembali jadi daftar
-        // halaman, bukan daftar pekerjaan.
-        $this->assertLessThanOrEqual(9, substr_count($this->sidebar(), '<a href='));
-    }
-
-    public function test_the_sidebar_entry_opens_the_first_tab_the_user_may_see(): void
-    {
-        // Tanpa izin barang, entri Barang & Stok mengarah ke tab berikutnya.
         $role = Role::create(['name' => 'Mutasi Saja', 'slug' => 'mutasi-saja']);
         $role->permissions()->sync(Permission::whereIn('slug', ['dashboard.view', 'movements.view'])->pluck('id'));
 
-        $user = User::factory()->create(['role_id' => $role->id]);
+        $sidebar = $this->sidebar(User::factory()->create(['role_id' => $role->id]));
 
-        $this->actingAs($user)->get(route('admin.dashboard'))
-            ->assertOk()
-            ->assertSee(route('admin.movements.index'))
-            ->assertDontSee(route('admin.products.index'));
+        $this->assertStringContainsString(route('admin.movements.index'), $sidebar);
+        $this->assertStringNotContainsString(route('admin.products.index'), $sidebar);
+
+        // Kelompok yang seluruh isinya tertutup tidak ditampilkan sama sekali.
+        $this->assertStringNotContainsString('Pengaturan', $sidebar);
+        $this->assertStringNotContainsString('Penjualan Marketplace', $sidebar);
+    }
+
+    public function test_the_active_page_is_marked_in_the_sidebar(): void
+    {
+        $html = $this->actingAs($this->admin)->get(route('admin.suppliers.index'))->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/href="'.preg_quote(route('admin.suppliers.index'), '/').'"[^>]*aria-current="page"/',
+            $html
+        );
     }
 
     /* --------------------------------------------------- tab ------------- */
 
-    public function test_grouped_pages_carry_the_same_tab_bar(): void
+    public function test_pages_in_one_group_carry_the_same_tab_bar(): void
     {
-        foreach ([route('admin.products.index'), route('admin.movements.index'), route('admin.suppliers.index')] as $url) {
-            $response = $this->actingAs($this->admin)->get($url)->assertOk();
+        foreach ([route('admin.products.index'), route('admin.suppliers.index')] as $url) {
+            $tabs = $this->tabs($this->actingAs($this->admin)->get($url)->assertOk()->getContent());
 
-            $response->assertSee('Daftar Barang')
-                ->assertSee('Mutasi Stok')
-                ->assertSee('Pemasok');
+            $this->assertStringContainsString(route('admin.products.index'), $tabs);
+            $this->assertStringContainsString(route('admin.suppliers.index'), $tabs);
         }
     }
 
-    public function test_the_waybill_group_offers_the_daily_report_tab(): void
+    public function test_the_report_group_offers_the_daily_waybill_report_tab(): void
     {
-        $this->actingAs($this->admin)->get(route('admin.imports.status'))
-            ->assertOk()
-            ->assertSee('Per Hari')
-            ->assertSee(route('admin.imports.daily'));
+        $tabs = $this->tabs($this->actingAs($this->admin)->get(route('admin.reports.stock'))->assertOk()->getContent());
+
+        $this->assertStringContainsString('Resi per Hari', $tabs);
+        $this->assertStringContainsString(route('admin.imports.daily'), $tabs);
     }
 
     public function test_a_tab_the_user_may_not_open_is_never_offered(): void
@@ -98,9 +103,21 @@ class NavigationTest extends TestCase
 
         $this->actingAs($user)->get(route('admin.products.index'))
             ->assertOk()
-            // Hanya satu tab yang boleh dibuka, jadi bilah tabnya tidak dirender.
-            ->assertDontSee(route('admin.movements.index'))
+            // Hanya satu halaman yang boleh dibuka, jadi bilah tabnya tidak dirender.
+            ->assertDontSee('data-page-tabs', false)
             ->assertDontSee(route('admin.suppliers.index'));
+    }
+
+    public function test_the_command_palette_lists_only_permitted_pages(): void
+    {
+        $role = Role::create(['name' => 'Barang Saja', 'slug' => 'barang-saja']);
+        $role->permissions()->sync(Permission::whereIn('slug', ['dashboard.view', 'products.view', 'products.create'])->pluck('id'));
+
+        $this->actingAs(User::factory()->create(['role_id' => $role->id]))
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Buat Barang Baru')
+            ->assertDontSee('Buat Pengguna Baru');
     }
 
     public function test_the_ready_queue_tab_carries_its_backlog_count(): void
@@ -122,6 +139,20 @@ class NavigationTest extends TestCase
     }
 
     /* --------------------------------------------------- helpers --------- */
+
+    /**
+     * Potongan HTML bilah tab di kepala halaman.
+     */
+    protected function tabs(string $html): string
+    {
+        $start = strpos($html, 'data-page-tabs');
+
+        if ($start === false) {
+            return '';
+        }
+
+        return substr($html, $start, strpos($html, '</nav>', $start) - $start);
+    }
 
     /**
      * Potongan HTML menu samping saja — label seperti "Siap Dikirim" juga

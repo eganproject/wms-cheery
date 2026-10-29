@@ -1,5 +1,5 @@
 <x-app-layout title="Detail Penerimaan Retur">
-    <x-ui.page-header :title="$return->code"
+    <x-ui.page-header :title="$return->code" :status="$return->statusLabel()" :status-variant="$return->statusVariant()"
                       :subtitle="$return->date->translatedFormat('d F Y').' · '.$return->sender"
                       :back="route('admin.returns.index')">
         <x-slot name="actions">
@@ -35,10 +35,10 @@
         <div class="space-y-6 lg:col-span-2">
             {{-- Verifikasi resi --}}
             @if ($return->requiresResiScan())
-                <div class="overflow-hidden rounded-2xl border {{ $return->isResiVerified() ? 'border-emerald-200 bg-emerald-50' : 'border-ink-100 bg-white' }} p-5 shadow-card sm:p-6">
+                <div class="overflow-hidden rounded-2xl border {{ $return->isResiVerified() ? 'border-emerald-200 bg-emerald-50' : 'border-ink-100 bg-white' }} p-5 sm:p-6">
                     <div class="flex flex-wrap items-start justify-between gap-4">
                         <div class="flex items-start gap-3">
-                            <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl {{ $return->isResiVerified() ? 'bg-emerald-600 text-white' : 'bg-ink-950 text-white' }}">
+                            <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl {{ $return->isResiVerified() ? 'bg-green-100 text-green-700' : 'bg-control text-ink-700' }}">
                                 <x-icon :name="$return->isResiVerified() ? 'check-circle' : 'key'" class="h-5 w-5" />
                             </span>
                             <div class="min-w-0">
@@ -70,18 +70,18 @@
                        :subtitle="$return->items->count().' baris · '.$return->goodQuantity().' layak jual · '.$return->damagedQuantity().' rusak · '.$return->missingQuantity().' hilang'"
                        padding="p-0">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-ink-100 text-left">
-                        <thead class="bg-ink-50/60">
+                    <table class="erp-table">
+                        <thead>
                             <tr>
-                                <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Barang</th>
-                                <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Kondisi</th>
-                                <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Jumlah</th>
+                                <th>Barang</th>
+                                <th>Kondisi</th>
+                                <th class="text-right">Jumlah</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-ink-50">
+                        <tbody>
                             @foreach ($return->items as $item)
                                 <tr>
-                                    <td class="px-6 py-3.5">
+                                    <td>
                                         <a href="{{ route('admin.products.show', $item->product) }}"
                                            class="text-sm font-medium text-ink-950 underline-offset-4 hover:underline">
                                             {{ $item->product->name }}
@@ -91,7 +91,7 @@
                                             <p class="mt-0.5 text-[11px] text-ink-500">{{ $item->note }}</p>
                                         @endif
                                     </td>
-                                    <td class="px-6 py-3.5">
+                                    <td>
                                         <div class="flex flex-wrap gap-1.5">
                                             @if ($item->good_quantity > 0)
                                                 <x-ui.badge variant="success" icon="check-circle">{{ $item->good_quantity }} layak jual</x-ui.badge>
@@ -107,7 +107,7 @@
                                             @endunless
                                         </div>
                                     </td>
-                                    <td class="px-6 py-3.5 text-right">
+                                    <td class="text-right">
                                         <span class="text-sm font-semibold text-ink-950">{{ number_format($item->quantity, 0, ',', '.') }}</span>
                                         <span class="text-xs text-ink-400">{{ $item->product->unit }}</span>
                                     </td>

@@ -13,8 +13,8 @@
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div class="space-y-6 lg:col-span-2">
             {{-- Langkah 1 --}}
-            <div class="flex items-start gap-4 rounded-2xl border border-ink-100 bg-white p-5 shadow-card">
-                <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink-950 text-xs font-bold text-white">1</span>
+            <div class="flex items-start gap-4 rounded-2xl border border-ink-100 bg-white p-5">
+                <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-control text-xs font-semibold text-ink-700">1</span>
                 <div class="min-w-0 flex-1">
                     <p class="text-sm font-semibold text-ink-950">Unduh template</p>
                     <p class="mt-0.5 text-sm text-ink-500">
@@ -32,9 +32,9 @@
                   x-data="{ name: '', drag: false }">
                 @csrf
 
-                <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+                <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
                     <div class="flex items-start gap-4 border-b border-ink-100 p-5">
-                        <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink-950 text-xs font-bold text-white">2</span>
+                        <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-control text-xs font-semibold text-ink-700">2</span>
                         <div class="min-w-0 flex-1">
                             <p class="text-sm font-semibold text-ink-950">Unggah berkas yang sudah diisi</p>
                             <p class="mt-0.5 text-sm text-ink-500">Format .xlsx, .xls, atau .csv — maksimal 20 MB.</p>
@@ -49,7 +49,7 @@
                             <input type="file" name="file" accept=".xlsx,.xls,.csv,.txt" class="sr-only" required
                                    @change="name = $event.target.files[0]?.name ?? ''">
 
-                            <span class="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-ink-950 text-white">
+                            <span class="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-control text-ink-700">
                                 <x-icon name="box" class="h-6 w-6" />
                             </span>
 
@@ -123,7 +123,7 @@
                                 <span class="block text-xs font-semibold text-ink-950">
                                     {{ $column }}
                                     @if ($required)
-                                        <span class="ml-1 rounded bg-ink-950 px-1 py-px text-[10px] font-medium text-white">wajib</span>
+                                        <span class="ml-1 rounded bg-red-100 px-1 py-px text-[11px] font-medium text-red-700">wajib</span>
                                     @endif
                                 </span>
                                 <span class="block text-xs text-ink-500">{{ $desc }}</span>
@@ -134,7 +134,7 @@
             </x-ui.card>
 
             <div class="rounded-2xl border border-ink-100 bg-ink-50/60 p-5">
-                <p class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-ink-400">
+                <p class="flex items-center gap-2 text-xs text-ink-400">
                     <x-icon name="info" class="h-3.5 w-3.5" /> Cara kerja
                 </p>
                 <ul class="mt-3 space-y-2 text-xs leading-relaxed text-ink-600">

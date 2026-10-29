@@ -5,6 +5,7 @@ import './enhance';
 import Alpine from 'alpinejs';
 import bundleRecipe from './bundle-recipe';
 import cameraScanner from './camera-scanner';
+import commandPalette from './command-palette';
 import dispatchStation from './dispatch-station';
 import lineItems from './line-items';
 import opnameCounter from './opname-counter';
@@ -22,6 +23,7 @@ window.Alpine = Alpine;
 // Didaftarkan sebelum start() agar komponen hasil swap AJAX ikut dikenali.
 Alpine.data('bundleRecipe', bundleRecipe);
 Alpine.data('cameraScanner', cameraScanner);
+Alpine.data('commandPalette', commandPalette);
 Alpine.data('dispatchStation', dispatchStation);
 Alpine.data('lineItems', lineItems);
 Alpine.data('opnameCounter', opnameCounter);

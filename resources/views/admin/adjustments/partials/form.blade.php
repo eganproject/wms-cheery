@@ -35,7 +35,7 @@
 
                 <x-ui.field label="Catatan" for="note" :error="$errors->get('note')" class="sm:col-span-2">
                     <textarea id="note" name="note" rows="2" placeholder="Siapa yang menghitung, lokasi rak, dsb. (opsional)"
-                              class="block w-full rounded-xl border-ink-200 bg-white text-sm text-ink-950 placeholder:text-ink-300 shadow-soft transition focus:border-ink-950 focus:ring-1 focus:ring-ink-950">{{ old('note', $adjustment?->note) }}</textarea>
+                              class="form-control">{{ old('note', $adjustment?->note) }}</textarea>
                 </x-ui.field>
             </div>
         </x-ui.card>

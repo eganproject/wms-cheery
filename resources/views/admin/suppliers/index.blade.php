@@ -8,16 +8,15 @@
         </x-slot>
     </x-ui.page-header>
 
-    <x-ui.tabs group="stock" />
 
     <form method="GET" action="{{ route('admin.suppliers.index') }}" data-auto-submit
-          class="mb-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4 shadow-card sm:flex-row sm:items-center">
+          class="mb-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4 sm:flex-row sm:items-center">
         <div class="relative flex-1">
-            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-ink-300">
+            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
                 <x-icon name="search" class="h-4 w-4" />
             </span>
             <x-text-input type="search" name="search" :value="request('search')"
-                          placeholder="Cari nama, kode, kontak, atau telepon..." class="pl-10" />
+                          placeholder="Cari nama, kode, kontak, atau telepon..." class="pl-8" />
         </div>
 
         <x-ui.select name="status" class="sm:w-40">
@@ -36,7 +35,7 @@
         </div>
     </form>
 
-    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($suppliers->isEmpty())
             <x-ui.empty-state icon="users" title="Belum ada pemasok"
                               description="Tambahkan pemasok agar bisa dipilih saat membuat dokumen barang masuk.">
@@ -48,20 +47,20 @@
             </x-ui.empty-state>
         @else
             <div class="hidden overflow-x-auto md:block">
-                <table class="min-w-full divide-y divide-ink-100 text-left">
-                    <thead class="bg-ink-50/60">
+                <table class="erp-table">
+                    <thead>
                         <tr>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Pemasok</th>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Kontak</th>
-                            <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Dokumen</th>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Status</th>
-                            <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Aksi</th>
+                            <th>Pemasok</th>
+                            <th>Kontak</th>
+                            <th class="text-right">Dokumen</th>
+                            <th>Status</th>
+                            <th class="text-right">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-ink-50">
+                    <tbody>
                         @foreach ($suppliers as $supplier)
-                            <tr class="transition hover:bg-ink-50/50">
-                                <td class="px-6 py-4">
+                            <tr>
+                                <td>
                                     <div class="flex items-center gap-2">
                                         <span class="inline-flex items-center rounded-md bg-ink-100 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-ink-800 ring-1 ring-inset ring-ink-200">
                                             {{ $supplier->code }}
@@ -72,19 +71,19 @@
                                         <p class="mt-1 max-w-md truncate text-[11px] text-ink-400">{{ $supplier->address }}</p>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4">
+                                <td>
                                     <p class="text-sm text-ink-700">{{ $supplier->contact_name ?: '—' }}</p>
                                     <p class="text-[11px] text-ink-400">
                                         {{ $supplier->phone ?: 'tanpa telepon' }}@if ($supplier->email) &middot; {{ $supplier->email }} @endif
                                     </p>
                                 </td>
-                                <td class="px-6 py-4 text-right text-sm font-semibold text-ink-950">{{ $supplier->inbounds_count }}</td>
-                                <td class="px-6 py-4">
+                                <td class="text-right text-sm font-semibold text-ink-950">{{ $supplier->inbounds_count }}</td>
+                                <td>
                                     <x-ui.badge :variant="$supplier->is_active ? 'success' : 'danger'">
                                         {{ $supplier->is_active ? 'Aktif' : 'Nonaktif' }}
                                     </x-ui.badge>
                                 </td>
-                                <td class="px-6 py-4">
+                                <td>
                                     <div class="flex items-center justify-end gap-1">
                                         <a href="{{ route('admin.suppliers.show', $supplier) }}" title="Detail"
                                            class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-950">

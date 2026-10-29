@@ -1,8 +1,9 @@
 @props(['value' => null, 'required' => false])
 
-<label {{ $attributes->merge(['class' => 'block text-sm font-medium text-ink-800']) }}>
+{{-- Label kontrol ERPNext: 12px abu-abu, bintang merah untuk kolom wajib. --}}
+<label {{ $attributes->merge(['class' => 'form-label']) }}>
     {{ $value ?? $slot }}
     @if ($required)
-        <span class="text-red-500">*</span>
+        <span class="text-red-400">*</span>
     @endif
 </label>

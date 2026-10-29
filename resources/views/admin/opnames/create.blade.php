@@ -60,7 +60,7 @@
                 <div>
                     <x-input-label for="note" value="Catatan (opsional)" />
                     <textarea id="note" name="note" rows="2"
-                              class="mt-1.5 w-full rounded-xl border-ink-200 text-sm shadow-sm focus:border-ink-950 focus:ring-ink-950"
+                              class="form-control"
                               placeholder="Misal: opname rutin akhir bulan, tim gudang shift pagi.">{{ old('note') }}</textarea>
                     <x-input-error :messages="$errors->get('note')" class="mt-1.5" />
                 </div>

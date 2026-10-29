@@ -12,13 +12,13 @@
     </x-ui.page-header>
 
     <form method="GET" action="{{ route('admin.returns.index') }}" data-auto-submit
-          class="mb-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4 shadow-card">
+          class="mb-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4">
         <div class="relative">
-            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-ink-300">
+            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
                 <x-icon name="search" class="h-4 w-4" />
             </span>
             <x-text-input type="search" name="search" :value="request('search')"
-                          placeholder="Cari nomor dokumen, pengirim, resi, atau pesanan..." class="pl-10" />
+                          placeholder="Cari nomor dokumen, pengirim, resi, atau pesanan..." class="pl-8" />
         </div>
 
         <div class="grid grid-cols-2 gap-3 sm:flex sm:items-center">
@@ -58,7 +58,7 @@
         </div>
     </form>
 
-    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($returns->isEmpty())
             <x-ui.empty-state icon="refresh" title="Belum ada dokumen retur"
                               description="Catat barang yang dikembalikan pembeli agar stok kembali akurat.">
@@ -70,43 +70,43 @@
             </x-ui.empty-state>
         @else
             <div class="hidden overflow-x-auto md:block">
-                <table class="min-w-full divide-y divide-ink-100 text-left">
-                    <thead class="bg-ink-50/60">
+                <table class="erp-table">
+                    <thead>
                         <tr>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Dokumen</th>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Pengirim</th>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Jenis</th>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Alasan</th>
-                            <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Total Unit</th>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Status</th>
-                            <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Aksi</th>
+                            <th>Dokumen</th>
+                            <th>Pengirim</th>
+                            <th>Jenis</th>
+                            <th>Alasan</th>
+                            <th class="text-right">Total Unit</th>
+                            <th>Status</th>
+                            <th class="text-right">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-ink-50">
+                    <tbody>
                         @foreach ($returns as $return)
-                            <tr class="transition hover:bg-ink-50/50">
-                                <td class="px-6 py-4">
+                            <tr>
+                                <td>
                                     <p class="font-mono text-sm font-medium text-ink-950">{{ $return->code }}</p>
                                     <p class="text-xs text-ink-400">{{ $return->date->translatedFormat('d M Y') }}</p>
                                 </td>
-                                <td class="px-6 py-4">
+                                <td>
                                     <p class="text-sm text-ink-800">{{ $return->sender }}</p>
                                     @if ($return->tracking_number)
                                         <p class="font-mono text-[11px] text-ink-400">{{ $return->tracking_number }}</p>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4">
+                                <td>
                                     @if ($return->isMarketplace())
                                         <x-ui.badge variant="dark" icon="sparkles">{{ $return->marketplace }}</x-ui.badge>
                                     @else
                                         <x-ui.badge variant="outline">Non-marketplace</x-ui.badge>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 text-sm text-ink-600">{{ $return->reason ?: '—' }}</td>
-                                <td class="px-6 py-4 text-right text-sm font-semibold text-ink-950">
+                                <td class="text-sm text-ink-600">{{ $return->reason ?: '—' }}</td>
+                                <td class="text-right text-sm font-semibold text-ink-950">
                                     {{ number_format((int) $return->items_sum_quantity, 0, ',', '.') }}
                                 </td>
-                                <td class="px-6 py-4">
+                                <td>
                                     @if ($return->isEditable() && $return->requiresResiScan() && ! $return->isResiVerified())
                                         <x-ui.badge variant="neutral" icon="key">Perlu scan resi</x-ui.badge>
                                     @else
@@ -115,12 +115,12 @@
                                         </x-ui.badge>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4">
+                                <td>
                                     <div class="flex items-center justify-end gap-1">
                                         @if ($return->isEditable() && $return->requiresResiScan() && ! $return->isResiVerified())
                                             @can('returns.scan')
                                                 <a href="{{ route('admin.returns.scan', $return) }}" title="Scan resi retur"
-                                                   class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-ink-950 px-3 text-xs font-medium text-white transition hover:bg-ink-800">
+                                                   class="btn btn-primary">
                                                     <x-icon name="search" class="h-3.5 w-3.5" /> Scan
                                                 </a>
                                             @endcan

@@ -31,7 +31,6 @@
     <x-ui.page-header title="Beban per Ekspedisi" icon="chart"
                       subtitle="Berapa resi yang harus disiapkan tiap ekspedisi, dan berapa yang belum siap." />
 
-    <x-ui.tabs group="waybill" />
 
     <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <x-ui.stat-card label="Ekspedisi" :value="number_format($totals['couriers'], 0, ',', '.')"
@@ -45,13 +44,13 @@
     </div>
 
     <form method="GET" action="{{ route('admin.imports.couriers') }}" data-auto-submit
-          class="my-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4 shadow-card">
+          class="my-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4">
         <div class="relative">
-            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-ink-300">
+            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
                 <x-icon name="search" class="h-4 w-4" />
             </span>
             <x-text-input type="search" name="search" :value="request('search')"
-                          placeholder="Cari nama ekspedisi..." class="pl-10" />
+                          placeholder="Cari nama ekspedisi..." class="pl-8" />
         </div>
 
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -68,47 +67,47 @@
         </div>
     </form>
 
-    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($couriers->isEmpty())
             <x-ui.empty-state icon="chart" title="Tidak ada resi pada rentang ini"
                               description="Ekspedisi baru muncul begitu ada resi bertanggal di dalam rentang yang dipilih. Coba lebarkan tanggalnya." />
         @else
             <div class="hidden overflow-x-auto lg:block">
-                <table class="min-w-full divide-y divide-ink-100 text-left">
-                    <thead class="bg-ink-50/60">
+                <table class="erp-table">
+                    <thead>
                         <tr>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Ekspedisi</th>
-                            <th class="px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Resi</th>
-                            <th class="px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Unit</th>
+                            <th>Ekspedisi</th>
+                            <th class="px-4 text-right">Resi</th>
+                            <th class="px-4 text-right">Unit</th>
                             @foreach ($stages as $meta)
-                                <th class="px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">
+                                <th class="px-4 text-right">
                                     {{ $meta['label'] }}
                                 </th>
                             @endforeach
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Kesiapan</th>
+                            <th>Kesiapan</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-ink-50">
+                    <tbody>
                         @foreach ($couriers as $courier)
                             @php $ready = $courier->total > 0 ? round(($courier->total - $courier->awaiting) / $courier->total * 100) : 100; @endphp
-                            <tr class="transition hover:bg-ink-50/50">
-                                <td class="px-6 py-4">
+                            <tr>
+                                <td>
                                     <a href="{{ $detail($courier->courier) }}"
                                        class="text-sm font-medium text-ink-950 underline-offset-4 hover:underline">
                                         {{ $courier->courier }}
                                     </a>
                                 </td>
 
-                                <td class="px-4 py-4 text-right text-sm font-semibold tabular-nums text-ink-950">
+                                <td class="px-4 text-right text-sm font-semibold tabular-nums text-ink-950">
                                     {{ number_format($courier->total, 0, ',', '.') }}
                                 </td>
 
-                                <td class="px-4 py-4 text-right text-sm tabular-nums text-ink-500">
+                                <td class="px-4 text-right text-sm tabular-nums text-ink-500">
                                     {{ number_format($courier->units, 0, ',', '.') }}
                                 </td>
 
                                 @foreach ($stages as $key => $meta)
-                                    <td class="px-4 py-4 text-right">
+                                    <td class="px-4 text-right">
                                         @if ($courier->{$key} > 0)
                                             <a href="{{ $detail($courier->courier, $meta['stage']) }}"
                                                class="inline-flex rounded-lg px-2 py-1 text-sm font-semibold tabular-nums transition hover:opacity-80 {{ $meta['bg'] }} {{ $meta['tone'] }}">
@@ -120,10 +119,10 @@
                                     </td>
                                 @endforeach
 
-                                <td class="px-6 py-4">
+                                <td>
                                     <div class="flex items-center gap-2">
                                         <div class="h-1.5 w-24 overflow-hidden rounded-full bg-ink-100">
-                                            <div class="h-full rounded-full {{ $ready === 100 ? 'bg-emerald-500' : 'bg-ink-950' }}"
+                                            <div class="h-full rounded-full {{ $ready === 100 ? 'bg-green-500' : 'bg-blue-500' }}"
                                                  style="width: {{ $ready }}%"></div>
                                         </div>
                                         <span class="text-xs tabular-nums text-ink-500">{{ $ready }}%</span>
@@ -152,7 +151,7 @@
                                 <p class="text-lg font-semibold tabular-nums leading-tight text-ink-950">
                                     {{ number_format($courier->total, 0, ',', '.') }}
                                 </p>
-                                <p class="text-[10px] uppercase tracking-wider text-ink-400">resi</p>
+                                <p class="text-[11px] text-ink-400">resi</p>
                             </div>
                         </div>
 
@@ -160,7 +159,7 @@
                             @foreach ($stages as $key => $meta)
                                 <a href="{{ $detail($courier->courier, $meta['stage']) }}"
                                    class="rounded-lg py-2 {{ $courier->{$key} > 0 ? $meta['bg'] : 'bg-ink-50/70' }}">
-                                    <p class="text-[10px] uppercase tracking-wider {{ $courier->{$key} > 0 ? $meta['tone'] : 'text-ink-400' }}">
+                                    <p class="text-[11px] {{ $courier->{$key} > 0 ? $meta['tone'] : 'text-ink-400' }}">
                                         {{ $meta['label'] }}
                                     </p>
                                     <p class="text-sm font-semibold tabular-nums {{ $courier->{$key} > 0 ? $meta['tone'] : 'text-ink-300' }}">
@@ -172,7 +171,7 @@
 
                         <div class="mt-3 flex items-center gap-2">
                             <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-ink-100">
-                                <div class="h-full rounded-full {{ $ready === 100 ? 'bg-emerald-500' : 'bg-ink-950' }}"
+                                <div class="h-full rounded-full {{ $ready === 100 ? 'bg-green-500' : 'bg-blue-500' }}"
                                      style="width: {{ $ready }}%"></div>
                             </div>
                             <span class="text-xs tabular-nums text-ink-500">{{ $ready }}% siap</span>

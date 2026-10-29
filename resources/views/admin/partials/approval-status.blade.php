@@ -2,13 +2,7 @@
     // $document
 @endphp
 
-<div class="rounded-xl p-4 ring-1 ring-inset
-    @class([
-        'bg-emerald-50 ring-emerald-200' => $document->isPosted(),
-        'bg-amber-50 ring-amber-200' => $document->isPending(),
-        'bg-red-50 ring-red-200' => $document->isRejected(),
-        'bg-ink-50 ring-ink-100' => $document->isDraft(),
-    ])">
+<div class="rounded-xl p-4 ring-1 ring-inset @class([ 'bg-emerald-50 ring-emerald-200' => $document->isPosted(), 'bg-amber-50 ring-amber-200' => $document->isPending(), 'bg-red-50 ring-red-200' => $document->isRejected(), 'bg-ink-50 ring-ink-100' => $document->isDraft(), ])">
     <div class="flex items-center gap-2">
         <x-icon :name="$document->statusIcon()" @class([
             'h-5 w-5',

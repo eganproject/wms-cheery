@@ -8,7 +8,7 @@
     Kameranya dibiarkan menyala setelah satu kode terbaca supaya beberapa
     barang bisa dipindai berturut-turut tanpa membuka ulang.
 --}}
-<div x-data="cameraScanner()" x-on:camera-scan.window="last.code = $event.detail.code">
+<div x-data="cameraScanner()" x-on:camera-scan.window="last.code = $event.detail.code" class="flex shrink-0 lg:hidden">
     {{--
         Tingginya mengikuti baris tempat tombol ini berada (self-stretch),
         supaya sejajar dengan kolom input di halaman mana pun — kolomnya
@@ -20,15 +20,14 @@
     --}}
     <button type="button" x-on:click="start()"
             title="Pindai dengan kamera"
-            class="inline-flex shrink-0 items-center justify-center gap-2 self-stretch rounded-2xl px-3.5 text-sm font-semibold transition sm:px-4 lg:hidden
-                   {{ $cameraButtonClass ?? 'bg-white/10 text-white ring-1 ring-inset ring-white/15 hover:bg-white/20' }}">
+            class="inline-flex shrink-0 items-center justify-center gap-2 self-stretch rounded-lg px-3 text-sm transition sm:px-3.5 lg:hidden {{ $cameraButtonClass ?? 'bg-control text-ink-700 hover:bg-ink-200' }}">
         {{--
             Ikon kamera, bukan kaca pembesar. Kaca pembesar sudah dipakai
             kolom di sebelahnya untuk arti yang berbeda — "cari kode ini" —
             sehingga dua tombol bersebelahan terlihat mengerjakan hal sama.
             Di layar tersempit hanya ikonnya, supaya kolom kode tetap lapang.
         --}}
-        <x-icon name="camera" class="h-5 w-5 shrink-0" />
+        <x-icon name="camera" class="h-[18px] w-[18px] shrink-0" />
         <span class="hidden sm:inline">Kamera</span>
         <span class="sr-only">Pindai dengan kamera</span>
     </button>
@@ -59,7 +58,7 @@
                                     <span class="h-1.5 w-8 rounded-full transition"
                                           :class="({{ $scanStep }}) >= {{ $number }} ? 'bg-white' : 'bg-white/25'"></span>
                                 @endforeach
-                                <span class="ml-1 text-[11px] font-semibold uppercase tracking-wider text-white/70"
+                                <span class="ml-1 text-[11px] text-white/70"
                                       x-text="`Langkah ${ {{ $scanStep }} } dari 2`"></span>
                             </div>
                         @endisset

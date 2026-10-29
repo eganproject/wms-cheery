@@ -18,7 +18,6 @@
         </x-slot>
     </x-ui.page-header>
 
-    <x-ui.tabs group="stock" />
 
     <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <x-ui.stat-card label="Barang Masuk" :value="'+'.number_format($summary['incoming'], 0, ',', '.')"
@@ -33,14 +32,14 @@
     </div>
 
     <form method="GET" action="{{ route('admin.movements.index') }}" data-auto-submit
-          class="my-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4 shadow-card">
+          class="my-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div class="relative flex-1">
-                <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-ink-300">
+                <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
                     <x-icon name="search" class="h-4 w-4" />
                 </span>
                 <x-text-input type="search" name="search" :value="request('search')"
-                              placeholder="Cari barang, SKU, atau keterangan..." class="pl-10" />
+                              placeholder="Cari barang, SKU, atau keterangan..." class="pl-8" />
             </div>
 
             <x-ui.select name="product_id" class="sm:w-56">
@@ -87,32 +86,32 @@
         </div>
     </form>
 
-    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($movements->isEmpty())
             <x-ui.empty-state icon="chart" title="Belum ada mutasi stok"
                               description="Setiap barang masuk, barang keluar, retur, dan penyesuaian yang disetujui akan tercatat di sini." />
         @else
             <div class="hidden overflow-x-auto md:block">
-                <table class="min-w-full divide-y divide-ink-100 text-left">
-                    <thead class="bg-ink-50/60">
+                <table class="erp-table">
+                    <thead>
                         <tr>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Waktu</th>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Barang</th>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Sumber</th>
-                            <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Mutasi</th>
-                            <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Saldo</th>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Oleh</th>
+                            <th>Waktu</th>
+                            <th>Barang</th>
+                            <th>Sumber</th>
+                            <th class="text-right">Mutasi</th>
+                            <th class="text-right">Saldo</th>
+                            <th>Oleh</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-ink-50">
+                    <tbody>
                         @foreach ($movements as $movement)
-                            <tr class="transition hover:bg-ink-50/50">
-                                <td class="px-6 py-4 align-top">
+                            <tr>
+                                <td class="align-top">
                                     <p class="text-sm text-ink-800">{{ $movement->created_at->translatedFormat('d M Y') }}</p>
                                     <p class="font-mono text-[11px] text-ink-400">{{ $movement->created_at->format('H:i') }}</p>
                                 </td>
 
-                                <td class="px-6 py-4 align-top">
+                                <td class="align-top">
                                     @if ($movement->product)
                                         <a href="{{ route('admin.products.show', $movement->product) }}"
                                            class="text-sm font-medium text-ink-950 underline-offset-4 hover:underline">
@@ -124,7 +123,7 @@
                                     @endif
                                 </td>
 
-                                <td class="px-6 py-4 align-top">
+                                <td class="align-top">
                                     @if ($url = $movement->sourceUrl())
                                         <a href="{{ $url }}" class="inline-flex">
                                             <x-ui.badge variant="outline">{{ $movement->sourceLabel() }}</x-ui.badge>
@@ -133,14 +132,14 @@
                                         <x-ui.badge variant="outline">{{ $movement->sourceLabel() }}</x-ui.badge>
                                     @endif
                                     @if ($movement->isDamaged())
-                                        <span class="ml-1 rounded-md bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-red-700">rusak</span>
+                                        <span class="ml-1 rounded-md bg-red-50 px-1.5 py-0.5 text-[11px] text-red-700">rusak</span>
                                     @endif
                                     <p class="mt-1 max-w-xs truncate text-xs text-ink-400" title="{{ $movement->description }}">
                                         {{ $movement->description ?: '—' }}
                                     </p>
                                 </td>
 
-                                <td class="px-6 py-4 text-right align-top">
+                                <td class="text-right align-top">
                                     <span @class([
                                         'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-sm font-semibold tabular-nums',
                                         'bg-emerald-50 text-emerald-700' => $movement->isIncoming(),
@@ -151,14 +150,14 @@
                                     </span>
                                 </td>
 
-                                <td class="px-6 py-4 text-right align-top">
+                                <td class="text-right align-top">
                                     <p class="text-sm font-semibold tabular-nums text-ink-950">
                                         {{ number_format($movement->balance_after, 0, ',', '.') }}
                                     </p>
                                     <p class="text-[11px] text-ink-400">{{ $movement->product?->unit }}</p>
                                 </td>
 
-                                <td class="px-6 py-4 align-top text-sm text-ink-500">
+                                <td class="align-top text-sm text-ink-500">
                                     {{ $movement->user?->name ?? '—' }}
                                 </td>
                             </tr>

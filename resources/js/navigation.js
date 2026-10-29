@@ -164,6 +164,19 @@ function swap(html, { scroll }) {
         });
     }
 
+    // Breadcrumb dan lonceng persetujuan di navbar.
+    [
+        ['breadcrumbs', '[data-breadcrumbs]'],
+        ['notifications', '[data-notifications]'],
+    ].forEach(([name, selector]) => {
+        const template = fragment.querySelector(`[data-fragment="${name}"]`);
+        if (!template) return;
+
+        document.querySelectorAll(selector).forEach((el) => {
+            el.outerHTML = template.content.firstElementChild.outerHTML;
+        });
+    });
+
     const flash = fragment.querySelector('[data-fragment="flash"]');
     const flashSlot = document.getElementById('flash-slot');
     if (flash && flashSlot) flashSlot.innerHTML = flash.innerHTML;

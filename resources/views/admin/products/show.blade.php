@@ -28,34 +28,34 @@
         </x-slot>
     </x-ui.page-header>
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {{-- Ringkasan --}}
-        <div class="space-y-6 lg:col-span-1">
-            <div class="overflow-hidden rounded-2xl border border-ink-950 bg-ink-950 p-6 text-white shadow-card">
+        <div class="space-y-4 lg:col-span-1">
+            <div class="frappe-card overflow-hidden p-4">
                 <div class="mb-4 flex items-center gap-2">
-                    <x-ui.sku :value="$product->sku" variant="outline" />
+                    <x-ui.sku :value="$product->sku" />
                     @if ($isBundle)
-                        <x-ui.badge variant="outline" icon="sparkles">Paket</x-ui.badge>
+                        <x-ui.badge variant="blue">Paket</x-ui.badge>
                     @endif
                 </div>
 
-                <p class="text-xs font-medium uppercase tracking-wider text-white/50">
+                <p class="text-xs text-ink-500">
                     {{ $isBundle ? 'Masih bisa dijanjikan' : 'Stok saat ini' }}
                 </p>
-                <p class="mt-2 text-5xl font-semibold tracking-tight">
+                <p class="mt-1 text-4xl font-semibold text-ink-950">
                     {{ number_format($availability, 0, ',', '.') }}
-                    <span class="text-base font-normal text-white/50">{{ $product->unit }}</span>
+                    <span class="text-base font-normal text-ink-500">{{ $product->unit }}</span>
                 </p>
 
                 @if (! $isBundle && $product->damaged_stock > 0)
-                    <p class="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-red-500/15 px-2.5 py-1 text-xs font-medium text-red-200 ring-1 ring-inset ring-red-400/25">
+                    <p class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
                         {{ number_format($product->damaged_stock, 0, ',', '.') }} {{ $product->unit }} rusak
                     </p>
                 @endif
 
                 <div class="mt-4 flex items-center gap-2">
                     <x-ui.stock-badge :product="$product" />
-                    <span class="text-xs text-white/50">
+                    <span class="text-xs text-ink-500">
                         {{ $isBundle
                             ? 'dari stok komponen, dikurangi pesanan berjalan'
                             : 'batas minimum '.$product->min_stock.' '.$product->unit }}
@@ -145,24 +145,24 @@
                     </x-ui.empty-state>
                 @else
                     <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-ink-100 text-left">
-                            <thead class="bg-ink-50/60">
+                        <table class="erp-table">
+                            <thead>
                                 <tr>
-                                    <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Barang</th>
-                                    <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Per paket</th>
-                                    <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Stok</th>
-                                    <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Dijanjikan</th>
-                                    <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Cukup untuk</th>
+                                    <th>Barang</th>
+                                    <th class="text-right">Per paket</th>
+                                    <th class="text-right">Stok</th>
+                                    <th class="text-right">Dijanjikan</th>
+                                    <th class="text-right">Cukup untuk</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-ink-50">
+                            <tbody>
                                 @foreach ($product->bundleComponents as $item)
                                     @php
                                         $reserved = (int) ($committed[$item->component_id] ?? 0);
                                         $sets = $item->availableSets($reserved);
                                     @endphp
-                                    <tr class="transition hover:bg-ink-50/50">
-                                        <td class="px-6 py-3.5">
+                                    <tr>
+                                        <td>
                                             <a href="{{ route('admin.products.show', $item->component) }}"
                                                class="text-sm font-medium text-ink-950 hover:underline">
                                                 {{ $item->component->name }}
@@ -174,17 +174,17 @@
                                                 </span>
                                             @endunless
                                         </td>
-                                        <td class="px-6 py-3.5 text-right text-sm font-semibold text-ink-950">
+                                        <td class="text-right text-sm font-semibold text-ink-950">
                                             {{ $item->quantity }}
                                             <span class="text-xs font-normal text-ink-400">{{ $item->component->unit }}</span>
                                         </td>
-                                        <td class="px-6 py-3.5 text-right text-sm text-ink-600">
+                                        <td class="text-right text-sm text-ink-600">
                                             {{ number_format($item->component->stock, 0, ',', '.') }}
                                         </td>
-                                        <td class="px-6 py-3.5 text-right text-sm {{ $reserved > 0 ? 'text-amber-700' : 'text-ink-300' }}">
+                                        <td class="text-right text-sm {{ $reserved > 0 ? 'text-amber-700' : 'text-ink-300' }}">
                                             {{ $reserved > 0 ? '−'.number_format($reserved, 0, ',', '.') : '—' }}
                                         </td>
-                                        <td class="px-6 py-3.5 text-right">
+                                        <td class="text-right">
                                             {{-- Yang paling sedikit menyediakan paket adalah yang membatasi. --}}
                                             <span @class([
                                                 'inline-flex rounded-lg px-2.5 py-1 text-xs font-semibold ring-1 ring-inset',
@@ -222,36 +222,36 @@
                                       description="Stok akan tercatat di sini setelah dokumen barang masuk atau keluar diproses." />
                 @else
                     <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-ink-100 text-left">
-                            <thead class="bg-ink-50/60">
+                        <table class="erp-table">
+                            <thead>
                                 <tr>
-                                    <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Waktu</th>
-                                    <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Keterangan</th>
-                                    <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Masuk</th>
-                                    <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Keluar</th>
-                                    <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Saldo</th>
+                                    <th>Waktu</th>
+                                    <th>Keterangan</th>
+                                    <th class="text-right">Masuk</th>
+                                    <th class="text-right">Keluar</th>
+                                    <th class="text-right">Saldo</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-ink-50">
+                            <tbody>
                                 @foreach ($movements as $movement)
-                                    <tr class="transition hover:bg-ink-50/50">
-                                        <td class="whitespace-nowrap px-6 py-3.5 text-xs text-ink-500">
+                                    <tr>
+                                        <td class="whitespace-nowrap text-xs text-ink-500">
                                             {{ $movement->created_at->translatedFormat('d M Y') }}
                                             <span class="block text-[11px] text-ink-400">{{ $movement->created_at->format('H:i') }}</span>
                                         </td>
-                                        <td class="px-6 py-3.5">
+                                        <td>
                                             <p class="text-sm text-ink-800">{{ $movement->description }}</p>
                                             @if ($movement->user)
                                                 <p class="text-[11px] text-ink-400">oleh {{ $movement->user->name }}</p>
                                             @endif
                                         </td>
-                                        <td class="px-6 py-3.5 text-right text-sm font-medium text-emerald-600">
+                                        <td class="text-right text-sm font-medium text-emerald-600">
                                             {{ $movement->isIncoming() ? '+'.$movement->quantity : '—' }}
                                         </td>
-                                        <td class="px-6 py-3.5 text-right text-sm font-medium text-red-600">
+                                        <td class="text-right text-sm font-medium text-red-600">
                                             {{ $movement->isIncoming() ? '—' : '−'.$movement->quantity }}
                                         </td>
-                                        <td class="px-6 py-3.5 text-right text-sm font-semibold text-ink-950">
+                                        <td class="text-right text-sm font-semibold text-ink-950">
                                             {{ number_format($movement->balance_after, 0, ',', '.') }}
                                         </td>
                                     </tr>

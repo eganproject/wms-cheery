@@ -8,44 +8,44 @@
         </x-slot>
     </x-ui.page-header>
 
-    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+    <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($imports->isEmpty())
             <x-ui.empty-state icon="clock" title="Belum ada riwayat import"
                               description="Berkas yang Anda import akan tercatat di sini." />
         @else
             <div class="hidden overflow-x-auto md:block">
-                <table class="min-w-full divide-y divide-ink-100 text-left">
-                    <thead class="bg-ink-50/60">
+                <table class="erp-table">
+                    <thead>
                         <tr>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Berkas</th>
-                            <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Resi</th>
-                            <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Baris</th>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">SKU</th>
-                            <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Diimport</th>
-                            <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Aksi</th>
+                            <th>Berkas</th>
+                            <th class="text-right">Resi</th>
+                            <th class="text-right">Baris</th>
+                            <th>SKU</th>
+                            <th>Diimport</th>
+                            <th class="text-right">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-ink-50">
+                    <tbody>
                         @foreach ($imports as $import)
-                            <tr class="transition hover:bg-ink-50/50">
-                                <td class="px-6 py-4">
+                            <tr>
+                                <td>
                                     <p class="max-w-xs truncate text-sm font-medium text-ink-950">{{ $import->filename }}</p>
-                                    <p class="text-[11px] uppercase tracking-wider text-ink-400">{{ $import->source }}</p>
+                                    <p class="text-[11px] text-ink-400">{{ $import->source }}</p>
                                 </td>
-                                <td class="px-6 py-4 text-right text-sm font-semibold text-ink-950">{{ $import->order_count }}</td>
-                                <td class="px-6 py-4 text-right text-sm text-ink-600">{{ $import->item_count }}</td>
-                                <td class="px-6 py-4">
+                                <td class="text-right text-sm font-semibold text-ink-950">{{ $import->order_count }}</td>
+                                <td class="text-right text-sm text-ink-600">{{ $import->item_count }}</td>
+                                <td>
                                     @if ($import->unmatched_sku_count > 0)
                                         <x-ui.badge variant="warning" icon="warning">{{ $import->unmatched_sku_count }} belum cocok</x-ui.badge>
                                     @else
                                         <x-ui.badge variant="success" icon="check-circle">Cocok semua</x-ui.badge>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4">
+                                <td>
                                     <p class="text-xs text-ink-600">{{ $import->created_at->translatedFormat('d M Y H:i') }}</p>
                                     <p class="text-[11px] text-ink-400">{{ $import->user?->name ?? '—' }}</p>
                                 </td>
-                                <td class="px-6 py-4">
+                                <td>
                                     <div class="flex items-center justify-end gap-1">
                                         <a href="{{ route('admin.imports.show', $import) }}" title="Detail"
                                            class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-950">

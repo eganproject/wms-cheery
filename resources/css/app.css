@@ -1,16 +1,98 @@
+@import '@fontsource-variable/inter';
 @import './enhance.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Tampilan bergaya ERPNext / Frappe desk v15.
+ *
+ * Ukuran, warna, dan perilaku kontrol diambil dari token "espresso" Frappe:
+ * teks 13px, kontrol setinggi 28px berlatar abu-abu muda tanpa garis tepi,
+ * tombol utama hitam, kartu bergaris tepi tipis tanpa bayangan.
+ */
+
 @layer base {
+    :root {
+        --navbar-height: 48px;
+        --text-color: theme('colors.ink.700');
+        --heading-color: theme('colors.ink.950');
+        --border-color: theme('colors.ink.100');
+        --control-bg: theme('colors.control');
+        --focus-default: 0px 0px 0px 2px #c9c9c9;
+        color-scheme: light;
+    }
+
     html {
         -webkit-tap-highlight-color: transparent;
+        -webkit-text-size-adjust: 100%;
     }
 
     body {
-        @apply bg-white text-ink-950 antialiased;
+        @apply bg-white text-sm text-ink-700 antialiased;
+        font-feature-settings: 'cv11', 'ss01';
+        font-variant-numeric: tabular-nums;
+    }
+
+    h1, h2, h3, h4 {
+        color: var(--heading-color);
+    }
+
+    ::selection {
+        background: theme('colors.blue.200');
+    }
+
+    /* Kontrol form bawaan: latar abu-abu muda, tanpa garis tepi (Frappe .form-control). */
+    [type='text'], input:where(:not([type])), [type='email'], [type='url'], [type='password'], [type='number'], [type='date'], [type='datetime-local'], [type='month'], [type='search'], [type='tel'], [type='time'], [type='week'], [multiple], textarea, select {
+        @apply rounded-lg border-transparent bg-control text-sm text-ink-950 shadow-none;
+        transition: background-color 0.1s ease, box-shadow 0.1s ease;
+    }
+
+    [type='text']:focus, input:where(:not([type])):focus, [type='email']:focus, [type='url']:focus, [type='password']:focus, [type='number']:focus, [type='date']:focus, [type='datetime-local']:focus, [type='month']:focus, [type='search']:focus, [type='tel']:focus, [type='time']:focus, [type='week']:focus, [multiple]:focus, textarea:focus, select:focus {
+        @apply border-ink-400 bg-white outline-none;
+        box-shadow: var(--focus-default);
+        --tw-ring-shadow: 0 0 #0000;
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+        @apply text-ink-400;
+        opacity: 1;
+    }
+
+    input:disabled,
+    select:disabled,
+    textarea:disabled {
+        @apply cursor-not-allowed bg-ink-50 text-ink-500;
+    }
+
+    /* Kotak centang 14px hitam seperti ERPNext. */
+    [type='checkbox'],
+    [type='radio'] {
+        @apply h-3.5 w-3.5 cursor-pointer border-ink-300 text-ink-950 shadow-none;
+    }
+
+    [type='checkbox'] {
+        border-radius: 4px;
+    }
+
+    [type='checkbox']:focus,
+    [type='radio']:focus {
+        --tw-ring-color: theme('colors.ink.300');
+        --tw-ring-offset-width: 1px;
+    }
+
+    input[type='file'] {
+        @apply text-sm text-ink-600;
+    }
+
+    input[type='file']::file-selector-button {
+        @apply mr-3 cursor-pointer rounded-lg border-0 bg-control px-3 py-1.5 text-sm text-ink-700;
+    }
+
+    input[type='file']::file-selector-button:hover {
+        @apply bg-ink-200;
     }
 
     /* Hide the native clear/reveal buttons so inputs stay visually consistent. */
@@ -24,9 +106,131 @@
 }
 
 @layer components {
+    /* ------------------------------------------------------ kontrol form */
+
+    .form-control {
+        @apply block h-8 w-full rounded-lg border border-transparent bg-control px-2.5 text-sm text-ink-950 placeholder:text-ink-400 sm:h-7;
+    }
+
+    textarea.form-control {
+        @apply h-auto py-1.5;
+    }
+
+    select.form-control {
+        @apply py-0 pr-8;
+        background-position: right 0.4rem center;
+        background-size: 1.1em 1.1em;
+    }
+
+    .form-control-lg {
+        @apply h-10 text-base sm:h-10;
+    }
+
+    .form-label {
+        @apply mb-1 block text-xs font-normal text-ink-500;
+    }
+
+    .form-help {
+        @apply mt-1 text-xs text-ink-500;
+    }
+
+    /* ----------------------------------------------------------- tombol */
+
+    .btn {
+        @apply inline-flex h-8 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-sm font-normal leading-none transition-colors duration-100 focus:outline-none disabled:pointer-events-none disabled:opacity-50 sm:h-7 sm:px-2.5;
+    }
+
+    .btn:focus-visible {
+        box-shadow: var(--focus-default);
+    }
+
+    .btn-primary {
+        @apply bg-ink-950 text-white hover:bg-ink-700 active:bg-ink-600;
+    }
+
+    .btn-default {
+        @apply bg-control text-ink-700 hover:bg-ink-200 active:bg-ink-200;
+    }
+
+    .btn-ghost {
+        @apply bg-transparent text-ink-600 hover:bg-control hover:text-ink-950;
+    }
+
+    .btn-danger {
+        @apply bg-red-500 text-white hover:bg-red-600;
+    }
+
+    .btn-danger-soft {
+        @apply bg-red-100 text-red-700 hover:bg-red-200;
+    }
+
+    .btn-lg {
+        @apply h-10 px-4 text-base sm:h-9 sm:px-4;
+    }
+
+    .btn-xs {
+        @apply h-6 px-2 text-xs sm:h-6 sm:px-2;
+    }
+
+    .btn-icon {
+        @apply h-8 w-8 px-0 sm:h-7 sm:w-7 sm:px-0;
+    }
+
+    /* ------------------------------------------------------- kartu/list */
+
+    .frappe-card {
+        @apply rounded-2xl border border-ink-100 bg-white;
+    }
+
+    .section-head {
+        @apply text-base font-semibold text-ink-950;
+    }
+
+    /* Tabel daftar gaya list view ERPNext: kepala abu-abu, huruf biasa. */
+    .erp-table {
+        @apply min-w-full border-collapse text-left text-sm;
+    }
+
+    .erp-table > thead > tr > th {
+        @apply whitespace-nowrap border-b border-ink-100 bg-ink-50 px-4 py-2 text-xs font-normal normal-case tracking-normal text-ink-500;
+    }
+
+    .erp-table > tbody > tr > td {
+        @apply border-b border-ink-100 px-4 py-2.5 align-middle text-ink-700;
+    }
+
+    .erp-table > tbody > tr:last-child > td {
+        @apply border-b-0;
+    }
+
+    .erp-table > tbody > tr:hover > td {
+        @apply bg-ink-50;
+    }
+
+    /* ------------------------------------------------- indikator status */
+
+    .indicator-pill {
+        @apply inline-flex h-5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 text-xs font-normal leading-none;
+    }
+
+    .indicator-pill::before {
+        content: '';
+        @apply h-1.5 w-1.5 shrink-0 rounded-full bg-current;
+    }
+
+    .indicator-pill.no-dot::before {
+        display: none;
+    }
+
+    .indicator-dot {
+        @apply inline-block h-2 w-2 shrink-0 rounded-full;
+    }
+
+    /* --------------------------------------------------------- lain-lain */
+
     .scrollbar-thin {
         scrollbar-width: thin;
-        scrollbar-color: theme('colors.ink.200') transparent;
+        scrollbar-color: theme('colors.ink.300') transparent;
     }
 
     .scrollbar-thin::-webkit-scrollbar {
@@ -34,11 +238,23 @@
     }
 
     .scrollbar-thin::-webkit-scrollbar-thumb {
-        @apply rounded-full bg-ink-200;
+        @apply rounded-full bg-ink-300;
     }
 
     .scrollbar-thin::-webkit-scrollbar-track {
         @apply bg-transparent;
+    }
+
+    .scrollbar-none {
+        scrollbar-width: none;
+    }
+
+    .scrollbar-none::-webkit-scrollbar {
+        display: none;
+    }
+
+    kbd.kbd {
+        @apply inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded border border-ink-200 bg-white px-1 font-sans text-[11px] text-ink-500;
     }
 
     /* --- Indikator navigasi AJAX ------------------------------------- */
@@ -46,14 +262,13 @@
     /* Garis tipis di paling atas layar; tidak menggeser layout apa pun. */
     #page-progress {
         @apply pointer-events-none fixed inset-x-0 top-0 z-[100] h-0.5 w-0 opacity-0;
-        background: linear-gradient(90deg, theme('colors.ink.400'), theme('colors.ink.950'));
-        box-shadow: 0 0 10px rgb(10 10 10 / 0.35);
+        background: theme('colors.blue.500');
         transition: width 0.2s ease, opacity 0.25s ease;
     }
 
     /* Konten meredup hanya bila permintaan terasa lambat. */
     [data-navigating='true'] #page-content {
-        @apply pointer-events-none opacity-50;
+        @apply pointer-events-none opacity-60;
     }
 
     #page-content {
@@ -71,7 +286,7 @@
 
     [data-busy]::before {
         content: '';
-        @apply h-4 w-4 shrink-0 rounded-full border-2 border-current;
+        @apply h-3.5 w-3.5 shrink-0 rounded-full border-2 border-current;
         border-top-color: transparent;
         animation: spinner 0.6s linear infinite;
     }
@@ -91,5 +306,18 @@
 
     [data-busy]::before {
         animation-duration: 1.5s;
+    }
+}
+
+@media print {
+    [data-app-navbar],
+    [data-app-sidebar],
+    [data-bottom-nav],
+    [data-page-actions] {
+        display: none !important;
+    }
+
+    [data-app-main] {
+        padding: 0 !important;
     }
 }

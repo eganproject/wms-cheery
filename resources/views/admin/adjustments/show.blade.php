@@ -1,5 +1,5 @@
 <x-app-layout title="Detail Penyesuaian Stok">
-    <x-ui.page-header :title="$adjustment->code"
+    <x-ui.page-header :title="$adjustment->code" :status="$adjustment->statusLabel()" :status-variant="$adjustment->statusVariant()"
                       :subtitle="$adjustment->date->translatedFormat('d F Y').' · '.$adjustment->reason"
                       :back="route('admin.adjustments.index')">
         <x-slot name="actions">
@@ -32,19 +32,19 @@
         <div class="space-y-6 lg:col-span-2">
             {{-- Ringkasan selisih --}}
             <div class="grid grid-cols-3 gap-4">
-                <div class="rounded-2xl border border-ink-100 bg-white p-5 shadow-card">
-                    <p class="text-xs font-medium uppercase tracking-wider text-ink-400">Baris Berselisih</p>
-                    <p class="mt-1 text-2xl font-semibold tracking-tight text-ink-950">{{ $adjustment->changedItems()->count() }}</p>
+                <div class="rounded-2xl border border-ink-100 bg-white p-5">
+                    <p class="text-xs text-ink-400">Baris Berselisih</p>
+                    <p class="mt-1 text-2xl font-semibold text-ink-950">{{ $adjustment->changedItems()->count() }}</p>
                     <p class="text-[11px] text-ink-400">dari {{ $adjustment->items->count() }} baris</p>
                 </div>
                 <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-                    <p class="text-xs font-medium uppercase tracking-wider text-emerald-700/70">Stok Bertambah</p>
-                    <p class="mt-1 text-2xl font-semibold tracking-tight text-emerald-700">+{{ $adjustment->increaseQuantity() }}</p>
+                    <p class="text-xs text-emerald-700/70">Stok Bertambah</p>
+                    <p class="mt-1 text-2xl font-semibold text-emerald-700">+{{ $adjustment->increaseQuantity() }}</p>
                     <p class="text-[11px] text-emerald-700/70">unit</p>
                 </div>
                 <div class="rounded-2xl border border-red-200 bg-red-50 p-5">
-                    <p class="text-xs font-medium uppercase tracking-wider text-red-700/70">Stok Berkurang</p>
-                    <p class="mt-1 text-2xl font-semibold tracking-tight text-red-700">−{{ $adjustment->decreaseQuantity() }}</p>
+                    <p class="text-xs text-red-700/70">Stok Berkurang</p>
+                    <p class="mt-1 text-2xl font-semibold text-red-700">−{{ $adjustment->decreaseQuantity() }}</p>
                     <p class="text-[11px] text-red-700/70">unit</p>
                 </div>
             </div>
@@ -53,19 +53,19 @@
             <x-ui.card title="Hasil Hitung"
                        :subtitle="$adjustment->items->count().' baris diperiksa'" padding="p-0">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-ink-100 text-left">
-                        <thead class="bg-ink-50/60">
+                    <table class="erp-table">
+                        <thead>
                             <tr>
-                                <th class="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-ink-500">Barang</th>
-                                <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Tercatat</th>
-                                <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Hitung Fisik</th>
-                                <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-500">Selisih</th>
+                                <th>Barang</th>
+                                <th class="text-right">Tercatat</th>
+                                <th class="text-right">Hitung Fisik</th>
+                                <th class="text-right">Selisih</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-ink-50">
+                        <tbody>
                             @foreach ($adjustment->items as $item)
                                 <tr class="{{ $item->difference() === 0 ? '' : 'bg-ink-50/30' }}">
-                                    <td class="px-6 py-3.5">
+                                    <td>
                                         <a href="{{ route('admin.products.show', $item->product) }}"
                                            class="text-sm font-medium text-ink-950 underline-offset-4 hover:underline">
                                             {{ $item->product->name }}
@@ -75,13 +75,13 @@
                                             <p class="mt-0.5 text-[11px] text-ink-500">{{ $item->note }}</p>
                                         @endif
                                     </td>
-                                    <td class="px-6 py-3.5 text-right text-sm text-ink-500">
+                                    <td class="text-right text-sm text-ink-500">
                                         {{ $item->system_quantity }} <span class="text-xs text-ink-400">{{ $item->product->unit }}</span>
                                     </td>
-                                    <td class="px-6 py-3.5 text-right text-sm font-semibold text-ink-950">
+                                    <td class="text-right text-sm font-semibold text-ink-950">
                                         {{ $item->actual_quantity }} <span class="text-xs font-normal text-ink-400">{{ $item->product->unit }}</span>
                                     </td>
-                                    <td class="px-6 py-3.5 text-right">
+                                    <td class="text-right">
                                         <span @class([
                                             'text-sm font-semibold',
                                             'text-emerald-600' => $item->difference() > 0,

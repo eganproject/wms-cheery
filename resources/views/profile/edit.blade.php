@@ -7,7 +7,7 @@
         <x-ui.card class="lg:col-span-1">
             <div class="flex flex-col items-center text-center">
                 <x-ui.avatar :name="$user->name" size="xl" />
-                <h2 class="mt-4 text-lg font-semibold tracking-tight text-ink-950">{{ $user->name }}</h2>
+                <h2 class="mt-4 text-lg font-semibold text-ink-950">{{ $user->name }}</h2>
                 <p class="text-sm text-ink-500">{{ $user->email }}</p>
 
                 @if ($user->role)

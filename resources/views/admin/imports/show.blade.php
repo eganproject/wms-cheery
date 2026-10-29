@@ -25,8 +25,8 @@
     </div>
 
     @if ($import->detected_columns)
-        <div class="mt-5 rounded-2xl border border-ink-100 bg-white p-5 shadow-card">
-            <p class="text-xs font-semibold uppercase tracking-wider text-ink-400">Kolom yang terdeteksi</p>
+        <div class="mt-5 rounded-2xl border border-ink-100 bg-white p-5">
+            <p class="text-xs text-ink-400">Kolom yang terdeteksi</p>
             <div class="mt-3 flex flex-wrap gap-1.5">
                 @foreach ($import->detected_columns as $column)
                     <x-ui.badge variant="outline" icon="check">{{ str($column)->replace('_', ' ')->title() }}</x-ui.badge>
@@ -35,9 +35,9 @@
         </div>
     @endif
 
-    <div class="mt-6 overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+    <div class="mt-6 overflow-hidden rounded-2xl border border-ink-100 bg-white">
         <div class="border-b border-ink-100 px-5 py-4 sm:px-6">
-            <h2 class="text-sm font-semibold tracking-tight text-ink-950">Resi pada Berkas Ini</h2>
+            <h2 class="text-sm font-semibold text-ink-950">Resi pada Berkas Ini</h2>
         </div>
 
         @if ($orders->isEmpty())
