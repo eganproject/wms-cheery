@@ -34,6 +34,9 @@ class UpdateProductRequest extends FormRequest
             'location' => ['nullable', 'string', 'max:100'],
             'min_stock' => ['required', 'integer', 'min:0', 'max:1000000'],
             'is_active' => ['boolean'],
+            // Foto dari HP biasanya 2–5 MB; batas 4 MB cukup tanpa membebani hosting.
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'remove_image' => ['boolean'],
         ] + $this->recipeRules($id);
     }
 
@@ -83,6 +86,7 @@ class UpdateProductRequest extends FormRequest
             'barcode' => filled($this->input('barcode')) ? trim((string) $this->input('barcode')) : null,
             'min_stock' => $this->input('min_stock', 0),
             'is_active' => $this->boolean('is_active'),
+            'remove_image' => $this->boolean('remove_image'),
             // Jenis yang tidak dikirim berarti tidak diubah — form lama dan
             // pembaruan sebagian tidak boleh diam-diam mengembalikan paket
             // menjadi barang biasa.
@@ -113,6 +117,7 @@ class UpdateProductRequest extends FormRequest
             'unit' => 'satuan',
             'location' => 'lokasi rak',
             'min_stock' => 'stok minimum',
+            'image' => 'gambar barang',
         ];
     }
 }

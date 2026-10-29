@@ -96,6 +96,7 @@ class OutboundMarketplaceController extends Controller implements HasMiddleware
                 'sku' => $item->product->sku,
                 'name' => $item->product->name,
                 'barcode' => $item->product->barcode,
+                'image_url' => $item->product->image_url,
                 'unit' => $item->product->unit,
                 'stock' => $item->product->stock,
                 'quantity' => $item->quantity,

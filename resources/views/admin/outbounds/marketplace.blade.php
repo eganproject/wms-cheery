@@ -273,6 +273,14 @@
                                                 <template x-if="line.completed"><x-icon name="check" class="h-3 w-3" /></template>
                                             </span>
 
+                                            {{-- Gambar membantu packer memastikan barang yang diambil benar. --}}
+                                            <template x-if="line.image_url">
+                                                <a :href="line.image_url" target="_blank" rel="noopener"
+                                                   class="block h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-ink-50 ring-1 ring-inset ring-ink-100">
+                                                    <img :src="line.image_url" :alt="line.name" class="h-full w-full object-cover">
+                                                </a>
+                                            </template>
+
                                             <div class="min-w-0 flex-1">
                                                 <span class="inline-flex max-w-full items-center gap-1 rounded-md bg-control px-1.5 py-px font-mono text-[11px] leading-4 text-ink-700">
                                                     <span class="opacity-60">SKU</span>

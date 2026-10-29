@@ -73,10 +73,16 @@ class ProductController extends Controller implements HasMiddleware
     {
         $data = $request->validated();
         $components = $data['components'] ?? [];
-        unset($data['components']);
+        unset($data['components'], $data['image'], $data['remove_image']);
 
-        $product = DB::transaction(function () use ($data, $components) {
-            $product = Product::create($data);
+        $product = DB::transaction(function () use ($data, $components, $request) {
+            $product = new Product($data);
+
+            if ($request->hasFile('image')) {
+                $product->replaceImage($request->file('image'));
+            }
+
+            $product->save();
 
             $this->syncRecipe($product, $components);
 
@@ -126,10 +132,20 @@ class ProductController extends Controller implements HasMiddleware
     {
         $data = $request->validated();
         $components = $data['components'] ?? [];
-        unset($data['components']);
+        $removeImage = (bool) ($data['remove_image'] ?? false);
+        unset($data['components'], $data['image'], $data['remove_image']);
 
-        DB::transaction(function () use ($product, $data, $components) {
-            $product->update($data);
+        DB::transaction(function () use ($product, $data, $components, $request, $removeImage) {
+            $product->fill($data);
+
+            // Unggahan baru menang atas centang "hapus gambar".
+            if ($request->hasFile('image')) {
+                $product->replaceImage($request->file('image'));
+            } elseif ($removeImage) {
+                $product->removeImage();
+            }
+
+            $product->save();
 
             $this->syncRecipe($product, $components);
         });

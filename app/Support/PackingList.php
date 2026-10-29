@@ -103,7 +103,7 @@ class PackingList
 
         $products = Product::query()
             ->whereIn('id', collect($lines)->pluck('product_id')->filter()->unique())
-            ->get(['id', 'sku', 'name'])
+            ->get(['id', 'sku', 'name', 'image_path'])
             ->keyBy('id');
 
         $rows = collect($lines)
@@ -113,6 +113,7 @@ class PackingList
                 return array_merge($line, [
                     'sku' => $line['sku'] ?? $product?->sku,
                     'name' => $product?->name ?? $line['name'],
+                    'image_url' => $product?->image_url,
                     'matched' => $line['product_id'] !== null,
                     'remaining' => $line['ordered'] - $line['scanned'],
                 ]);
