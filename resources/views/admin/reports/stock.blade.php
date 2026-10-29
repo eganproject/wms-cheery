@@ -347,7 +347,7 @@
     </div>
 
     <p class="mt-4 text-xs leading-relaxed text-ink-400">
-        Stok berkurang saat dokumen barang keluar disetujui, bukan saat barang selesai discan di stasiun packing.
+        Stok berkurang saat dokumen barang keluar disetujui, bukan saat barang selesai discan di QC Kemas.
         Paket yang sudah discan tetapi belum diproses karena itu belum muncul sebagai barang keluar di laporan ini.
         Qty keluar, frequency, dan klasifikasi hanya menghitung barang keluar operasional (dokumen barang keluar);
         penyesuaian dan selisih opname tidak dihitung sebagai penjualan.

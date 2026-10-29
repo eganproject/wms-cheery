@@ -731,7 +731,7 @@ class StockReportExportService
                 ['Terakhir Keluar', 'Tanggal barang keluar operasional terakhir sampai akhir periode, termasuk yang terjadi sebelum periode.'],
             ],
             'Catatan' => [
-                ['Waktu pencatatan', 'Stok berkurang saat dokumen barang keluar disetujui, bukan saat barang selesai discan di stasiun packing.'],
+                ['Waktu pencatatan', 'Stok berkurang saat dokumen barang keluar disetujui, bukan saat barang selesai discan di QC Kemas.'],
                 ['Paket bundling', 'Tidak dihitung; yang bergerak adalah barang isinya.'],
             ],
         ];

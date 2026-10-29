@@ -31,6 +31,7 @@ use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\WaybillStatusController;
 use App\Http\Controllers\Admin\OrderController;
+use App\Http\Controllers\Admin\PackingListController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -123,6 +124,7 @@ Route::middleware('auth')
 
         // Import resi dari Ginee
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
+        Route::get('orders/packing-list', PackingListController::class)->name('orders.packing');
         Route::get('imports/status', WaybillStatusController::class)->name('imports.status');
         Route::get('imports/daily/export', [DailyWaybillReportController::class, 'export'])->name('imports.daily.export');
         Route::get('imports/daily', [DailyWaybillReportController::class, 'index'])->name('imports.daily');

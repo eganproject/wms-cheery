@@ -1,4 +1,4 @@
-<x-app-layout title="Scan Pesanan Marketplace">
+<x-app-layout title="QC Kemas">
     <div x-data="documentScanner({
             urls: {
                 resi: '{{ route('admin.outbounds.scan.resi', $outbound) }}',

@@ -137,7 +137,7 @@ class TeamAccessTest extends TestCase
         $response = $this->actingAs($this->staff)->get(route('admin.dashboard'))->assertOk();
 
         $response->assertSee('data-bottom-nav', false)
-            ->assertSee('Packing')
+            ->assertSee('QC Kemas')
             ->assertSee('Retur')
             // Slot terakhir selalu membuka menu penuh.
             ->assertSee('Menu');
@@ -153,7 +153,7 @@ class TeamAccessTest extends TestCase
         $this->actingAs($viewer)->get(route('admin.dashboard'))
             ->assertOk()
             ->assertSee('data-bottom-nav', false)
-            ->assertDontSee('Packing')
+            ->assertDontSee('QC Kemas')
             ->assertDontSee('Retur');
     }
 

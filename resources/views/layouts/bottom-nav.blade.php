@@ -18,7 +18,7 @@
             'can' => null,
         ],
         [
-            'label' => 'Packing',
+            'label' => 'QC Kemas',
             'icon' => 'packing',
             'href' => $user->can('outbounds.scan') ? route('admin.outbounds.marketplace') : null,
             'active' => request()->routeIs('admin.outbounds.marketplace', 'admin.outbounds.scan', 'admin.outbounds.ready'),

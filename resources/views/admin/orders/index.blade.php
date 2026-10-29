@@ -29,11 +29,12 @@
     <x-ui.page-header title="Pesanan"
                       subtitle="Pesanan marketplace hasil import resi. Tab mengikuti proses di gudang: belum QC, siap dikirim, dikirim, atau dibatalkan.">
         <x-slot name="actions">
+            <x-ui.button :href="route('admin.orders.packing', request()->only(['marketplace', 'store', 'courier', 'from', 'to', 'range']))" variant="secondary" icon="list">Packing List</x-ui.button>
             @can('imports.create')
                 <x-ui.button :href="route('admin.imports.create')" variant="secondary" icon="import">Import Resi</x-ui.button>
             @endcan
             @can('outbounds.scan')
-                <x-ui.button :href="route('admin.outbounds.marketplace')" icon="packing">Stasiun Packing</x-ui.button>
+                <x-ui.button :href="route('admin.outbounds.marketplace')" icon="packing">QC Kemas</x-ui.button>
             @endcan
         </x-slot>
     </x-ui.page-header>
@@ -307,7 +308,7 @@
                                     @if ($order->outbound)
                                         @if ($orderStage === ShipmentOrder::STAGE_AWAITING_QC && ! $order->outbound->isPosted())
                                             @can('outbounds.scan')
-                                                <a href="{{ route('admin.outbounds.scan', $order->outbound) }}" class="btn btn-ghost btn-icon" title="Lanjutkan scan di Stasiun Packing">
+                                                <a href="{{ route('admin.outbounds.scan', $order->outbound) }}" class="btn btn-ghost btn-icon" title="Lanjutkan scan di QC Kemas">
                                                     <x-icon name="scan" class="h-4 w-4" />
                                                 </a>
                                             @endcan

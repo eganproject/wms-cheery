@@ -195,7 +195,7 @@ class OrderController extends Controller implements HasMiddleware
     public static function stageHints(): array
     {
         return [
-            ShipmentOrder::STAGE_AWAITING_QC => 'Resi sudah diimport tapi resi atau barangnya belum tuntas discan di Stasiun Packing.',
+            ShipmentOrder::STAGE_AWAITING_QC => 'Resi sudah diimport tapi resi atau barangnya belum tuntas discan di QC Kemas.',
             ShipmentOrder::STAGE_CHECKED => 'QC kemas selesai: resi dan semua barang sudah discan. Menunggu diserahkan ke kurir.',
             ShipmentOrder::STAGE_SHIPPED => 'Dokumen barang keluar sudah disetujui, stok sudah berkurang.',
             ShipmentOrder::STAGE_CANCELLED => 'Pesanan batal sebelum berangkat. Jangan dikirim.',

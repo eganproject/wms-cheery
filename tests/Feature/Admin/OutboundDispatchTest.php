@@ -267,7 +267,7 @@ class OutboundDispatchTest extends TestCase
         $this->actingAs($this->admin)
             ->postJson(route('admin.outbounds.ready.scan'), ['code' => 'TIDAKADA123'])
             ->assertStatus(422)
-            ->assertJsonPath('errors.code.0', 'Resi tidak dikenali · belum discan di packing');
+            ->assertJsonPath('errors.code.0', 'Resi tidak dikenali · belum discan di QC Kemas');
     }
 
     public function test_a_package_awaiting_approval_is_refused(): void

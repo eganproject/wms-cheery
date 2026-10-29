@@ -59,7 +59,7 @@
     {{-- Pintasan --}}
     @php
         $shortcuts = collect([
-            ['label' => 'Stasiun Packing', 'icon' => 'packing', 'route' => 'admin.outbounds.marketplace', 'can' => 'outbounds.scan'],
+            ['label' => 'QC Kemas', 'icon' => 'packing', 'route' => 'admin.outbounds.marketplace', 'can' => 'outbounds.scan'],
             ['label' => 'Siap Dikirim', 'icon' => 'outbound', 'route' => 'admin.outbounds.ready', 'can' => 'outbounds.view'],
             ['label' => 'Retur Marketplace', 'icon' => 'scan', 'route' => 'admin.returns.marketplace', 'can' => 'returns.scan'],
             ['label' => 'Import Resi', 'icon' => 'import', 'route' => 'admin.imports.create', 'can' => 'imports.create'],

@@ -1,11 +1,11 @@
 {{--
-    Stasiun packing pesanan marketplace.
+    QC Kemas pesanan marketplace (dulu: Stasiun Packing / Scan Resi Pesanan).
 
     Tata letaknya sama dengan stasiun retur: rail langkah, panel scan, dan
     daftar barang punya ruang bertinggi tetap. Yang berubah antar tahap hanya
     isinya, sehingga kolom input tidak pernah berpindah posisi.
 --}}
-<x-app-layout title="Stasiun Packing">
+<x-app-layout title="QC Kemas">
     <div x-data="packingStation({
             url: '{{ route('admin.outbounds.marketplace.store') }}',
             readyUrl: '{{ route('admin.outbounds.ready') }}',
@@ -14,7 +14,7 @@
          x-on:camera-scan.window="code = $event.detail.code; submit()"
          class="w-full">
 
-        <x-ui.page-header title="Stasiun Packing"
+        <x-ui.page-header title="QC Kemas"
                           subtitle="Scan resi, lalu scan barang satu per satu. Paket yang lengkap masuk antrean siap kirim.">
             <x-slot name="indicator">
                 {{-- Langkah kerja, ditaruh di kepala halaman supaya selalu terlihat. --}}

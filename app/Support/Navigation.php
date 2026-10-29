@@ -11,8 +11,8 @@ use Illuminate\Support\Collection;
  * cepat (Ctrl+K). Halaman dikelompokkan menurut
  * pekerjaannya:
  *
- *  - Penjualan Marketplace: pekerjaan harian pesanan online — pesanan, packing,
- *    antrean kirim, retur, dan resi.
+ *  - Penjualan Marketplace: pekerjaan harian pesanan online — pesanan, packing list,
+ *    QC kemas, antrean kirim, retur, dan resi.
  *  - Transaksi Stok: dokumen yang menggerakkan saldo.
  *  - Master Data: barang dan pemasok.
  *  - Laporan: semua yang hanya dibaca.
@@ -48,11 +48,14 @@ class Navigation
                 'icon' => 'marketplace',
                 'items' => [
                     ['label' => 'Pesanan', 'icon' => 'shopping-cart', 'route' => 'admin.orders.index',
-                        'match' => 'admin.orders.*', 'can' => 'imports.view',
+                        'match' => 'admin.orders.index', 'can' => 'imports.view',
                         'keywords' => 'pesanan order marketplace shopee tiktok resi status proses'],
-                    ['label' => 'Stasiun Packing', 'icon' => 'packing', 'route' => 'admin.outbounds.marketplace',
+                    ['label' => 'Packing List', 'icon' => 'list', 'route' => 'admin.orders.packing',
+                        'match' => 'admin.orders.packing', 'can' => 'imports.view',
+                        'keywords' => 'packing list picking daftar barang dikemas sisa remaining resi import'],
+                    ['label' => 'QC Kemas', 'icon' => 'packing', 'route' => 'admin.outbounds.marketplace',
                         'match' => ['admin.outbounds.marketplace', 'admin.outbounds.scan'], 'can' => 'outbounds.scan',
-                        'keywords' => 'packing scan qc resi pesanan marketplace'],
+                        'keywords' => 'qc kemas packing stasiun scan resi pesanan marketplace'],
                     ['label' => 'Siap Dikirim', 'icon' => 'outbound', 'route' => 'admin.outbounds.ready',
                         'match' => 'admin.outbounds.ready', 'can' => 'outbounds.view',
                         'badge' => fn () => ReadyToShipCounter::count() ?: null,

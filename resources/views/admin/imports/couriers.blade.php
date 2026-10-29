@@ -38,7 +38,7 @@
         <x-ui.stat-card label="Total Resi" :value="number_format($totals['orders'], 0, ',', '.')"
                         icon="document" :hint="number_format($totals['units'], 0, ',', '.').' unit dipesan'" />
         <x-ui.stat-card label="Belum QC" :value="number_format($totals['awaiting'], 0, ',', '.')"
-                        icon="clock" hint="Belum tuntas discan di packing" />
+                        icon="clock" hint="Belum tuntas discan di QC Kemas" />
         <x-ui.stat-card label="Sudah Dikirim" :value="number_format($totals['shipped'], 0, ',', '.')"
                         icon="logout" :hint="number_format($totals['checked'], 0, ',', '.').' siap, menunggu diproses'" />
     </div>

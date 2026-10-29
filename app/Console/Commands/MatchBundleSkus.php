@@ -65,7 +65,7 @@ class MatchBundleSkus extends Command
 
         $this->components->info(
             "{$result['rows']} baris pesanan dicocokkan ke {$result['skus']} barang. "
-            .'Resinya kini bisa dibuka di stasiun packing.',
+            .'Resinya kini bisa dibuka di QC Kemas.',
         );
 
         if ($result['remaining']->isNotEmpty()) {

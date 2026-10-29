@@ -163,10 +163,10 @@
         @if ($outbounds->isEmpty())
             <div class="frappe-card overflow-hidden">
                 <x-ui.empty-state icon="check-circle" title="Tidak ada paket menunggu"
-                                  description="Semua paket yang sudah discan sudah diproses. Paket baru muncul di sini begitu selesai discan di stasiun packing.">
+                                  description="Semua paket yang sudah discan sudah diproses. Paket baru muncul di sini begitu selesai discan di QC Kemas.">
                     @can('outbounds.scan')
                         <x-slot name="action">
-                            <x-ui.button :href="route('admin.outbounds.marketplace')" icon="search">Buka Stasiun Packing</x-ui.button>
+                            <x-ui.button :href="route('admin.outbounds.marketplace')" icon="search">Buka QC Kemas</x-ui.button>
                         </x-slot>
                     @endcan
                 </x-ui.empty-state>

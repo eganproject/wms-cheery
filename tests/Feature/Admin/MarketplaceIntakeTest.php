@@ -45,7 +45,7 @@ class MarketplaceIntakeTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('admin.outbounds.marketplace'));
 
         $response->assertOk()
-            ->assertSee('Stasiun Packing')
+            ->assertSee('QC Kemas')
             // Rail langkah selalu terlihat supaya alurnya jelas.
             ->assertSee('Barang')
             ->assertSee('Selesai')

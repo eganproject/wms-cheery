@@ -10,7 +10,7 @@
         <x-slot name="actions">
             @can('outbounds.scan')
                 <x-ui.button :href="route('admin.outbounds.marketplace')" variant="secondary" icon="search">
-                    Stasiun Packing
+                    QC Kemas
                 </x-ui.button>
             @endcan
         </x-slot>

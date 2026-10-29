@@ -129,7 +129,7 @@ class OutboundDispatchController extends Controller implements HasMiddleware
 
         if (! $outbound) {
             throw ValidationException::withMessages([
-                'code' => 'Resi tidak dikenali · belum discan di packing',
+                'code' => 'Resi tidak dikenali · belum discan di QC Kemas',
             ]);
         }
 
@@ -186,7 +186,7 @@ class OutboundDispatchController extends Controller implements HasMiddleware
             $outbound->isPending() => "Menunggu persetujuan · {$outbound->code}",
             $outbound->isRejected() => "Ditolak penyetuju · {$outbound->code}",
             ! $outbound->isMarketplace() => "Bukan paket marketplace · proses dari dokumen {$outbound->code}",
-            ! $outbound->isResiVerified() => 'Belum discan di packing',
+            ! $outbound->isResiVerified() => 'Belum discan di QC Kemas',
             ! $outbound->isFullyScanned() => 'Belum selesai QC · sisa '
                 .($outbound->totalQuantity() - $outbound->totalScanned()).' unit',
             default => null,

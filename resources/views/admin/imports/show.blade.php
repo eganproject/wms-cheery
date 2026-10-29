@@ -2,6 +2,7 @@
     <x-ui.page-header :title="$import->filename" :subtitle="'Diimport '.$import->created_at->translatedFormat('d F Y H:i').' oleh '.($import->user?->name ?? 'sistem')"
                       :back="route('admin.imports.batches')">
         <x-slot name="actions">
+            <x-ui.button :href="route('admin.orders.packing', ['import' => $import->id])" variant="secondary" icon="list">Packing List</x-ui.button>
             @can('imports.create')
                 <x-ui.button :href="route('admin.imports.create')" variant="secondary" icon="plus">Import Lagi</x-ui.button>
             @endcan
