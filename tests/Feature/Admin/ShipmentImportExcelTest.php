@@ -26,7 +26,7 @@ class ShipmentImportExcelTest extends TestCase
         parent::setUp();
 
         $this->seed(RolePermissionSeeder::class);
-        $this->admin = User::where('email', 'admin@wmsotosby.test')->firstOrFail();
+        $this->admin = User::where('email', 'admin@cheery.test')->firstOrFail();
 
         Product::create(['sku' => 'FLT-OLI-STD', 'name' => 'Filter Oli Standar', 'unit' => 'pcs']);
         Product::create(['sku' => 'BSI-IRIDIUM', 'name' => 'Busi Iridium', 'unit' => 'pcs']);

@@ -29,7 +29,7 @@ class StockOpnameTest extends TestCase
         parent::setUp();
 
         $this->seed(RolePermissionSeeder::class);
-        $this->admin = User::where('email', 'admin@wmsotosby.test')->firstOrFail();
+        $this->admin = User::where('email', 'admin@cheery.test')->firstOrFail();
 
         $this->oli = $this->makeProduct('FLT-OLI-STD', 'Filter Oli Standar', stock: 10, category: 'Filter');
         $this->rem = $this->makeProduct('KMP-REM-DPN', 'Kampas Rem Depan', stock: 4, category: 'Rem');

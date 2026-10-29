@@ -92,7 +92,7 @@ php artisan migrate --force   # membuat seluruh tabel
 php artisan db:seed --class=RolePermissionSeeder
 ```
 
-Seeder itu membuat izin, tiga role, dan akun `admin@wmsotosby.test`
+Seeder itu membuat izin, tiga role, dan akun `admin@cheery.test`
 dengan sandi `password`. **Ganti sandinya begitu berhasil masuk.**
 
 ## 5. Berkas hasil build — *Vite manifest not found*
@@ -198,7 +198,7 @@ Tetapi ada dua akibat sampingan yang perlu diketahui lebih dulu:
   Anda pernah menyesuaikan izin Admin atau Staff Gudang lewat halaman
   *Hak Akses*, penyesuaian itu kembali seperti semula. Role yang Anda buat
   sendiri tidak tersentuh.
-- **Sandi akun `admin@wmsotosby.test` kembali menjadi `password`.** Bila akun
+- **Sandi akun `admin@cheery.test` kembali menjadi `password`.** Bila akun
   itu masih dipakai, ganti sandinya lagi setelah seeder selesai.
 
 ### Resi batal yang sudah telanjur masuk

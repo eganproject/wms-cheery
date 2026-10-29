@@ -37,7 +37,7 @@ class InboundExportTest extends TestCase
         parent::setUp();
 
         $this->seed(RolePermissionSeeder::class);
-        $this->admin = User::where('email', 'admin@wmsotosby.test')->firstOrFail();
+        $this->admin = User::where('email', 'admin@cheery.test')->firstOrFail();
 
         $this->oli = Product::create(['sku' => '00123', 'name' => 'Filter Oli Standar', 'unit' => 'pcs', 'min_stock' => 0, 'category' => 'Filter']);
         $this->rem = Product::create(['sku' => 'KMP-REM-DPN', 'name' => 'Kampas Rem Depan', 'unit' => 'set', 'min_stock' => 0, 'category' => 'Rem']);

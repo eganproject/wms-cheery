@@ -29,7 +29,7 @@ class ApprovalFlowTest extends TestCase
 
         $this->seed(RolePermissionSeeder::class);
 
-        $this->approver = User::where('email', 'admin@wmsotosby.test')->firstOrFail();
+        $this->approver = User::where('email', 'admin@cheery.test')->firstOrFail();
 
         // Staff gudang boleh mengajukan tetapi tidak menyetujui.
         $this->staff = User::factory()->create([

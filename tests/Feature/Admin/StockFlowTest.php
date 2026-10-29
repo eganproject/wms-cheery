@@ -24,7 +24,7 @@ class StockFlowTest extends TestCase
 
         $this->seed(RolePermissionSeeder::class);
 
-        $this->admin = User::where('email', 'admin@wmsotosby.test')->firstOrFail();
+        $this->admin = User::where('email', 'admin@cheery.test')->firstOrFail();
 
         $this->product = Product::create([
             'sku' => 'FLT-OLI-STD',

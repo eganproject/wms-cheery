@@ -28,7 +28,7 @@ class GineeColumnLayoutTest extends TestCase
         parent::setUp();
 
         $this->seed(RolePermissionSeeder::class);
-        $this->admin = User::where('email', 'admin@wmsotosby.test')->firstOrFail();
+        $this->admin = User::where('email', 'admin@cheery.test')->firstOrFail();
 
         foreach (['KAB2', 'KAB149', 'KAB146', 'KAB3', 'KAB104'] as $sku) {
             Product::create(['sku' => $sku, 'name' => 'Kabel '.$sku, 'unit' => 'pcs']);
