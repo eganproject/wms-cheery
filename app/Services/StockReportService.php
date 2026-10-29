@@ -50,6 +50,13 @@ class StockReportService
     protected const SOLD = 'COALESCE(m.sold, 0)';
 
     /**
+     * Saldo rusak per akhir periode, ditarik mundur dari saldo hari ini
+     * dengan cara yang sama seperti saldo layak jual. Tanpa ini laporan
+     * periode lampau menampilkan angka rusak hari ini.
+     */
+    protected const DAMAGED_CLOSING = '(p.damaged_stock - COALESCE(d.in_after, 0) + COALESCE(d.out_after, 0))';
+
+    /**
      * Klasifikasi per periode, supaya tabel dan ringkasan pada satu halaman
      * tidak menghitungnya dua kali.
      *
@@ -114,7 +121,7 @@ class StockReportService
             ->selectRaw('COALESCE(SUM('.self::SOLD.'), 0) as outgoing')
             ->selectRaw('COALESCE(SUM('.self::CLOSING.'), 0) as closing')
             ->selectRaw('COALESCE(SUM('.self::OPENING.'), 0) as opening')
-            ->selectRaw('COALESCE(SUM(p.damaged_stock), 0) as damaged')
+            ->selectRaw('COALESCE(SUM('.self::DAMAGED_CLOSING.'), 0) as damaged')
             ->selectRaw('COALESCE(SUM(CASE WHEN '.self::CLOSING.' <= p.min_stock THEN 1 ELSE 0 END), 0) as low')
             ->first();
 
@@ -208,7 +215,8 @@ class StockReportService
     {
         $query = $this->base($filters)
             ->leftJoinSub($this->lastOutgoing($filters), 'lo', 'lo.product_id', '=', 'p.id')
-            ->select('p.id', 'p.sku', 'p.name', 'p.category', 'p.unit', 'p.min_stock', 'p.damaged_stock')
+            ->select('p.id', 'p.sku', 'p.name', 'p.category', 'p.unit', 'p.min_stock')
+            ->selectRaw(self::DAMAGED_CLOSING.' as damaged_stock')
             ->selectRaw('COALESCE(m.incoming, 0) as incoming')
             ->selectRaw('COALESCE(m.outgoing, 0) as outgoing')
             ->selectRaw(self::SOLD.' as sold')
@@ -244,6 +252,7 @@ class StockReportService
 
         return DB::table('products as p')
             ->leftJoinSub($this->movements($filters), 'm', 'm.product_id', '=', 'p.id')
+            ->leftJoinSub($this->damagedAfter($filters), 'd', 'd.product_id', '=', 'p.id')
             /*
                 Paket bundling tidak punya saldo dan tidak pernah menghasilkan
                 mutasi, jadi barisnya akan berisi nol di setiap kolom sepanjang
@@ -299,6 +308,21 @@ class StockReportService
             )
             ->where('bucket', StockMovement::BUCKET_GOOD)
             ->where('created_at', '>=', $filters->from)
+            ->groupBy('product_id');
+    }
+
+    /**
+     * Mutasi saldo rusak sesudah akhir periode, untuk menarik mundur saldo
+     * rusak hari ini ke akhir periode.
+     */
+    protected function damagedAfter(StockReportFilters $filters): Builder
+    {
+        return DB::table('stock_movements')
+            ->select('product_id')
+            ->selectRaw("SUM(CASE WHEN type = 'in' THEN quantity ELSE 0 END) as in_after")
+            ->selectRaw("SUM(CASE WHEN type = 'out' THEN quantity ELSE 0 END) as out_after")
+            ->where('bucket', StockMovement::BUCKET_DAMAGED)
+            ->where('created_at', '>', $filters->to)
             ->groupBy('product_id');
     }
 
