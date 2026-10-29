@@ -34,7 +34,12 @@
                                     <p class="max-w-xs truncate text-sm font-medium text-ink-950">{{ $import->filename }}</p>
                                     <p class="text-[11px] text-ink-400">{{ $import->source }}</p>
                                 </td>
-                                <td class="text-right text-sm font-semibold text-ink-950">{{ $import->order_count }}</td>
+                                <td class="text-right">
+                                    <p class="text-sm font-semibold text-ink-950">{{ $import->order_count }}</p>
+                                    @if ($import->failed_row_count > 0)
+                                        <a href="{{ route('admin.imports.failures', $import) }}" class="text-[11px] font-medium text-red-600 hover:underline" title="Unduh baris yang gagal diimport">{{ $import->failed_row_count }} gagal</a>
+                                    @endif
+                                </td>
                                 <td class="text-right text-sm text-ink-600">{{ $import->item_count }}</td>
                                 <td>
                                     @if ($import->unmatched_sku_count > 0)
@@ -75,6 +80,9 @@
                             <x-ui.badge variant="outline">{{ $import->item_count }} baris</x-ui.badge>
                             @if ($import->unmatched_sku_count > 0)
                                 <x-ui.badge variant="warning">{{ $import->unmatched_sku_count }} SKU belum cocok</x-ui.badge>
+                            @endif
+                            @if ($import->failed_row_count > 0)
+                                <x-ui.badge variant="danger">{{ $import->failed_row_count }} gagal</x-ui.badge>
                             @endif
                         </div>
                     </a>

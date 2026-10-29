@@ -137,6 +137,7 @@ Route::middleware('auth')
         Route::delete('imports/orders/{order}/cancel', [ShipmentOrderCancellationController::class, 'destroy'])->name('imports.orders.restore');
         Route::get('imports/lookup', [ShipmentImportController::class, 'lookup'])->name('imports.lookup');
         Route::get('imports/batches', [ShipmentImportController::class, 'batches'])->name('imports.batches');
+        Route::get('imports/{import}/failures', [ShipmentImportController::class, 'failures'])->name('imports.failures');
         Route::resource('imports', ShipmentImportController::class)->except('edit', 'update')
             ->parameters(['imports' => 'import']);
 
