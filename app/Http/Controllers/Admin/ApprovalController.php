@@ -159,7 +159,7 @@ class ApprovalController extends Controller implements HasMiddleware
     /**
      * Kembali ke kotak masuk dengan saringan yang tadi dipakai.
      *
-     * Sama seperti antrean siap kirim: `back()` membaca header Referer yang
+     * Sama seperti antrean serah terima: `back()` membaca header Referer yang
      * tidak selalu ada, dan cadangannya di sesi tidak pernah diperbarui pada
      * navigasi AJAX — sehingga saringannya hilang setelah satu keputusan.
      */

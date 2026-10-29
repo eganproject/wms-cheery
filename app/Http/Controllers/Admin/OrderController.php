@@ -51,6 +51,7 @@ class OrderController extends Controller implements HasMiddleware
     public function index(Request $request): View
     {
         $stage = (string) $request->string('status');
+        $stage = ShipmentOrder::LEGACY_STAGES[$stage] ?? $stage;
         $stage = array_key_exists($stage, ShipmentOrder::STAGES) ? $stage : '';
         $perPage = in_array($request->integer('per_page'), self::PER_PAGE, true) ? $request->integer('per_page') : self::PER_PAGE[0];
 
@@ -196,7 +197,7 @@ class OrderController extends Controller implements HasMiddleware
     {
         return [
             ShipmentOrder::STAGE_AWAITING_QC => 'Resi sudah diimport tapi resi atau barangnya belum tuntas discan di Stasiun Packing.',
-            ShipmentOrder::STAGE_CHECKED => 'QC kemas selesai: resi dan semua barang sudah discan. Menunggu diserahkan ke kurir.',
+            ShipmentOrder::STAGE_HANDOVER => 'QC kemas selesai: resi dan semua barang sudah discan. Menunggu diserahkan ke kurir di halaman Serah Terima Paket.',
             ShipmentOrder::STAGE_SHIPPED => 'Dokumen barang keluar sudah disetujui, stok sudah berkurang.',
             ShipmentOrder::STAGE_CANCELLED => 'Pesanan batal sebelum berangkat. Jangan dikirim.',
         ];
@@ -219,7 +220,7 @@ class OrderController extends Controller implements HasMiddleware
     {
         return match ($stage) {
             ShipmentOrder::STAGE_AWAITING_QC => 'warning',
-            ShipmentOrder::STAGE_CHECKED => 'info',
+            ShipmentOrder::STAGE_HANDOVER => 'info',
             ShipmentOrder::STAGE_SHIPPED => 'success',
             ShipmentOrder::STAGE_CANCELLED => 'danger',
             default => 'neutral',

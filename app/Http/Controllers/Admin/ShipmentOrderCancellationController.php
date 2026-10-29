@@ -72,7 +72,7 @@ class ShipmentOrderCancellationController extends Controller implements HasMiddl
     /**
      * Kembali ke halaman status dengan saringan yang tadi dipakai.
      *
-     * Sama seperti antrean siap kirim dan kotak masuk persetujuan: `back()`
+     * Sama seperti antrean serah terima dan kotak masuk persetujuan: `back()`
      * membaca header Referer yang tidak selalu ada, dan cadangannya di sesi
      * tidak pernah diperbarui pada navigasi AJAX.
      */

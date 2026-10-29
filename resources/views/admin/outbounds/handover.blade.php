@@ -11,15 +11,15 @@
     Keduanya berbagi satu lingkup Alpine supaya paket yang barusan discan
     langsung hilang dari daftar sekaligus lepas dari centangnya.
 --}}
-<x-app-layout title="Siap Dikirim">
-    <x-ui.page-header title="Siap Dikirim" icon="outbound"
-                      subtitle="Paket yang sudah lengkap discan dan tinggal diproses pengirimannya.">
+<x-app-layout title="Serah Terima Paket">
+    <x-ui.page-header title="Serah Terima Paket" icon="outbound"
+                      subtitle="Paket yang sudah lolos QC dan tinggal diserahkan ke kurir. Scan resinya saat paket berpindah tangan.">
     </x-ui.page-header>
 
 
-    <div x-data="dispatchStation({
-             url: '{{ route('admin.outbounds.ready.scan') }}',
-             remaining: {{ $readyCount }},
+    <div x-data="handoverStation({
+             url: '{{ route('admin.outbounds.handover.scan') }}',
+             remaining: {{ $handoverCount }},
              {{-- Paket batal sengaja tidak masuk daftar yang bisa dicentang. --}}
              queued: @js($outbounds->reject(fn ($outbound) => $outbound->shipmentOrder?->isCancelled())->pluck('id')->values()->all()),
          })"
@@ -133,7 +133,7 @@
             </div>
         @endcan
 
-        <form method="GET" action="{{ route('admin.outbounds.ready') }}" data-auto-submit
+        <form method="GET" action="{{ route('admin.outbounds.handover') }}" data-auto-submit
               class="frappe-card mb-4 flex flex-col gap-2 p-3 sm:flex-row sm:items-center">
             <div class="relative flex-1">
                 <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
@@ -153,7 +153,7 @@
             <div class="flex items-center gap-2">
                 <x-ui.button type="submit" variant="secondary" icon="filter" class="flex-1 sm:flex-none">Terapkan</x-ui.button>
                 @if (request()->hasAny(['search', 'marketplace']))
-                    <x-ui.button :href="route('admin.outbounds.ready')" variant="ghost" size="icon" title="Reset filter">
+                    <x-ui.button :href="route('admin.outbounds.handover')" variant="ghost" size="icon" title="Reset filter">
                         <x-icon name="refresh" class="h-4 w-4" />
                     </x-ui.button>
                 @endif
@@ -173,7 +173,7 @@
             </div>
         @else
             {{-- Seluruh daftar berada di dalam satu form: centang beberapa paket, proses sekaligus. --}}
-            <form method="POST" action="{{ route('admin.outbounds.ready.process') }}">
+            <form method="POST" action="{{ route('admin.outbounds.handover.process') }}">
                 @csrf
 
                 {{--

@@ -79,8 +79,8 @@ class WaybillStatusTest extends TestCase
 
         $order = $this->fresh($order);
 
-        $this->assertSame(ShipmentOrder::STAGE_CHECKED, $order->stage());
-        $this->assertSame('Siap Dikirim', $order->stageLabel());
+        $this->assertSame(ShipmentOrder::STAGE_HANDOVER, $order->stage());
+        $this->assertSame('Serah Terima', $order->stageLabel());
         $this->assertSame('QC selesai, menunggu diproses', $order->stageDetail());
     }
 
@@ -116,11 +116,11 @@ class WaybillStatusTest extends TestCase
         $counts = $response->viewData('counts');
 
         $this->assertSame(1, $counts[ShipmentOrder::STAGE_AWAITING_QC]);
-        $this->assertSame(1, $counts[ShipmentOrder::STAGE_CHECKED]);
+        $this->assertSame(1, $counts[ShipmentOrder::STAGE_HANDOVER]);
         $this->assertSame(1, $counts[ShipmentOrder::STAGE_SHIPPED]);
 
         $response->assertSee('Belum QC')
-            ->assertSee('Siap Dikirim')
+            ->assertSee('Serah Terima')
             ->assertSee('Dikirim')
             ->assertSee('SPXID111')
             ->assertSee('SPXID222')
@@ -135,7 +135,7 @@ class WaybillStatusTest extends TestCase
         $this->makeDocument($checked, quantity: 2, scanned: 2);
 
         $response = $this->actingAs($this->admin)
-            ->get(route('admin.imports.status', ['stage' => ShipmentOrder::STAGE_CHECKED]))
+            ->get(route('admin.imports.status', ['stage' => ShipmentOrder::STAGE_HANDOVER]))
             ->assertOk();
 
         $this->assertSame(1, $response->viewData('orders')->total());
@@ -148,11 +148,11 @@ class WaybillStatusTest extends TestCase
         $this->makeDocument($checked, quantity: 2, scanned: 2);
 
         $response = $this->actingAs($this->admin)
-            ->get(route('admin.imports.status', ['stage' => ShipmentOrder::STAGE_CHECKED, 'search' => 'SPXID222']))
+            ->get(route('admin.imports.status', ['stage' => ShipmentOrder::STAGE_HANDOVER, 'search' => 'SPXID222']))
             ->assertOk();
 
         $this->assertSame(1, $response->viewData('orders')->total());
-        $this->assertSame(ShipmentOrder::STAGE_CHECKED, $response->viewData('stage'));
+        $this->assertSame(ShipmentOrder::STAGE_HANDOVER, $response->viewData('stage'));
     }
 
     public function test_an_unmatched_sku_is_reported_on_the_row(): void

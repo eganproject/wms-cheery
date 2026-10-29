@@ -14,7 +14,7 @@
 
     $stages = [
         'awaiting' => ['label' => 'Belum QC', 'tone' => 'text-amber-700', 'bg' => 'bg-amber-50', 'stage' => ShipmentOrder::STAGE_AWAITING_QC],
-        'checked' => ['label' => 'Siap', 'tone' => 'text-ink-950', 'bg' => 'bg-ink-100', 'stage' => ShipmentOrder::STAGE_CHECKED],
+        'checked' => ['label' => 'Siap', 'tone' => 'text-ink-950', 'bg' => 'bg-ink-100', 'stage' => ShipmentOrder::STAGE_HANDOVER],
         'shipped' => ['label' => 'Dikirim', 'tone' => 'text-emerald-700', 'bg' => 'bg-emerald-50', 'stage' => ShipmentOrder::STAGE_SHIPPED],
         'cancelled' => ['label' => 'Batal', 'tone' => 'text-red-700', 'bg' => 'bg-red-50', 'stage' => ShipmentOrder::STAGE_CANCELLED],
     ];

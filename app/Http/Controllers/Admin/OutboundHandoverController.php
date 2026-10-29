@@ -14,13 +14,13 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
- * Antrean paket siap kirim.
+ * Halaman Serah Terima Paket: paket yang sudah lolos QC diserahkan ke kurir.
  *
  * Stasiun packing hanya memastikan isi paket sesuai pesanan, lalu langsung
  * lanjut ke resi berikutnya. Keputusan mengirim — yang memindahkan stok —
  * dikerjakan terpisah dari sini, sekaligus untuk banyak paket.
  */
-class OutboundDispatchController extends Controller implements HasMiddleware
+class OutboundHandoverController extends Controller implements HasMiddleware
 {
     public function __construct(protected ApprovalService $approvals)
     {
@@ -34,9 +34,18 @@ class OutboundDispatchController extends Controller implements HasMiddleware
         ];
     }
 
+    /**
+     * Alamat lama /admin/outbounds/ready (dulu "Siap Dikirim") dialihkan ke
+     * sini supaya bookmark operator tetap jalan.
+     */
+    public function legacy(Request $request): RedirectResponse
+    {
+        return redirect()->route('admin.outbounds.handover', $request->query(), 301);
+    }
+
     public function index(Request $request): View
     {
-        $outbounds = Outbound::readyToShip()
+        $outbounds = Outbound::awaitingHandover()
             ->with('user', 'shipmentOrder')
             ->withCount('items')
             ->withSum('items', 'quantity')
@@ -47,12 +56,12 @@ class OutboundDispatchController extends Controller implements HasMiddleware
             ->paginate(20)
             ->withQueryString();
 
-        return view('admin.outbounds.ready', [
+        return view('admin.outbounds.handover', [
             'outbounds' => $outbounds,
             'marketplaces' => Outbound::marketplaces(),
             // Sengaja tanpa filter: memindai resi bekerja atas seluruh antrean,
             // bukan hanya atas yang kebetulan tampil di layar.
-            'readyCount' => Outbound::readyToShip()->count(),
+            'handoverCount' => Outbound::awaitingHandover()->count(),
         ]);
     }
 
@@ -67,7 +76,7 @@ class OutboundDispatchController extends Controller implements HasMiddleware
             'ids.*' => ['integer'],
         ])['ids'];
 
-        $documents = Outbound::readyToShip()
+        $documents = Outbound::awaitingHandover()
             ->whereIn('id', $ids)
             ->with('items.product', 'shipmentOrder')
             ->get();
@@ -135,7 +144,7 @@ class OutboundDispatchController extends Controller implements HasMiddleware
 
         $outbound->load('items.product', 'shipmentOrder');
 
-        $this->guardDispatchable($outbound);
+        $this->guardHandoverable($outbound);
 
         $selfApprove = $request->user()->can('outbounds.approve');
         $units = (int) $outbound->items->sum('quantity');
@@ -164,7 +173,7 @@ class OutboundDispatchController extends Controller implements HasMiddleware
             'message' => $selfApprove
                 ? "Dikirim · {$units} unit"
                 : 'Diajukan · menunggu persetujuan',
-            'remaining' => Outbound::readyToShip()->count(),
+            'remaining' => Outbound::awaitingHandover()->count(),
         ]);
     }
 
@@ -176,7 +185,7 @@ class OutboundDispatchController extends Controller implements HasMiddleware
      * Pada paket yang QC-nya belum selesai, operator memegang barangnya dan
      * yang perlu ia tahu adalah berapa unit yang kurang.
      */
-    protected function guardDispatchable(Outbound $outbound): void
+    protected function guardHandoverable(Outbound $outbound): void
     {
         $reason = match (true) {
             $outbound->isPosted() => "Sudah dikirim · {$outbound->code}",
@@ -208,7 +217,7 @@ class OutboundDispatchController extends Controller implements HasMiddleware
      */
     protected function backToQueue(Request $request): RedirectResponse
     {
-        return redirect()->route('admin.outbounds.ready', array_filter(
+        return redirect()->route('admin.outbounds.handover', array_filter(
             $request->only(['search', 'marketplace']),
             fn ($value) => filled($value),
         ));

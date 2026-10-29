@@ -27,7 +27,7 @@
 
 <x-app-layout title="Pesanan">
     <x-ui.page-header title="Pesanan"
-                      subtitle="Pesanan marketplace hasil import resi. Tab mengikuti proses di gudang: belum QC, siap dikirim, dikirim, atau dibatalkan.">
+                      subtitle="Pesanan marketplace hasil import resi. Tab mengikuti proses di gudang: belum QC, serah terima, dikirim, atau dibatalkan.">
         <x-slot name="actions">
             @can('imports.create')
                 <x-ui.button :href="route('admin.imports.create')" variant="secondary" icon="import">Import Resi</x-ui.button>

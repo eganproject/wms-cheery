@@ -8,14 +8,14 @@
 <x-app-layout title="Stasiun Packing">
     <div x-data="packingStation({
             url: '{{ route('admin.outbounds.marketplace.store') }}',
-            readyUrl: '{{ route('admin.outbounds.ready') }}',
+            handoverUrl: '{{ route('admin.outbounds.handover') }}',
          })"
          {{-- Hasil pindaian kamera diperlakukan sama persis dengan scanner genggam. --}}
          x-on:camera-scan.window="code = $event.detail.code; submit()"
          class="w-full">
 
         <x-ui.page-header title="Stasiun Packing"
-                          subtitle="Scan resi, lalu scan barang satu per satu. Paket yang lengkap masuk antrean siap kirim.">
+                          subtitle="Scan resi, lalu scan barang satu per satu. Paket yang lengkap masuk antrean serah terima.">
             <x-slot name="indicator">
                 {{-- Langkah kerja, ditaruh di kepala halaman supaya selalu terlihat. --}}
                 <ol class="ml-1 hidden items-center gap-1.5 md:flex" aria-label="Langkah">
@@ -47,9 +47,9 @@
                         <p class="text-[11px] text-ink-500">unit discan</p>
                     </div>
                 </div>
-                <x-ui.button :href="route('admin.outbounds.ready')" variant="secondary" icon="outbound">
-                    Siap Dikirim
-                    <span class="rounded-full bg-white px-1.5 text-[11px] font-medium tabular-nums text-ink-700">{{ $readyCount }}</span>
+                <x-ui.button :href="route('admin.outbounds.handover')" variant="secondary" icon="outbound">
+                    Serah Terima Paket
+                    <span class="rounded-full bg-white px-1.5 text-[11px] font-medium tabular-nums text-ink-700">{{ $handoverCount }}</span>
                 </x-ui.button>
             </x-slot>
         </x-ui.page-header>
@@ -86,7 +86,7 @@
                                 'scanHint' => "isResiStage
                                     ? 'Arahkan ke label resi pada paket.'
                                     : (progress && progress.ready
-                                        ? 'Masuk antrean siap kirim. Arahkan ke resi berikutnya.'
+                                        ? 'Masuk antrean serah terima. Arahkan ke resi berikutnya.'
                                         : 'Sisa ' + remaining + ' unit lagi pada paket ini.')",
                                 'scanLines' => 'isResiStage ? [] : lines',
                             ])
@@ -327,7 +327,7 @@
                                   :class="shortages.length ? 'font-medium text-red-600' : 'text-ink-500'"
                                   x-text="shortages.length
                                         ? `${shortages.length} barang stoknya kurang`
-                                        : (progress?.ready ? 'Lengkap — masuk antrean siap kirim' : `Sisa ${remaining} unit`)"></span>
+                                        : (progress?.ready ? 'Lengkap — masuk antrean serah terima' : `Sisa ${remaining} unit`)"></span>
                         </div>
 
                         {{--
@@ -352,9 +352,9 @@
             <div class="frappe-card flex h-56 flex-col overflow-hidden">
                 <div class="flex shrink-0 items-center justify-between gap-3 border-b border-ink-100 px-4 py-2.5">
                     <p class="text-sm font-semibold text-ink-950">Selesai Sesi Ini</p>
-                    <a href="{{ route('admin.outbounds.ready') }}"
+                    <a href="{{ route('admin.outbounds.handover') }}"
                        class="text-xs text-ink-500 underline-offset-4 hover:text-ink-950 hover:underline">
-                        Lihat antrean siap kirim
+                        Lihat antrean serah terima
                     </a>
                 </div>
                 <div class="scrollbar-thin min-h-0 flex-1 overflow-y-auto">

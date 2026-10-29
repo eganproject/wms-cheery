@@ -129,7 +129,7 @@ class CancelledOrderTest extends TestCase
 
         $this->assertSame($order->id, ShipmentOrder::firstOrFail()->id, 'Baris resi harus diperbarui, bukan dibuat ulang.');
         $this->assertSame($order->id, $outbound->refresh()->shipment_order_id);
-        $this->assertSame(ShipmentOrder::STAGE_CHECKED, ShipmentOrder::firstOrFail()->stage());
+        $this->assertSame(ShipmentOrder::STAGE_HANDOVER, ShipmentOrder::firstOrFail()->stage());
     }
 
     /* --------------------------------------------------- blokir ---------- */
@@ -157,7 +157,7 @@ class CancelledOrderTest extends TestCase
         $this->cancel($order);
 
         $this->actingAs($this->admin)
-            ->postJson(route('admin.outbounds.ready.scan'), ['code' => 'SPXID111'])
+            ->postJson(route('admin.outbounds.handover.scan'), ['code' => 'SPXID111'])
             ->assertStatus(422)
             ->assertJsonPath(
                 'errors.code.0',
@@ -178,7 +178,7 @@ class CancelledOrderTest extends TestCase
         $cancelled = $this->makePackage($this->cancel($this->makeOrder()), scanned: 2);
         $healthy = $this->makePackage($this->makeOrder('SPXID222'), scanned: 2);
 
-        $response = $this->actingAs($this->admin)->post(route('admin.outbounds.ready.process'), [
+        $response = $this->actingAs($this->admin)->post(route('admin.outbounds.handover.process'), [
             'ids' => [$cancelled->id, $healthy->id],
         ]);
 
@@ -194,7 +194,7 @@ class CancelledOrderTest extends TestCase
     {
         $outbound = $this->makePackage($this->cancel($this->makeOrder()), scanned: 2);
 
-        $this->actingAs($this->admin)->get(route('admin.outbounds.ready'))
+        $this->actingAs($this->admin)->get(route('admin.outbounds.handover'))
             ->assertOk()
             // Barangnya sudah turun dari rak; seseorang harus mengembalikannya.
             ->assertSee($outbound->code)
@@ -238,7 +238,7 @@ class CancelledOrderTest extends TestCase
         $order = $this->makeOrder();
         $outbound = $this->makePackage($order, scanned: 2);
 
-        $this->actingAs($this->admin)->post(route('admin.outbounds.ready.process'), ['ids' => [$outbound->id]]);
+        $this->actingAs($this->admin)->post(route('admin.outbounds.handover.process'), ['ids' => [$outbound->id]]);
         $this->assertTrue($outbound->refresh()->isPosted());
 
         $this->actingAs($this->admin)->post(route('admin.imports.orders.cancel', $order), [
@@ -324,7 +324,7 @@ class CancelledOrderTest extends TestCase
         $order = $this->makeOrder();
         $outbound = $this->makePackage($order, scanned: 2);
 
-        $this->actingAs($this->admin)->post(route('admin.outbounds.ready.process'), ['ids' => [$outbound->id]]);
+        $this->actingAs($this->admin)->post(route('admin.outbounds.handover.process'), ['ids' => [$outbound->id]]);
 
         $order->forceFill(['cancelled_at' => now()])->save();
 

@@ -128,7 +128,13 @@ class ShipmentOrder extends Model
 
     public const STAGE_AWAITING_QC = 'belum-qc';
 
-    public const STAGE_CHECKED = 'siap';
+    public const STAGE_HANDOVER = 'serah-terima';
+
+    /**
+     * Nilai tahap lama ("siap") yang mungkin masih ada di bookmark atau tautan.
+     * Tahap dihitung dari dokumen gudang, tidak pernah disimpan di database.
+     */
+    public const LEGACY_STAGES = ['siap' => self::STAGE_HANDOVER];
 
     public const STAGE_SHIPPED = 'dikirim';
 
@@ -139,7 +145,7 @@ class ShipmentOrder extends Model
      */
     public const STAGES = [
         self::STAGE_AWAITING_QC => 'Belum QC',
-        self::STAGE_CHECKED => 'Siap Dikirim',
+        self::STAGE_HANDOVER => 'Serah Terima',
         self::STAGE_SHIPPED => 'Dikirim',
         self::STAGE_CANCELLED => 'Dibatalkan',
     ];
@@ -170,7 +176,7 @@ class ShipmentOrder extends Model
         }
 
         return $outbound->isResiVerified() && $this->outboundFullyScanned()
-            ? self::STAGE_CHECKED
+            ? self::STAGE_HANDOVER
             : self::STAGE_AWAITING_QC;
     }
 
@@ -308,9 +314,11 @@ class ShipmentOrder extends Model
      */
     public function scopeAtStage(Builder $query, ?string $stage): Builder
     {
+        $stage = self::LEGACY_STAGES[$stage] ?? $stage;
+
         return match ($stage) {
             self::STAGE_SHIPPED => $query->shipped(),
-            self::STAGE_CHECKED => $query->qualityChecked(),
+            self::STAGE_HANDOVER => $query->qualityChecked(),
             self::STAGE_AWAITING_QC => $query->awaitingQc(),
             self::STAGE_CANCELLED => $query->cancelled(),
             default => $query,

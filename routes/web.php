@@ -7,7 +7,7 @@ use App\Http\Controllers\Admin\DamagedStockController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\InboundController;
 use App\Http\Controllers\Admin\OutboundController;
-use App\Http\Controllers\Admin\OutboundDispatchController;
+use App\Http\Controllers\Admin\OutboundHandoverController;
 use App\Http\Controllers\Admin\OutboundMarketplaceController;
 use App\Http\Controllers\Admin\OutboundScanController;
 use App\Http\Controllers\Admin\PermissionController;
@@ -66,9 +66,11 @@ Route::middleware('auth')
 
         Route::get('outbounds/marketplace', [OutboundMarketplaceController::class, 'create'])->name('outbounds.marketplace');
         Route::post('outbounds/marketplace', [OutboundMarketplaceController::class, 'store'])->name('outbounds.marketplace.store');
-        Route::get('outbounds/ready', [OutboundDispatchController::class, 'index'])->name('outbounds.ready');
-        Route::post('outbounds/ready', [OutboundDispatchController::class, 'process'])->name('outbounds.ready.process');
-        Route::post('outbounds/ready/scan', [OutboundDispatchController::class, 'scan'])->name('outbounds.ready.scan');
+        Route::get('outbounds/handover', [OutboundHandoverController::class, 'index'])->name('outbounds.handover');
+        Route::post('outbounds/handover', [OutboundHandoverController::class, 'process'])->name('outbounds.handover.process');
+        Route::post('outbounds/handover/scan', [OutboundHandoverController::class, 'scan'])->name('outbounds.handover.scan');
+        // Alamat lama halaman ini, dulu bernama "Siap Dikirim".
+        Route::get('outbounds/ready', [OutboundHandoverController::class, 'legacy'])->name('outbounds.handover.legacy');
         Route::get('outbounds/{outbound}/scan', [OutboundScanController::class, 'show'])->name('outbounds.scan');
         Route::post('outbounds/{outbound}/scan/resi', [OutboundScanController::class, 'resi'])->name('outbounds.scan.resi');
         Route::post('outbounds/{outbound}/scan/item', [OutboundScanController::class, 'item'])->name('outbounds.scan.item');

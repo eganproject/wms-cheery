@@ -16,7 +16,7 @@ use Tests\TestCase;
  * Kolom status di basis data hanya mengenal draft, diajukan, ditolak, dan
  * diposting. Bagi paket marketplace itu terlalu kasar: satu kata "draft"
  * dipakai bersama oleh paket yang belum disentuh sama sekali dan paket yang
- * sudah selesai QC serta sedang mengantre di Siap Dikirim — dua keadaan yang
+ * sudah selesai QC serta sedang mengantre di Serah Terima Paket — dua keadaan yang
  * menuntut tindakan sama sekali berbeda.
  */
 class OutboundStageTest extends TestCase
@@ -52,21 +52,21 @@ class OutboundStageTest extends TestCase
     {
         $this->assertSame(Outbound::STAGE_NEED_RESI, $this->package(verified: false)->stage());
         $this->assertSame(Outbound::STAGE_SCANNING, $this->package(scanned: 1)->stage());
-        $this->assertSame(Outbound::STAGE_READY, $this->package(scanned: 2)->stage());
+        $this->assertSame(Outbound::STAGE_HANDOVER, $this->package(scanned: 2)->stage());
         $this->assertSame(Outbound::STAGE_NEED_ITEMS, $this->package(quantity: 0)->stage());
     }
 
     /**
      * Inilah keadaan yang paling menyesatkan sebelumnya: paket yang sudah
-     * lengkap dipindai dan mengantre di Siap Dikirim tetap berlabel "Draft",
+     * lengkap dipindai dan mengantre di Serah Terima Paket tetap berlabel "Draft",
      * sama persis dengan dokumen yang belum disentuh siapa pun.
      */
     public function test_a_packed_marketplace_order_is_not_called_a_draft(): void
     {
         $ready = $this->package(scanned: 2);
 
-        $this->assertSame(1, Outbound::readyToShip()->count());
-        $this->assertSame('Siap dikirim', $ready->stageLabel());
+        $this->assertSame(1, Outbound::awaitingHandover()->count());
+        $this->assertSame('Menunggu serah terima', $ready->stageLabel());
         $this->assertNotSame('Draft', $ready->stageLabel());
     }
 
@@ -106,7 +106,7 @@ class OutboundStageTest extends TestCase
         // saringan. Yang penting dua yang pertama — dokumen yang sama tidak
         // boleh bercerita berbeda hanya karena layarnya lebih sempit. Dulu
         // kartu ponsel mengabaikan tahap pemindaian dan menulis "Draft".
-        $this->assertSame(3, substr_count($html, 'Siap dikirim'));
+        $this->assertSame(3, substr_count($html, 'Menunggu serah terima'));
     }
 
     /* ---------------------------------------------------- saringan ------- */
@@ -118,7 +118,7 @@ class OutboundStageTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        foreach (['Perlu scan resi', 'Scan barang', 'Siap dikirim', 'Menunggu persetujuan', 'Ditolak', 'Terkirim'] as $label) {
+        foreach (['Perlu scan resi', 'Scan barang', 'Menunggu serah terima', 'Menunggu persetujuan', 'Ditolak', 'Terkirim'] as $label) {
             $this->assertStringContainsString($label, $html, "Saringan kehilangan pilihan {$label}.");
         }
     }
@@ -129,7 +129,7 @@ class OutboundStageTest extends TestCase
         $this->package(scanned: 1);
 
         $this->actingAs($this->admin)
-            ->get(route('admin.outbounds.index', ['status' => Outbound::STAGE_READY]))
+            ->get(route('admin.outbounds.index', ['status' => Outbound::STAGE_HANDOVER]))
             ->assertOk()
             ->assertSee($ready->code)
             ->assertDontSee('OUT-'.now()->format('Ym').'-0002');

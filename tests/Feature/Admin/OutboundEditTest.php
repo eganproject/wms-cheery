@@ -16,7 +16,7 @@ use Tests\TestCase;
  * Baris barang selalu ditulis ulang seluruhnya saat disimpan. Dulu itu berarti
  * setiap penyimpanan — termasuk yang tidak mengubah apa pun — menghapus seluruh
  * hasil pemindaian dan membatalkan verifikasi resi, sehingga paket yang sudah
- * selesai QC diam-diam hilang dari antrean Siap Dikirim dan harus dipindai
+ * selesai QC diam-diam hilang dari antrean Serah Terima Paket dan harus dipindai
  * ulang dari nol.
  */
 class OutboundEditTest extends TestCase
@@ -58,7 +58,7 @@ class OutboundEditTest extends TestCase
 
     public function test_saving_without_any_change_keeps_the_package_ready_to_ship(): void
     {
-        $this->assertSame(1, Outbound::readyToShip()->count(), 'Prasyarat: paket sudah mengantre.');
+        $this->assertSame(1, Outbound::awaitingHandover()->count(), 'Prasyarat: paket sudah mengantre.');
 
         $this->save()->assertRedirect(route('admin.outbounds.scan', $this->outbound));
 
@@ -66,7 +66,7 @@ class OutboundEditTest extends TestCase
 
         $this->assertTrue($this->outbound->isResiVerified(), 'Resi tidak berganti, verifikasinya harus bertahan.');
         $this->assertSame(4, (int) $this->outbound->items()->sum('scanned_quantity'));
-        $this->assertSame(1, Outbound::readyToShip()->count(), 'Paket tetap di antrean.');
+        $this->assertSame(1, Outbound::awaitingHandover()->count(), 'Paket tetap di antrean.');
     }
 
     /** Mengetik ulang catatan bukan alasan memindai ulang satu gudang. */
@@ -86,7 +86,7 @@ class OutboundEditTest extends TestCase
         $this->outbound->refresh();
 
         $this->assertFalse($this->outbound->isResiVerified());
-        $this->assertSame(0, Outbound::readyToShip()->count());
+        $this->assertSame(0, Outbound::awaitingHandover()->count());
     }
 
     /** Jumlah yang dikurangi tidak boleh menyisakan hasil scan yang mustahil. */
@@ -118,7 +118,7 @@ class OutboundEditTest extends TestCase
 
         $this->assertSame(4, (int) $this->outbound->items()->where('product_id', $this->product->id)->value('scanned_quantity'));
         $this->assertSame(0, (int) $this->outbound->items()->where('product_id', $other->id)->value('scanned_quantity'));
-        $this->assertSame(0, Outbound::readyToShip()->count(), 'Ada barang baru yang belum dipindai.');
+        $this->assertSame(0, Outbound::awaitingHandover()->count(), 'Ada barang baru yang belum dipindai.');
     }
 
     /* ------------------------------------------------ barang nonaktif ---- */

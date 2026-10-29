@@ -13,7 +13,7 @@
 import { announce as signal, timestamp } from './feedback';
 import { cameraState } from './scan-state';
 
-export default function dispatchStation(config) {
+export default function handoverStation(config) {
     return {
         url: config.url,
 

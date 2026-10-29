@@ -176,7 +176,7 @@ class OutboundController extends Controller implements HasMiddleware
             // masih sahih harus diselamatkan lebih dulu. Tanpa ini setiap
             // penyimpanan — termasuk yang tidak mengubah apa pun — memulangkan
             // paket yang sudah selesai QC ke titik nol, dan paket itu diam-diam
-            // hilang dari antrean Siap Dikirim.
+            // hilang dari antrean Serah Terima Paket.
             $scanned = $outbound->items()->pluck('scanned_quantity', 'product_id');
 
             $lines = $this->buildLines($data['items'] ?? [], $scanned, $data['bundles'] ?? []);

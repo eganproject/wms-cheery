@@ -21,7 +21,7 @@
             'label' => 'Packing',
             'icon' => 'packing',
             'href' => $user->can('outbounds.scan') ? route('admin.outbounds.marketplace') : null,
-            'active' => request()->routeIs('admin.outbounds.marketplace', 'admin.outbounds.scan', 'admin.outbounds.ready'),
+            'active' => request()->routeIs('admin.outbounds.marketplace', 'admin.outbounds.scan', 'admin.outbounds.handover'),
             'can' => 'outbounds.scan',
         ],
         [
