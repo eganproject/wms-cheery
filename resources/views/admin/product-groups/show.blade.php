@@ -87,7 +87,7 @@
                                         <div class="flex items-center gap-3">
                                             <x-ui.product-image :product="$variant" size="sm" />
                                             <div class="min-w-0">
-                                                <p class="text-sm font-medium text-ink-950">{{ $variant->variantLabel() ?: '—' }}</p>
+                                                <p class="whitespace-nowrap text-sm font-medium text-ink-950">{{ $variant->variantLabel() ?: "—" }}</p>
                                                 @unless ($variant->is_active)
                                                     <x-ui.badge variant="gray">Nonaktif</x-ui.badge>
                                                 @endunless
