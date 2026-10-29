@@ -6,7 +6,6 @@
         'outbound' => null,
         'code' => $code,
         'products' => $products,
-        'marketplaces' => $marketplaces,
         'defaultType' => $defaultType,
     ])
 </x-app-layout>

@@ -5,6 +5,8 @@ namespace Tests\Feature\Admin;
 use App\Models\Outbound;
 use App\Models\Product;
 use App\Models\Role;
+use App\Models\ShipmentImport;
+use App\Models\ShipmentOrder;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -382,11 +384,20 @@ class OutboundHandoverTest extends TestCase
 
     protected function makePackage(string $tracking, int $quantity, int $scanned): Outbound
     {
+        // Nama marketplace dibaca dari data import resi yang tertaut.
+        $import = ShipmentImport::first() ?? ShipmentImport::create([
+            'filename' => 'ginee.xlsx', 'user_id' => $this->admin->id,
+        ]);
+        $order = ShipmentOrder::create([
+            'shipment_import_id' => $import->id, 'tracking_number' => $tracking,
+            'order_number' => 'ORD-'.$tracking, 'marketplace' => 'Shopee',
+        ]);
+
         $outbound = Outbound::create([
             'code' => Outbound::nextCode(),
             'date' => now(),
             'type' => Outbound::TYPE_MARKETPLACE,
-            'marketplace' => 'Shopee',
+            'shipment_order_id' => $order->id,
             'recipient' => 'Pembeli marketplace',
             'tracking_number' => $tracking,
             'status' => Outbound::STATUS_DRAFT,

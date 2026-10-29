@@ -212,7 +212,7 @@ class OrderController extends Controller implements HasMiddleware
     {
         return [
             ShipmentOrder::STAGE_AWAITING_QC => 'Scan resi dan barangnya di Stasiun Packing.',
-            ShipmentOrder::STAGE_CHECKED => 'Serahkan paket ke kurir dari menu Siap Dikirim.',
+            ShipmentOrder::STAGE_HANDOVER => 'Serahkan paket ke kurir dari menu Serah Terima Paket.',
         ];
     }
 

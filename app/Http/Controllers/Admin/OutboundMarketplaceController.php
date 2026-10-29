@@ -177,7 +177,6 @@ class OutboundMarketplaceController extends Controller implements HasMiddleware
 
             $outbound->fill([
                 'recipient' => $order->buyer_name ?: ($order->store_name ?: 'Pembeli marketplace'),
-                'marketplace' => $order->marketplace,
                 'tracking_number' => $order->tracking_number,
                 'shipment_order_id' => $order->id,
                 'status' => Outbound::STATUS_DRAFT,

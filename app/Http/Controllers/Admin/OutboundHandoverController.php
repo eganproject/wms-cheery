@@ -50,7 +50,7 @@ class OutboundHandoverController extends Controller implements HasMiddleware
             ->withCount('items')
             ->withSum('items', 'quantity')
             ->search($request->string('search')->trim()->value())
-            ->when($request->filled('marketplace'), fn ($query) => $query->where('marketplace', $request->string('marketplace')))
+            ->fromMarketplace($request->string('marketplace')->value())
             // Paket yang paling lama menunggu dikerjakan lebih dulu.
             ->oldest('id')
             ->paginate(20)

@@ -79,19 +79,8 @@
                     {{-- Field khusus marketplace --}}
                     <template x-if="type === 'marketplace'">
                         <div class="grid grid-cols-1 gap-5 sm:col-span-2 sm:grid-cols-2">
-                            <x-ui.field label="Marketplace" info="Asal pesanan. Pilih Manual bila barang keluar bukan dari pesanan online." for="marketplace" :error="$errors->get('marketplace')" required>
-                                <x-ui.select id="marketplace" name="marketplace">
-                                    <option value="">Pilih marketplace…</option>
-                                    @foreach ($marketplaces as $marketplace)
-                                        <option value="{{ $marketplace }}" @selected(old('marketplace', $outbound?->marketplace) === $marketplace)>
-                                            {{ $marketplace }}
-                                        </option>
-                                    @endforeach
-                                </x-ui.select>
-                            </x-ui.field>
-
-                            <x-ui.field label="Nomor Resi" info="Nomor resi pengiriman. Bila diisi, resi ini bisa discan dan dicocokkan dengan data import Ginee." for="tracking_number" :error="$errors->get('tracking_number')"
-                                        hint="Dicari otomatis ke data import Ginee." required class="sm:col-span-2">
+                            <x-ui.field label="Nomor Resi" info="Nomor resi pengiriman. Bila diisi, resi ini bisa discan dan dicocokkan dengan data import Ginee. Nama marketplace diambil otomatis dari data import itu." for="tracking_number" :error="$errors->get('tracking_number')"
+                                        hint="Dicari otomatis ke data import Ginee. Nama marketplace diambil dari sana." required class="sm:col-span-2">
                                 <x-text-input id="tracking_number" name="tracking_number" type="text"
                                               x-model="tracking"
                                               class="font-mono uppercase" placeholder="SPXID01234567890" />

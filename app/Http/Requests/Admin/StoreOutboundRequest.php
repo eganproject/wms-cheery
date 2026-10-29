@@ -26,13 +26,9 @@ class StoreOutboundRequest extends FormRequest
             'type' => ['required', Rule::in([Outbound::TYPE_REGULAR, Outbound::TYPE_MARKETPLACE])],
             'recipient' => ['required', 'string', 'max:255'],
 
-            // Marketplace wajib punya identitas toko dan nomor resi, karena
-            // keduanya yang nanti diverifikasi lewat scan.
-            'marketplace' => [
-                Rule::requiredIf($isMarketplace),
-                'nullable',
-                Rule::in(Outbound::marketplaces()),
-            ],
+            // Marketplace wajib punya nomor resi, karena itu yang nanti
+            // diverifikasi lewat scan. Nama marketplace-nya dibaca dari data
+            // import resi, tidak diketik di sini.
             'tracking_number' => [
                 Rule::requiredIf($isMarketplace),
                 'nullable',
@@ -120,7 +116,6 @@ class StoreOutboundRequest extends FormRequest
 
         // Data marketplace tidak relevan untuk pengiriman reguler.
         if ($this->input('type') !== Outbound::TYPE_MARKETPLACE) {
-            $payload['marketplace'] = null;
             $payload['tracking_number'] = null;
         } else {
             $payload['tracking_number'] = trim((string) $this->input('tracking_number')) ?: null;
@@ -139,7 +134,6 @@ class StoreOutboundRequest extends FormRequest
             'items.min' => 'Tambahkan minimal satu baris barang.',
             'items.*.product_id.required' => 'Barang pada salah satu baris belum dipilih.',
             'items.*.quantity.min' => 'Jumlah pada setiap baris minimal 1.',
-            'marketplace.required' => 'Pilih marketplace tujuan pengiriman.',
             'tracking_number.required' => 'Nomor resi wajib diisi untuk pengiriman marketplace.',
         ];
     }
@@ -153,7 +147,6 @@ class StoreOutboundRequest extends FormRequest
             'date' => 'tanggal',
             'type' => 'jenis pengiriman',
             'recipient' => 'penerima',
-            'marketplace' => 'marketplace',
             'tracking_number' => 'nomor resi',
             'note' => 'catatan',
         ];

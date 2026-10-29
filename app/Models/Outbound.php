@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\FiltersByDate;
 use App\Models\Concerns\HasApprovalWorkflow;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -46,7 +47,6 @@ class Outbound extends Model
         'date',
         'type',
         'recipient',
-        'marketplace',
         'tracking_number',
         'shipment_order_id',
         'note',
@@ -99,6 +99,23 @@ class Outbound extends Model
     public function shipmentOrder(): BelongsTo
     {
         return $this->belongsTo(ShipmentOrder::class);
+    }
+
+    /**
+     * Nama marketplace, dibaca dari data import resi yang tertaut.
+     *
+     * Tidak lagi diketik di form: satu sumber saja supaya tidak ada dua nilai
+     * yang bisa saling berbeda. Muat relasi shipmentOrder bila dipakai di daftar.
+     */
+    protected function marketplace(): Attribute
+    {
+        return Attribute::get(fn () => $this->isMarketplace() ? $this->shipmentOrder?->marketplace : null);
+    }
+
+    public function scopeFromMarketplace(Builder $query, ?string $marketplace): Builder
+    {
+        return $query->when(filled($marketplace), fn (Builder $query) => $query
+            ->whereHas('shipmentOrder', fn (Builder $orders) => $orders->where('marketplace', $marketplace)));
     }
 
     /**
@@ -212,7 +229,7 @@ class Outbound extends Model
     }
 
     /**
-     * Alasan dokumen belum boleh diproses. Kosong berarti siap dikirim.
+     * Alasan dokumen belum boleh diproses. Kosong berarti boleh diserahterimakan.
      *
      * @return array<int, string>
      */
