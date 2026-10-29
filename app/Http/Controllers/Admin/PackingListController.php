@@ -41,7 +41,8 @@ class PackingListController extends Controller implements HasMiddleware
             ? ShipmentImport::find($request->integer('import'))
             : null;
 
-        $list = PackingList::for($this->filtered($request, $import));
+        $mode = $request->input('per') === PackingList::BY_PRODUCT ? PackingList::BY_PRODUCT : PackingList::BY_SKU;
+        $list = PackingList::for($this->filtered($request, $import), $mode);
 
         $show = array_key_exists((string) $request->input('show'), self::SHOW) ? (string) $request->input('show') : '';
         $search = trim((string) $request->input('search'));
@@ -60,6 +61,7 @@ class PackingListController extends Controller implements HasMiddleware
             'list' => $list,
             'rows' => $rows,
             'show' => $show,
+            'mode' => $mode,
             'import' => $import,
             'imports' => ShipmentImport::query()->latest('id')->limit(30)->get(['id', 'filename', 'created_at', 'order_count']),
             'marketplaces' => $distinct('marketplace'),

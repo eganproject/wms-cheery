@@ -23,6 +23,12 @@ use Illuminate\Support\Collection;
  */
 class PackingList
 {
+    /** Diringkas menurut SKU yang tertulis di resi (paket tetap satu baris). */
+    public const BY_SKU = 'sku';
+
+    /** Diringkas menurut barang di rak (paket dipecah jadi isinya). */
+    public const BY_PRODUCT = 'barang';
+
     /** Batas nomor resi yang disimpan per baris untuk daftar "belum tuntas". */
     public const RESI_SAMPLE = 100;
 
@@ -39,7 +45,7 @@ class PackingList
     /**
      * Susun daftar dari resi yang belum dikirim dan belum dibatalkan.
      */
-    public static function for(Builder $orders): self
+    public static function for(Builder $orders, string $mode = self::BY_SKU): self
     {
         $lines = [];
         $orderCount = 0;
@@ -50,12 +56,14 @@ class PackingList
             ->whereDoesntHave('outbounds', fn (Builder $outbound) => $outbound->where('status', \App\Models\Outbound::STATUS_POSTED))
             ->with(['items', 'outbound.items'])
             ->orderBy('shipment_orders.id')
-            ->chunk(500, function (Collection $chunk) use (&$lines, &$orderCount, &$doneCount) {
+            ->chunk(500, function (Collection $chunk) use (&$lines, &$orderCount, &$doneCount, $mode) {
                 $recipes = static::recipes($chunk);
 
                 foreach ($chunk as $order) {
                     $orderCount++;
-                    $orderLines = static::linesOf($order, $recipes);
+                    $orderLines = $mode === self::BY_PRODUCT
+                        ? static::linesOf($order, $recipes)
+                        : static::skuLinesOf($order, $recipes);
                     $complete = true;
 
                     foreach ($orderLines as $key => $line) {
@@ -103,13 +111,13 @@ class PackingList
                 $product = $line['product_id'] ? $products->get($line['product_id']) : null;
 
                 return array_merge($line, [
-                    'sku' => $product?->sku ?? $line['sku'],
+                    'sku' => $line['sku'] ?? $product?->sku,
                     'name' => $product?->name ?? $line['name'],
                     'matched' => $line['product_id'] !== null,
                     'remaining' => $line['ordered'] - $line['scanned'],
                 ]);
             })
-            ->sortBy([['remaining', 'desc'], ['sku', 'asc']])
+            ->sortBy(fn (array $row) => mb_strtoupper((string) $row['sku']))
             ->values();
 
         return new self($rows, [
@@ -213,7 +221,79 @@ class PackingList
     }
 
     /**
-     * Barang yang disebut pesanan tanpa dokumen, berikut isi paketnya.
+     * Baris satu resi menurut SKU yang tertulis di resinya, dijumlahkan per
+     * SKU. Paket tetap satu baris dengan SKU paketnya.
+     *
+     * Jumlah yang sudah discan dibaca dari dokumen gudangnya: barang satuan
+     * dihitung lebih dulu, lalu sisanya dipakai untuk paket — satu paket
+     * dianggap selesai bila seluruh isinya sudah discan.
+     *
+     * @param  Collection<int, Product>  $recipes
+     * @return array<string, array<string, mixed>>
+     */
+    protected static function skuLinesOf(ShipmentOrder $order, Collection $recipes): array
+    {
+        $pool = $order->outbound
+            ? $order->outbound->items->groupBy('product_id')->map(fn ($items) => (int) $items->sum('scanned_quantity'))->all()
+            : [];
+
+        $lines = [];
+        $bundles = [];
+
+        foreach ($order->items as $item) {
+            $quantity = (int) $item->quantity;
+
+            if ($quantity <= 0) {
+                continue;
+            }
+
+            $key = 's'.mb_strtoupper(trim($item->sku));
+            $product = $item->product_id ? $recipes->get($item->product_id) : null;
+            $isBundle = $product && $product->isBundle() && $product->bundleComponents->isNotEmpty();
+
+            $lines[$key] ??= [
+                'product_id' => $item->product_id ? (int) $item->product_id : null,
+                'sku' => $item->sku,
+                'name' => $item->product_name,
+                'quantity' => 0,
+                'scanned' => 0,
+                'from_bundle' => $isBundle,
+            ];
+            $lines[$key]['quantity'] += $quantity;
+
+            if ($isBundle) {
+                $bundles[] = [$key, $product, $quantity];
+
+                continue;
+            }
+
+            if ($item->product_id) {
+                $take = min($quantity, $pool[$item->product_id] ?? 0);
+                $pool[$item->product_id] = ($pool[$item->product_id] ?? 0) - $take;
+                $lines[$key]['scanned'] += $take;
+            }
+        }
+
+        foreach ($bundles as [$key, $product, $quantity]) {
+            $done = $quantity;
+
+            foreach ($product->bundleComponents as $component) {
+                $per = max(1, (int) $component->quantity);
+                $done = min($done, intdiv(max(0, $pool[$component->component_id] ?? 0), $per));
+            }
+
+            foreach ($product->bundleComponents as $component) {
+                $pool[$component->component_id] = ($pool[$component->component_id] ?? 0) - $done * max(1, (int) $component->quantity);
+            }
+
+            $lines[$key]['scanned'] += $done;
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Barang yang disebut pesanan, berikut isi paketnya.
      *
      * @param  Collection<int, ShipmentOrder>  $orders
      * @return Collection<int, Product>
@@ -221,7 +301,6 @@ class PackingList
     protected static function recipes(Collection $orders): Collection
     {
         $ids = $orders
-            ->filter(fn (ShipmentOrder $order) => ! $order->outbound)
             ->flatMap(fn (ShipmentOrder $order) => $order->items->pluck('product_id'))
             ->filter()
             ->unique();

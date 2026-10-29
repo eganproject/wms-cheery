@@ -4,6 +4,7 @@
 --}}
 @php
     use App\Http\Controllers\Admin\PackingListController;
+    use App\Support\PackingList;
 
     $keep = fn (array $except, array $set = []) => array_filter(
         array_merge(request()->except($except), $set),
@@ -20,7 +21,7 @@
 
 <x-app-layout title="Packing List">
     <x-ui.page-header title="Packing List"
-                      subtitle="Total barang yang harus dikemas dari resi yang diimport, dan sisanya yang belum lolos QC Kemas. Resi yang sudah dikirim atau dibatalkan tidak dihitung.">
+                      subtitle="Ringkasan SKU dari resi yang diimport: jumlah tiap SKU dari semua resi dijumlahkan, berikut sisanya yang belum lolos QC Kemas. Resi yang sudah dikirim atau dibatalkan tidak dihitung.">
         <x-slot name="actions">
             <x-ui.button type="button" variant="secondary" icon="printer" onclick="window.print()">Cetak</x-ui.button>
             @can('outbounds.scan')
@@ -33,7 +34,7 @@
         <x-ui.stat-card label="Resi" :value="$num($totals['orders'])" icon="document" accent
                         :hint="$num($totals['orders_done']).' lolos QC · '.$num($totals['orders_open']).' belum'" />
         <x-ui.stat-card label="Unit Harus Dikemas" :value="$num($totals['ordered'])" icon="box"
-                        :hint="$num($totals['skus']).' barang berbeda'" />
+                        :hint="$num($totals['skus']).' SKU berbeda'" />
         <x-ui.stat-card label="Sudah QC Kemas" :value="$num($totals['scanned'])" icon="check" :hint="$percent.'% dari total unit'" />
         <x-ui.stat-card label="Sisa Belum Dikemas" :value="$num($totals['remaining'])" icon="clock"
                         :hint="$totals['unmatched'] ? $num($totals['unmatched']).' SKU belum terdaftar' : 'Unit yang belum discan'" />
@@ -99,6 +100,16 @@
             @endif
 
             <div class="flex flex-col gap-1.5 sm:flex-row sm:items-start">
+                <span class="w-20 shrink-0 pt-1 text-xs text-ink-500">Ringkas per</span>
+                <div class="flex flex-wrap gap-1.5">
+                    <a href="{{ route('admin.orders.packing', $keep(['per'])) }}" title="SKU apa adanya seperti di resi. Paket bundling tetap satu baris."
+                       @class([$pill, $pillOn => $mode === PackingList::BY_SKU, $pillOff => $mode !== PackingList::BY_SKU])>SKU di resi</a>
+                    <a href="{{ route('admin.orders.packing', $keep(['per'], ['per' => PackingList::BY_PRODUCT])) }}" title="Barang yang diambil dari rak. Paket bundling dipecah jadi isinya."
+                       @class([$pill, $pillOn => $mode === PackingList::BY_PRODUCT, $pillOff => $mode !== PackingList::BY_PRODUCT])>Barang di rak (paket dipecah)</a>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-1.5 sm:flex-row sm:items-start">
                 <span class="w-20 shrink-0 pt-1 text-xs text-ink-500">Tampilkan</span>
                 <div class="flex flex-wrap gap-1.5">
                     @foreach (PackingListController::SHOW as $value => $label)
@@ -110,7 +121,7 @@
         </div>
 
         <form method="GET" action="{{ route('admin.orders.packing') }}" class="flex flex-col gap-3 border-b border-ink-100 p-4 lg:flex-row lg:items-end print:hidden">
-            @foreach (['marketplace', 'store', 'courier', 'show'] as $field)
+            @foreach (['marketplace', 'store', 'courier', 'show', 'per'] as $field)
                 @if (request()->filled($field))
                     <input type="hidden" name="{{ $field }}" value="{{ request($field) }}">
                 @endif
@@ -145,7 +156,7 @@
             <div class="flex items-center gap-2">
                 <x-ui.button type="submit" icon="filter">Terapkan</x-ui.button>
                 @if (request()->hasAny(['search', 'import', 'from', 'to', 'range']))
-                    <x-ui.button :href="route('admin.orders.packing', request()->only(['marketplace', 'store', 'courier', 'show']))"
+                    <x-ui.button :href="route('admin.orders.packing', request()->only(['marketplace', 'store', 'courier', 'show', 'per']))"
                                  variant="ghost" size="icon" title="Reset">
                         <x-icon name="close" class="h-4 w-4" />
                     </x-ui.button>
@@ -166,9 +177,9 @@
                 <thead>
                     <tr>
                         <th class="w-10 text-right">#</th>
-                        <th>Barang</th>
+                        <th>SKU</th>
                         <th class="text-right" title="Jumlah resi yang memuat barang ini">Resi</th>
-                        <th class="text-right" title="Unit yang harus dikemas">Dikemas</th>
+                        <th class="text-right" title="Jumlah SKU ini dari semua resi, dijumlahkan">Total Qty</th>
                         <th class="text-right" title="Unit yang sudah discan di QC Kemas">Sudah QC</th>
                         <th class="text-right" title="Unit yang belum discan di QC Kemas">Sisa</th>
                         <th class="w-40">Progres</th>
@@ -189,7 +200,11 @@
                                         <x-ui.badge variant="warning" title="SKU ini belum ada di master barang, jadi belum bisa discan di QC Kemas.">SKU belum terdaftar</x-ui.badge>
                                     @endunless
                                     @if ($row['from_bundle'])
-                                        <x-ui.badge variant="outline" title="Sebagian unit berasal dari isi paket bundling.">Termasuk isi paket</x-ui.badge>
+                                        @if ($mode === PackingList::BY_SKU)
+                                            <x-ui.badge variant="outline" title="SKU paket bundling. Lihat isinya dengan memilih Ringkas per: Barang di rak.">Paket bundling</x-ui.badge>
+                                        @else
+                                            <x-ui.badge variant="outline" title="Sebagian unit berasal dari isi paket bundling.">Termasuk isi paket</x-ui.badge>
+                                        @endif
                                     @endif
                                 </div>
                                 @if ($row['open_resi'] !== [])
@@ -201,7 +216,7 @@
                                 @endif
                             </td>
                             <td class="text-right tabular-nums text-ink-600">{{ $num($row['orders']) }}</td>
-                            <td class="text-right font-medium tabular-nums text-ink-950">{{ $num($row['ordered']) }}</td>
+                            <td class="text-right text-base font-semibold tabular-nums text-ink-950">{{ $num($row['ordered']) }}</td>
                             <td class="text-right tabular-nums text-emerald-700">{{ $num($row['scanned']) }}</td>
                             <td @class(['text-right font-semibold tabular-nums', 'text-rose-700' => $row['remaining'] > 0, 'text-ink-400' => $row['remaining'] === 0])>{{ $num($row['remaining']) }}</td>
                             <td>
@@ -226,7 +241,7 @@
                     <tfoot>
                         <tr class="font-semibold">
                             <td></td>
-                            <td>Total {{ $rows->count() }} barang</td>
+                            <td>Total {{ $rows->count() }} SKU</td>
                             <td></td>
                             <td class="text-right tabular-nums">{{ $num($rows->sum('ordered')) }}</td>
                             <td class="text-right tabular-nums text-emerald-700">{{ $num($rows->sum('scanned')) }}</td>

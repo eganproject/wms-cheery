@@ -80,7 +80,7 @@ class PackingListTest extends TestCase
         $this->order('R6', [['ASING', 4, null]]);
 
         $response = $this->actingAs($this->admin)
-            ->get(route('admin.orders.packing', ['import' => $this->import->id]))
+            ->get(route('admin.orders.packing', ['import' => $this->import->id, 'per' => 'barang']))
             ->assertOk();
 
         $rows = $response->viewData('rows')->keyBy('sku');
@@ -96,6 +96,48 @@ class PackingListTest extends TestCase
         $this->assertSame(8, $totals['remaining']);
 
         $response->assertSee('Packing List')->assertSee('Tas Mini');
+    }
+
+    public function test_it_sums_each_sku_across_waybills_by_default(): void
+    {
+        $trip = Product::create(['sku' => 'TRIP1', 'name' => 'Trip Bag', 'unit' => 'pcs', 'min_stock' => 0]);
+        $tas = Product::create(['sku' => 'TAS-1', 'name' => 'Tas Mini', 'unit' => 'pcs', 'min_stock' => 0]);
+        $paket = Product::create(['sku' => 'PAKET', 'name' => 'Paket Hemat', 'unit' => 'pcs', 'min_stock' => 0, 'type' => Product::TYPE_BUNDLE]);
+        ProductBundleItem::create(['bundle_id' => $paket->id, 'component_id' => $tas->id, 'quantity' => 2]);
+
+        // Dua resi, masing-masing 2 pcs TRIP1: ringkasannya TRIP1 4 pcs.
+        $this->order('R1', [['TRIP1', 2, $trip], ['PAKET', 1, $paket]]);
+        $second = $this->order('R2', [['TRIP1', 2, $trip]]);
+        $this->outbound($second, $trip, 2, 2);
+
+        $rows = $this->actingAs($this->admin)
+            ->get(route('admin.orders.packing', ['import' => $this->import->id]))
+            ->assertOk()
+            ->assertSee('TRIP1')
+            ->viewData('rows')
+            ->keyBy('sku');
+
+        $this->assertSame(['PAKET', 'TRIP1'], $rows->keys()->all());
+        $this->assertSame([4, 2, 2, 2], [$rows['TRIP1']['ordered'], $rows['TRIP1']['scanned'], $rows['TRIP1']['remaining'], $rows['TRIP1']['orders']]);
+        $this->assertSame(1, $rows['PAKET']['ordered']);
+        $this->assertTrue($rows['PAKET']['from_bundle']);
+    }
+
+    public function test_a_bundle_counts_as_packed_once_all_its_contents_are_scanned(): void
+    {
+        $tas = Product::create(['sku' => 'TAS-1', 'name' => 'Tas Mini', 'unit' => 'pcs', 'min_stock' => 0]);
+        $paket = Product::create(['sku' => 'PAKET', 'name' => 'Paket Hemat', 'unit' => 'pcs', 'min_stock' => 0, 'type' => Product::TYPE_BUNDLE]);
+        ProductBundleItem::create(['bundle_id' => $paket->id, 'component_id' => $tas->id, 'quantity' => 2]);
+
+        // 2 paket = 4 tas; 3 tas sudah discan -> baru 1 paket lengkap.
+        $this->outbound($this->order('R1', [['PAKET', 2, $paket]]), $tas, 4, 3);
+
+        $rows = $this->actingAs($this->admin)
+            ->get(route('admin.orders.packing', ['import' => $this->import->id]))
+            ->viewData('rows')
+            ->keyBy('sku');
+
+        $this->assertSame([2, 1, 1], [$rows['PAKET']['ordered'], $rows['PAKET']['scanned'], $rows['PAKET']['remaining']]);
     }
 
     public function test_it_can_show_only_rows_with_remaining_units(): void
