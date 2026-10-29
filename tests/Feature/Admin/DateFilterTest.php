@@ -319,13 +319,13 @@ class DateFilterTest extends TestCase
 
     protected function uploadCsv(string $tracking): void
     {
-        $csv = "Nomor Resi,SKU,Jumlah\n{$tracking},{$this->product->sku},1";
+        $csv = "Tracking ID,Seller SKU,Quantity\n{$tracking},{$this->product->sku},1";
 
-        $path = tempnam(sys_get_temp_dir(), 'ginee').'.csv';
+        $path = tempnam(sys_get_temp_dir(), 'tiktok').'.csv';
         file_put_contents($path, $csv);
 
         $this->actingAs($this->admin)->post(route('admin.imports.store'), [
-            'file' => new \Illuminate\Http\UploadedFile($path, 'ginee.csv', 'text/csv', null, true),
+            'file' => new \Illuminate\Http\UploadedFile($path, 'tiktok.csv', 'text/csv', null, true),
         ])->assertSessionHas('success');
     }
 
@@ -440,7 +440,7 @@ class DateFilterTest extends TestCase
         }
 
         $import = ShipmentImport::create([
-            'filename' => 'ginee.csv', 'source' => 'ginee', 'row_count' => 1,
+            'filename' => 'tiktok.csv', 'source' => 'ginee', 'row_count' => 1,
             'detected_columns' => ['tracking_number', 'sku'],
         ]);
 

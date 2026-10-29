@@ -96,7 +96,7 @@ class RolePermissionSeeder extends Seeder
         ],
         'Import Resi' => [
             'imports.view' => 'Melihat data resi hasil import',
-            'imports.create' => 'Mengimport berkas resi dari Ginee',
+            'imports.create' => 'Mengimport berkas resi dari TikTok Shop',
             'imports.cancel' => 'Menandai resi dibatalkan pembeli',
             'imports.delete' => 'Menghapus data import',
         ],

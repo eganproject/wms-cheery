@@ -1,6 +1,6 @@
 <x-app-layout title="Import Resi">
     <x-ui.page-header title="Import Resi" icon="document"
-                      subtitle="Data resi hasil eksport Ginee yang dipakai saat scan barang keluar dan retur.">
+                      subtitle="Data resi hasil eksport TikTok Shop yang dipakai saat scan barang keluar dan retur.">
         <x-slot name="actions">
             @can('imports.create')
                 <x-ui.button :href="route('admin.imports.create')" icon="plus">Import Excel</x-ui.button>
@@ -108,7 +108,7 @@
 
         @if ($orders->isEmpty())
             <x-ui.empty-state icon="document" title="Belum ada data resi"
-                              description="Import berkas eksport pesanan dari Ginee agar resi bisa dipakai saat scan.">
+                              description="Import berkas eksport pesanan TikTok Shop agar resi bisa dipakai saat scan.">
                 @can('imports.create')
                     <x-slot name="action">
                         <x-ui.button :href="route('admin.imports.create')" icon="plus">Import Excel</x-ui.button>
@@ -122,7 +122,7 @@
                     <thead class="bg-ink-50 text-left text-[13px] text-ink-500">
                         <tr>
                             <th class="h-8 px-4 py-0 font-normal"><span class="inline-flex items-center gap-1">Barang <x-ui.hint text="SKU dari berkas import. SKU berwarna merah belum terdaftar di master barang." /></span></th>
-                            <th class="h-8 px-3 py-0 font-normal"><span class="inline-flex items-center gap-1">Pengiriman <x-ui.hint text="Ekspedisi, metode kirim, pembeli, dan catatan pembeli dari berkas Ginee." /></span></th>
+                            <th class="h-8 px-3 py-0 font-normal"><span class="inline-flex items-center gap-1">Pengiriman <x-ui.hint text="Ekspedisi, metode kirim, dan catatan pembeli dari berkas TikTok." /></span></th>
                             <th class="h-8 px-4 py-0 text-right font-normal">Jumlah</th>
                         </tr>
                     </thead>

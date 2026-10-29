@@ -113,7 +113,7 @@ class MarketplaceIntakeTest extends TestCase
         $this->actingAs($this->admin)
             ->postJson(route('admin.outbounds.marketplace.store'), ['code' => 'TIDAKADA'])
             ->assertStatus(422)
-            ->assertJsonPath('errors.code.0', 'Resi tidak ditemukan di data import. Import dulu berkas pesanan dari Ginee, atau buat dokumen manual.');
+            ->assertJsonPath('errors.code.0', 'Resi tidak ditemukan di data import. Import dulu berkas pesanan dari TikTok Shop, atau buat dokumen manual.');
 
         $this->assertDatabaseCount('outbounds', 0);
     }

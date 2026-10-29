@@ -123,7 +123,7 @@ Route::middleware('auth')
         Route::post('approvals/{type}/{id}/approve', [ApprovalController::class, 'approve'])->name('approvals.approve');
         Route::post('approvals/{type}/{id}/reject', [ApprovalController::class, 'reject'])->name('approvals.reject');
 
-        // Import resi dari Ginee
+        // Import resi dari TikTok Shop
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
         Route::get('orders/packing-list', PackingListController::class)->name('orders.packing');
         // Status Resi sudah digabung ke Pesanan; alamat lamanya tetap jalan.

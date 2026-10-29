@@ -67,7 +67,7 @@ class Navigation
                         'match' => ['admin.imports.index', 'admin.imports.show', 'admin.imports.create', 'admin.imports.batches'],
                         'can' => 'imports.view',
                         'create' => ['route' => 'admin.imports.create', 'can' => 'imports.create'],
-                        'keywords' => 'import ginee excel data resi unggah'],
+                        'keywords' => 'import tiktok excel data resi unggah'],
                 ],
             ],
             [

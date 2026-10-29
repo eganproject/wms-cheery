@@ -109,7 +109,7 @@
             @if ($stores->isNotEmpty())
                 @php $storeLimit = 12; @endphp
                 <div class="flex flex-col gap-1.5 sm:flex-row sm:items-start" x-data="{ more: false }">
-                    <span class="w-20 shrink-0 pt-1 text-xs text-ink-500">Toko <x-ui.hint text="Nama toko dari berkas import Ginee. Pilih satu untuk menyaring pesanannya." /></span>
+                    <span class="w-20 shrink-0 pt-1 text-xs text-ink-500">Toko <x-ui.hint text="Nama toko dari data import. Pilih satu untuk menyaring pesanannya." /></span>
                     <div class="flex flex-wrap gap-1.5">
                         <a href="{{ route('admin.orders.index', $keep(['store'])) }}"
                            @class([$pill, $pillOn => ! request()->filled('store'), $pillOff => request()->filled('store')])>Semua</a>
@@ -339,7 +339,7 @@
                         <tr>
                             <td colspan="4">
                                 <x-ui.empty-state icon="shopping-cart" title="Belum ada pesanan"
-                                                  description="Pesanan muncul di sini setelah berkas resi marketplace diimport. Coba ubah tanggal atau filter bila sudah pernah import." />
+                                                  description="Pesanan muncul di sini setelah berkas resi dari TikTok Shop diimport. Coba ubah tanggal atau filter bila sudah pernah import." />
                             </td>
                         </tr>
                     </tbody>

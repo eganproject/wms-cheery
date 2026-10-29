@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ShipmentImport;
 use App\Models\ShipmentOrder;
 use App\Models\ShipmentOrderItem;
-use App\Services\GineeImportService;
+use App\Services\TikTokImportService;
 use App\Services\ShipmentOrderResolver;
 use App\Support\DateRange;
 use Illuminate\Database\Eloquent\Builder;
@@ -19,7 +19,7 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
- * Import nomor resi dari berkas eksport Ginee.
+ * Import nomor resi dari berkas eksport pesanan TikTok Shop.
  *
  * Data ini menjadi rujukan saat scan resi pada barang keluar marketplace
  * dan pada penerimaan retur.
@@ -27,7 +27,7 @@ use Illuminate\View\View;
 class ShipmentImportController extends Controller implements HasMiddleware
 {
     public function __construct(
-        protected GineeImportService $importer,
+        protected TikTokImportService $importer,
         protected ShipmentOrderResolver $resolver,
     ) {
     }
@@ -117,7 +117,7 @@ class ShipmentImportController extends Controller implements HasMiddleware
         $request->validate([
             'file' => ['required', 'file', 'extensions:xlsx,xls,csv,txt', 'max:20480'],
         ], [
-            'file.extensions' => 'Berkas harus berakhiran .xlsx, .xls, atau .csv — hasil eksport langsung dari Ginee.',
+            'file.extensions' => 'Berkas harus berakhiran .xlsx, .xls, atau .csv — hasil eksport langsung dari TikTok Shop.',
             'file.max' => 'Ukuran berkas melebihi 20 MB.',
         ], ['file' => 'berkas']);
 
@@ -133,9 +133,15 @@ class ShipmentImportController extends Controller implements HasMiddleware
             $message .= " {$import->unmatched_sku_count} baris memiliki SKU yang belum terdaftar di master barang.";
         }
 
+        $skipped = $this->importer->skippedWithoutTracking();
+
+        if ($skipped > 0) {
+            $message .= " {$skipped} baris dilewati karena Tracking ID belum terbit; import ulang setelah Atur Pengiriman.";
+        }
+
         return redirect()
             ->route('admin.imports.show', $import)
-            ->with($import->unmatched_sku_count > 0 ? 'error' : 'success', $message);
+            ->with($import->unmatched_sku_count > 0 || $skipped > 0 ? 'error' : 'success', $message);
     }
 
     /**

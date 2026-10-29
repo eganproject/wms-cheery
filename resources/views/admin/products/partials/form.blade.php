@@ -73,11 +73,11 @@
                                       required autofocus placeholder="Contoh: Filter Oli Standar" />
                     </x-ui.field>
 
-                    <x-ui.field label="SKU" info="Kode unik barang. Harus sama persis dengan SKU di marketplace / Ginee agar pesanan bisa dicocokkan otomatis." for="sku" :error="$errors->get('sku')" required>
+                    <x-ui.field label="SKU" info="Kode unik barang. Harus sama persis dengan SKU di TikTok Shop agar pesanan bisa dicocokkan otomatis." for="sku" :error="$errors->get('sku')" required>
                         <x-text-input id="sku" name="sku" type="text" :value="old('sku', $product?->sku)"
                                       required class="font-mono uppercase" placeholder="FLT-OLI-STD" />
                         <p class="mt-1.5 text-[11px] text-ink-500" x-show="isBundle" x-cloak>
-                            Isi persis seperti SKU paket di marketplace — inilah yang dicocokkan saat berkas Ginee diimport.
+                            Isi persis seperti SKU paket di marketplace — inilah yang dicocokkan saat berkas TikTok diimport.
                         </p>
                         <p class="mt-1.5 text-[11px] text-ink-500" x-show="! isBundle">
                             Kode internal, otomatis dibuat huruf besar.

@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Cocokkan ulang SKU pesanan ke master barang.
  *
- * Pencocokan hanya terjadi sekali, saat berkas Ginee diunggah. Resi yang masuk
+ * Pencocokan hanya terjadi sekali, saat berkas TikTok diunggah. Resi yang masuk
  * sebelum barangnya didaftarkan karena itu menggantung dengan product_id
  * kosong, dan tetap begitu meskipun barangnya kemudian dibuat.
  *

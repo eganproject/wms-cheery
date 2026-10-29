@@ -79,8 +79,8 @@
                     {{-- Field khusus marketplace --}}
                     <template x-if="type === 'marketplace'">
                         <div class="grid grid-cols-1 gap-5 sm:col-span-2 sm:grid-cols-2">
-                            <x-ui.field label="Nomor Resi" info="Nomor resi pengiriman. Bila diisi, resi ini bisa discan dan dicocokkan dengan data import Ginee. Nama marketplace diambil otomatis dari data import itu." for="tracking_number" :error="$errors->get('tracking_number')"
-                                        hint="Dicari otomatis ke data import Ginee. Nama marketplace diambil dari sana." required class="sm:col-span-2">
+                            <x-ui.field label="Nomor Resi" info="Nomor resi pengiriman. Bila diisi, resi ini bisa discan dan dicocokkan dengan data import TikTok. Nama marketplace diambil otomatis dari data import itu." for="tracking_number" :error="$errors->get('tracking_number')"
+                                        hint="Dicari otomatis ke data import TikTok. Nama marketplace diambil dari sana." required class="sm:col-span-2">
                                 <x-text-input id="tracking_number" name="tracking_number" type="text"
                                               x-model="tracking"
                                               class="font-mono uppercase" placeholder="SPXID01234567890" />

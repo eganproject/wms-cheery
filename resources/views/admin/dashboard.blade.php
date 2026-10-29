@@ -198,7 +198,7 @@
                             <x-icon name="document" class="h-5 w-5" />
                         </span>
                         <p class="mt-3 text-sm font-medium text-ink-950">Belum ada data resi</p>
-                        <p class="mt-0.5 text-xs text-ink-500">Import berkas Ginee untuk melihat sebaran ekspedisi.</p>
+                        <p class="mt-0.5 text-xs text-ink-500">Import berkas TikTok untuk melihat sebaran ekspedisi.</p>
                     </div>
                 @endforelse
             </div>

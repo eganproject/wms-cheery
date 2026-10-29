@@ -13,7 +13,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Tests\TestCase;
 
 /**
- * Import resi dari berkas Excel asli (.xlsx), format yang dipakai Ginee.
+ * Import resi dari berkas Excel asli (.xlsx), format eksport TikTok Shop.
  */
 class ShipmentImportExcelTest extends TestCase
 {
@@ -35,10 +35,10 @@ class ShipmentImportExcelTest extends TestCase
     public function test_an_xlsx_export_is_imported(): void
     {
         $this->uploadXlsx([
-            ['Nomor Pesanan', 'Nomor Resi', 'Channel', 'Toko', 'Nama Pembeli', 'SKU', 'Nama Produk', 'Jumlah'],
-            ['250805-A', 'SPXID55501', 'Shopee', 'Otosby Official', 'Andi', 'FLT-OLI-STD', 'Filter Oli Standar', 2],
-            ['250805-A', 'SPXID55501', 'Shopee', 'Otosby Official', 'Andi', 'BSI-IRIDIUM', 'Busi Iridium', 4],
-            ['250805-B', 'JX55502', 'Tokopedia', 'Otosby Official', 'Siti', 'FLT-OLI-STD', 'Filter Oli Standar', 1],
+            ['Order ID', 'Tracking ID', 'Seller SKU', 'Product Name', 'Quantity'],
+            ['250805-A', 'SPXID55501', 'FLT-OLI-STD', 'Filter Oli Standar', 2],
+            ['250805-A', 'SPXID55501', 'BSI-IRIDIUM', 'Busi Iridium', 4],
+            ['250805-B', 'JX55502', 'FLT-OLI-STD', 'Filter Oli Standar', 1],
         ])->assertSessionHas('success');
 
         $this->assertDatabaseCount('shipment_orders', 2);
@@ -46,8 +46,7 @@ class ShipmentImportExcelTest extends TestCase
         $order = ShipmentOrder::where('tracking_number', 'SPXID55501')->firstOrFail();
 
         $this->assertSame('250805-A', $order->order_number);
-        $this->assertSame('Shopee', $order->marketplace);
-        $this->assertSame('Andi', $order->buyer_name);
+        $this->assertSame('TikTok Shop', $order->marketplace);
         $this->assertSame(6, $order->totalQuantity());
         $this->assertTrue($order->isFullyMatched());
     }
@@ -56,7 +55,7 @@ class ShipmentImportExcelTest extends TestCase
     {
         // Excel menyimpan angka sebagai float, bukan teks.
         $this->uploadXlsx([
-            ['Nomor Resi', 'SKU', 'Jumlah'],
+            ['Tracking ID', 'Seller SKU', 'Quantity'],
             ['SPXID55501', 'FLT-OLI-STD', 12],
         ]);
 
@@ -68,12 +67,12 @@ class ShipmentImportExcelTest extends TestCase
         // Berkas unggahan disimpan Laravel sebagai berkas sementara tanpa
         // ekstensi, jadi format harus dikenali dari isinya.
         $path = $this->makeXlsx([
-            ['Nomor Resi', 'SKU', 'Jumlah'],
+            ['Tracking ID', 'Seller SKU', 'Quantity'],
             ['SPXID77701', 'FLT-OLI-STD', 3],
         ]);
 
         $this->actingAs($this->admin)->post(route('admin.imports.store'), [
-            'file' => new UploadedFile($path, 'ginee-orders.xlsx', null, null, true),
+            'file' => new UploadedFile($path, 'tiktok-orders.xlsx', null, null, true),
         ])->assertSessionHas('success');
 
         $this->assertSame(3, ShipmentOrder::firstOrFail()->totalQuantity());
@@ -85,7 +84,7 @@ class ShipmentImportExcelTest extends TestCase
             ['', '', ''],
             ['Laporan Pesanan', '', ''],
             ['', '', ''],
-            ['Nomor Resi', 'SKU', 'Jumlah'],
+            ['Tracking ID', 'Seller SKU', 'Quantity'],
             ['SPXID88801', 'FLT-OLI-STD', 5],
         ])->assertSessionHas('success');
 
@@ -95,7 +94,7 @@ class ShipmentImportExcelTest extends TestCase
     public function test_an_xlsx_without_a_sku_column_is_rejected(): void
     {
         $this->uploadXlsx([
-            ['Nomor Resi', 'Nama Produk', 'Jumlah'],
+            ['Tracking ID', 'Product Name', 'Quantity'],
             ['SPXID55501', 'Filter Oli', 2],
         ])->assertSessionHasErrors('file');
 
@@ -110,7 +109,7 @@ class ShipmentImportExcelTest extends TestCase
     protected function uploadXlsx(array $rows)
     {
         return $this->actingAs($this->admin)->post(route('admin.imports.store'), [
-            'file' => new UploadedFile($this->makeXlsx($rows), 'ginee-orders.xlsx', null, null, true),
+            'file' => new UploadedFile($this->makeXlsx($rows), 'tiktok-orders.xlsx', null, null, true),
         ]);
     }
 
@@ -128,7 +127,7 @@ class ShipmentImportExcelTest extends TestCase
             }
         }
 
-        $path = tempnam(sys_get_temp_dir(), 'ginee').'.xlsx';
+        $path = tempnam(sys_get_temp_dir(), 'tiktok').'.xlsx';
         (new Xlsx($spreadsheet))->save($path);
 
         return $path;

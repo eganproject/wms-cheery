@@ -20,7 +20,7 @@ use Tests\TestCase;
 /**
  * Paket bundling pada alur barang keluar.
  *
- * Marketplace menjual paket sebagai satu SKU dan berkas Ginee menuliskannya
+ * Marketplace menjual paket sebagai satu SKU dan berkas TikTok menuliskannya
  * apa adanya, sedangkan yang ada di rak hanyalah barang isinya. Berkas tes
  * ini menjaga satu janji: sejak baris dokumen dibentuk, tidak ada satu pun
  * bagian sistem selain master barang yang perlu tahu bahwa paket itu ada.
@@ -68,10 +68,10 @@ class BundleOutboundTest extends TestCase
 
     /* ------------------------------------------------- import & matching -- */
 
-    public function test_a_bundle_sku_in_the_ginee_export_is_matched_to_the_master(): void
+    public function test_a_bundle_sku_in_the_tiktok_export_is_matched_to_the_master(): void
     {
         $this->uploadCsv([
-            ['Nomor Resi', 'Nomor Pesanan', 'SKU', 'Nama Produk', 'Jumlah'],
+            ['Tracking ID', 'Order ID', 'Seller SKU', 'Product Name', 'Quantity'],
             ['SPXID111', 'INV-1', 'PKT-SERVIS-10K', 'Paket Servis', '2'],
         ])->assertRedirect();
 
@@ -592,7 +592,7 @@ class BundleOutboundTest extends TestCase
      */
     protected function importOrder(string $tracking, array $items): ShipmentOrder
     {
-        $import = ShipmentImport::create(['filename' => 'ginee.xlsx', 'source' => 'ginee']);
+        $import = ShipmentImport::create(['filename' => 'tiktok.xlsx', 'source' => 'ginee']);
 
         $order = $import->orders()->create([
             'tracking_number' => $tracking,
@@ -619,11 +619,11 @@ class BundleOutboundTest extends TestCase
     {
         $csv = collect($rows)->map(fn (array $row) => implode(',', $row))->implode("\n");
 
-        $path = tempnam(sys_get_temp_dir(), 'ginee').'.csv';
+        $path = tempnam(sys_get_temp_dir(), 'tiktok').'.csv';
         file_put_contents($path, $csv);
 
         return $this->actingAs($this->admin)->post(route('admin.imports.store'), [
-            'file' => new UploadedFile($path, 'ginee-orders.csv', 'text/csv', null, true),
+            'file' => new UploadedFile($path, 'tiktok-orders.csv', 'text/csv', null, true),
         ]);
     }
 

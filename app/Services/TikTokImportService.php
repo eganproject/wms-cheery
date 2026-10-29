@@ -13,76 +13,53 @@ use Illuminate\Validation\ValidationException;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 /**
- * Membaca berkas eksport pesanan Ginee (xlsx / csv) menjadi data resi.
+ * Membaca berkas eksport pesanan TikTok Shop (xlsx / csv) menjadi data resi.
  *
- * Nama kolom Ginee berbeda-beda antar versi dan bahasa, jadi kolom dicari
- * lewat daftar alias, bukan lewat posisi tetap.
+ * Eksport TikTok berisi 60-an kolom, termasuk harga, diskon, dan data pribadi
+ * pembeli. Hanya kolom yang dipakai gudang yang diambil; sisanya, terutama
+ * nama, nomor HP, dan alamat pembeli, sengaja tidak disimpan.
+ *
+ * Baris kedua eksport TikTok berisi keterangan tiap kolom dalam bahasa
+ * Inggris, bukan pesanan, dan ikut dilewati.
  */
-class GineeImportService
+class TikTokImportService
 {
+    public const MARKETPLACE = 'TikTok Shop';
+
     /**
-     * Alias nama kolom, semuanya dibandingkan dalam huruf kecil tanpa spasi.
+     * Judul kolom TikTok yang dibaca, dalam huruf kecil tanpa spasi.
      *
      * @var array<string, array<int, string>>
      */
-    protected array $aliases = [
-        'tracking_number' => [
-            'nomorresi', 'noresi', 'resi', 'trackingnumber', 'trackingno', 'awb', 'awbnumber',
-            'nomorawb', 'nomorresipengiriman', 'shippingtrackingnumber',
-            // Eksport Ginee memakai judul gabungan "AWB/No. Tracking".
-            'awbnotracking', 'awbnotrackingnumber', 'nomortracking', 'notracking', 'awbtracking',
-        ],
-        'order_number' => [
-            'nomorpesanan', 'nopesanan', 'ordernumber', 'orderno', 'orderid', 'nomororder',
-            'kodepesanan', 'channelordernumber', 'nomorpesanantoko',
-            'idpesanan', 'idorder', 'idpesananchannel',
-        ],
-        'marketplace' => [
-            'channel', 'saluran', 'marketplace', 'platform', 'namachannel', 'channelname',
-        ],
-        'store_name' => [
-            'toko', 'namatoko', 'store', 'storename', 'shopname', 'namashop',
-        ],
-        'buyer_name' => [
-            'pembeli', 'namapembeli', 'buyer', 'buyername', 'customer', 'customername', 'penerima',
-            'namapenerima',
-        ],
-        'buyer_note' => [
-            'catatanpembeli', 'catatan', 'buyernote', 'buyerremark', 'notepembeli', 'pesanpembeli',
-            'catatanpesanan', 'remark',
-        ],
-        'order_status' => [
-            'statuspesanan', 'status', 'orderstatus', 'statusorder',
-        ],
-        'courier' => [
-            'kurir', 'jasakirim', 'courier', 'shippingprovider', 'logistik', 'ekspedisi',
-            'namakurir', 'jasapengiriman', 'logisticprovider',
-        ],
-        'shipping_method' => [
-            'metodepengiriman', 'shippingmethod', 'metodekirim', 'opsipengiriman', 'tipepengiriman',
-            'layananpengiriman',
-        ],
-        'order_date' => [
-            'tanggalpembuatan', 'tanggalpesanan', 'tanggalorder', 'orderdate', 'createdtime',
-            'tanggal', 'waktupesanan', 'ordercreatedtime', 'paidtime', 'waktupembuatan',
-        ],
-        'sku' => [
-            'sku', 'skuinduk', 'nomorsku', 'kodesku', 'sellersku', 'skupenjual', 'skuproduk',
-            'productsku', 'variantsku', 'skuvariasi', 'mastersku',
-        ],
-        'product_name' => [
-            'namaproduk', 'produk', 'productname', 'product', 'namabarang', 'itemname', 'namavariasi',
-        ],
-        'quantity' => [
-            'jumlah', 'qty', 'quantity', 'kuantitas', 'jumlahproduk', 'itemquantity', 'jumlahbarang',
-        ],
+    protected array $columns = [
+        'tracking_number' => ['trackingid'],
+        'order_number' => ['orderid'],
+        'sku' => ['sellersku'],
+        'variation' => ['variation'],
+        'product_name' => ['productname'],
+        'quantity' => ['quantity'],
+        'order_status' => ['orderstatus'],
+        'courier' => ['shippingprovidername'],
+        'shipping_method' => ['deliveryoption'],
+        'order_date' => ['createdtime'],
+        'buyer_note' => ['buyermessage'],
     ];
+
+    /** Baris yang dilewati karena resinya belum terbit pada import terakhir. */
+    protected int $skippedWithoutTracking = 0;
+
+    public function skippedWithoutTracking(): int
+    {
+        return $this->skippedWithoutTracking;
+    }
 
     /**
      * Proses berkas dan simpan hasilnya.
      */
     public function import(UploadedFile $file): ShipmentImport
     {
+        $this->skippedWithoutTracking = 0;
+
         $rows = $this->readRows($file);
 
         if ($rows->isEmpty()) {
@@ -93,24 +70,30 @@ class GineeImportService
 
         [$header, $headerIndex] = $this->locateHeader($rows);
 
-        foreach (['tracking_number', 'sku'] as $required) {
-            if (! isset($header[$required])) {
-                throw ValidationException::withMessages([
-                    'file' => $required === 'sku'
-                        ? 'Kolom SKU tidak ditemukan pada berkas. Pastikan eksport Ginee menyertakan kolom SKU.'
-                        : 'Kolom nomor resi tidak ditemukan pada berkas. Pastikan eksport Ginee menyertakan kolom Nomor Resi.',
-                ]);
-            }
+        if (! isset($header['tracking_number'])) {
+            throw ValidationException::withMessages([
+                'file' => 'Kolom Tracking ID tidak ditemukan. Pastikan berkas adalah eksport pesanan TikTok Shop.',
+            ]);
+        }
+
+        if (! isset($header['sku']) && ! isset($header['variation'])) {
+            throw ValidationException::withMessages([
+                'file' => 'Kolom Seller SKU tidak ditemukan. Pastikan berkas adalah eksport pesanan TikTok Shop.',
+            ]);
         }
 
         // Baris judul atau keterangan di atas header ikut dibuang.
-        $rows = $rows->slice($headerIndex + 1)->values();
+        $rows = $rows->slice($headerIndex + 1)
+            ->reject(fn (array $row) => $this->isDescriptionRow($row, $header))
+            ->values();
 
         $orders = $this->groupRows($rows, $header);
 
         if ($orders->isEmpty()) {
             throw ValidationException::withMessages([
-                'file' => 'Tidak ada baris dengan nomor resi dan SKU yang bisa diproses.',
+                'file' => $this->skippedWithoutTracking > 0
+                    ? "Tracking ID masih kosong pada {$this->skippedWithoutTracking} baris. Resi TikTok baru terbit setelah pesanan diatur pengirimannya (Atur Pengiriman), jadi ekspor ulang setelah itu."
+                    : 'Tidak ada baris dengan Tracking ID dan Seller SKU yang bisa diproses.',
             ]);
         }
 
@@ -183,7 +166,7 @@ class GineeImportService
             $sheet = $reader->load($file->getRealPath())->getActiveSheet();
         } catch (\Throwable $exception) {
             throw ValidationException::withMessages([
-                'file' => 'Berkas tidak bisa dibaca. Pastikan formatnya .xlsx, .xls, atau .csv dari eksport Ginee.',
+                'file' => 'Berkas tidak bisa dibaca. Pastikan formatnya .xlsx, .xls, atau .csv dari eksport TikTok Shop.',
             ]);
         }
 
@@ -196,39 +179,28 @@ class GineeImportService
     /* ------------------------------------------------------ pemetaan ----- */
 
     /**
-     * Cari baris mana yang menjadi judul kolom.
-     *
-     * Eksport Ginee kadang diawali baris judul laporan atau keterangan
-     * periode, jadi baris pertama tidak selalu berisi nama kolom. Beberapa
-     * baris awal dicoba, lalu yang paling banyak dikenali dipakai.
+     * Cari baris mana yang menjadi judul kolom: baris pertama di antara
+     * beberapa baris awal yang memuat kolom Tracking ID.
      *
      * @param  Collection<int, array<int, string>>  $rows
      * @return array{0: array<string, int>, 1: int}
      */
     protected function locateHeader(Collection $rows): array
     {
-        $best = [[], 0];
-        $bestScore = -1;
-
         foreach ($rows->take(10) as $index => $row) {
             $header = $this->mapHeader($row);
 
-            // Baris tanpa resi atau tanpa SKU jelas bukan judul kolom.
-            if (! isset($header['tracking_number'], $header['sku'])) {
-                continue;
-            }
-
-            if (count($header) > $bestScore) {
-                $bestScore = count($header);
-                $best = [$header, $index];
+            if (isset($header['tracking_number'])) {
+                return [$header, $index];
             }
         }
 
-        return $best;
+        return [[], 0];
     }
 
     /**
-     * Cocokkan judul kolom ke field yang kita butuhkan.
+     * Judul kolom dicocokkan persis, supaya "Order Substatus" atau
+     * "Sku Quantity of return" tidak terbaca sebagai kolom lain.
      *
      * @param  array<int, string>  $headerRow
      * @return array<string, int>
@@ -236,59 +208,33 @@ class GineeImportService
     protected function mapHeader(array $headerRow): array
     {
         $map = [];
-        $usedColumns = [];
 
-        // Putaran pertama: nama kolom yang persis sama.
         foreach ($headerRow as $index => $title) {
             $key = $this->slug($title);
 
-            if ($key === '') {
-                continue;
-            }
-
-            foreach ($this->aliases as $field => $aliases) {
-                if (isset($map[$field])) {
-                    continue;
-                }
-
-                if (in_array($key, $aliases, true)) {
+            foreach ($this->columns as $field => $names) {
+                if (! isset($map[$field]) && in_array($key, $names, true)) {
                     $map[$field] = $index;
-                    $usedColumns[$index] = true;
-                    continue 2;
-                }
-            }
-        }
-
-        // Putaran kedua: cocokkan sebagian untuk judul seperti "Nomor Resi (AWB)".
-        // Kolom yang sudah terpakai dilewati, supaya "Catatan Pembeli" tidak
-        // ikut terbaca sebagai nama pembeli hanya karena mengandung "pembeli".
-        foreach ($headerRow as $index => $title) {
-            if (isset($usedColumns[$index])) {
-                continue;
-            }
-
-            $key = $this->slug($title);
-
-            if ($key === '') {
-                continue;
-            }
-
-            foreach ($this->aliases as $field => $aliases) {
-                if (isset($map[$field])) {
-                    continue;
-                }
-
-                foreach ($aliases as $alias) {
-                    if (strlen($alias) >= 4 && str_contains($key, $alias)) {
-                        $map[$field] = $index;
-                        $usedColumns[$index] = true;
-                        continue 3;
-                    }
+                    break;
                 }
             }
         }
 
         return $map;
+    }
+
+    /**
+     * Baris keterangan kolom ("Platform unique order ID.") langsung di bawah
+     * judul. Nomor pesanan TikTok tidak pernah berisi spasi.
+     *
+     * @param  array<int, string>  $row
+     * @param  array<string, int>  $header
+     */
+    protected function isDescriptionRow(array $row, array $header): bool
+    {
+        $orderNumber = $this->value($row, $header, 'order_number');
+
+        return $orderNumber !== null && preg_match('/\s/', $orderNumber) === 1;
     }
 
     protected function slug(?string $value): string
@@ -327,10 +273,20 @@ class GineeImportService
 
         foreach ($rows as $row) {
             $tracking = $this->value($row, $header, 'tracking_number');
-            $sku = $this->value($row, $header, 'sku');
+            $variation = $this->value($row, $header, 'variation');
 
-            // Baris tanpa resi atau tanpa SKU tidak bisa dipakai untuk scan.
-            if (blank($tracking) || blank($sku)) {
+            // Seller SKU kadang kosong pada produk lama; variasinya biasanya
+            // sama dengan SKU di master barang. Bila tetap tidak cocok, baris
+            // itu ditandai "SKU belum cocok" alih-alih hilang diam-diam.
+            $sku = $this->value($row, $header, 'sku') ?? $variation;
+
+            if (blank($sku)) {
+                continue;
+            }
+
+            if (blank($tracking)) {
+                $this->skippedWithoutTracking++;
+
                 continue;
             }
 
@@ -340,10 +296,7 @@ class GineeImportService
                 $orders->put($key, [
                     'tracking_number' => $tracking,
                     'order_number' => $this->value($row, $header, 'order_number'),
-                    'marketplace' => $this->normalizeMarketplace($this->value($row, $header, 'marketplace'))
-                        ?? $this->marketplaceFromCourier($this->value($row, $header, 'courier')),
-                    'store_name' => $this->value($row, $header, 'store_name'),
-                    'buyer_name' => $this->value($row, $header, 'buyer_name'),
+                    'marketplace' => self::MARKETPLACE,
                     'order_status' => $this->value($row, $header, 'order_status'),
                     'courier' => $this->value($row, $header, 'courier'),
                     'shipping_method' => $this->value($row, $header, 'shipping_method'),
@@ -363,7 +316,7 @@ class GineeImportService
             } else {
                 $order['items'][$skuKey] = [
                     'sku' => trim($sku),
-                    'product_name' => $this->value($row, $header, 'product_name'),
+                    'product_name' => $this->productName($this->value($row, $header, 'product_name'), $variation),
                     'quantity' => $quantity,
                 ];
             }
@@ -374,21 +327,11 @@ class GineeImportService
         return $orders;
     }
 
-    protected function normalizeMarketplace(?string $value): ?string
+    protected function productName(?string $name, ?string $variation): ?string
     {
-        if (blank($value)) {
-            return null;
-        }
+        $label = trim(implode(' - ', array_filter([$name, $variation])));
 
-        $known = ['Shopee', 'Tokopedia', 'TikTok Shop', 'Lazada', 'Blibli', 'Bukalapak'];
-
-        foreach ($known as $marketplace) {
-            if (Str::contains($this->slug($value), $this->slug($marketplace))) {
-                return $marketplace;
-            }
-        }
-
-        return Str::limit($value, 50, '');
+        return $label === '' ? null : Str::limit($label, 250, '');
     }
 
     protected function parseDate(?string $value): ?string
@@ -397,8 +340,8 @@ class GineeImportService
             return null;
         }
 
-        // Ginee menulis tanggal sebagai hari-bulan-tahun, mis. 04-08-2026 09:34.
-        foreach (['d-m-Y H:i:s', 'd-m-Y H:i', 'd-m-Y', 'd/m/Y H:i:s', 'd/m/Y H:i', 'd/m/Y'] as $format) {
+        // TikTok menulis tanggal sebagai hari/bulan/tahun, mis. 29/10/2026 19:55:14.
+        foreach (['d/m/Y H:i:s', 'd/m/Y H:i', 'd/m/Y', 'd-m-Y H:i:s', 'd-m-Y H:i', 'd-m-Y'] as $format) {
             try {
                 return \Illuminate\Support\Carbon::createFromFormat($format, $value)->toDateTimeString();
             } catch (\Throwable) {
@@ -411,24 +354,6 @@ class GineeImportService
         } catch (\Throwable) {
             return null;
         }
-    }
-
-    /**
-     * Sebagian eksport tidak memuat kolom channel. Nama kurir bawaan
-     * marketplace masih bisa dipakai untuk menyimpulkannya.
-     */
-    protected function marketplaceFromCourier(?string $courier): ?string
-    {
-        $key = $this->slug($courier);
-
-        return match (true) {
-            $key === '' => null,
-            str_contains($key, 'spx'), str_contains($key, 'shopee') => 'Shopee',
-            str_contains($key, 'tiktok') => 'TikTok Shop',
-            str_contains($key, 'tokopedia') => 'Tokopedia',
-            str_contains($key, 'lazada'), str_contains($key, 'lex') => 'Lazada',
-            default => null,
-        };
     }
 
     /* ------------------------------------------------------ penyimpanan -- */
@@ -446,7 +371,7 @@ class GineeImportService
         return DB::transaction(function () use ($file, $header, $rowCount, $orders, $products) {
             $import = ShipmentImport::create([
                 'filename' => $file->getClientOriginalName(),
-                'source' => 'ginee',
+                'source' => 'tiktok',
                 'row_count' => $rowCount,
                 'detected_columns' => array_keys($header),
                 'user_id' => auth()->id(),
