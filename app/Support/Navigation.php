@@ -7,19 +7,19 @@ use Illuminate\Support\Collection;
 /**
  * Peta menu aplikasi, bergaya sidebar workspace ERPNext.
  *
- * Satu sumber untuk menu samping, breadcrumb di navbar, tab antar halaman
- * sekelompok, dan pencarian cepat (Ctrl+K). Halaman dikelompokkan menurut
+ * Satu sumber untuk menu samping, breadcrumb di bilah atas, dan pencarian
+ * cepat (Ctrl+K). Halaman dikelompokkan menurut
  * pekerjaannya:
  *
- *  - Penjualan Marketplace: pekerjaan harian pesanan online — packing,
+ *  - Penjualan Marketplace: pekerjaan harian pesanan online — pesanan, packing,
  *    antrean kirim, retur, dan resi.
  *  - Transaksi Stok: dokumen yang menggerakkan saldo.
  *  - Master Data: barang dan pemasok.
  *  - Laporan: semua yang hanya dibaca.
  *  - Pengaturan: pengguna dan akses.
  *
- * Setiap halaman bisa dibuka dengan satu klik dari menu samping. Tab di
- * halaman hanya pintasan ke saudara sekelompoknya.
+ * Setiap halaman bisa dibuka dengan satu klik dari menu samping, jadi
+ * halaman tidak lagi memuat tab ke halaman lain yang sudah punya menu.
  */
 class Navigation
 {
@@ -47,6 +47,9 @@ class Navigation
                 'label' => 'Penjualan Marketplace',
                 'icon' => 'marketplace',
                 'items' => [
+                    ['label' => 'Pesanan', 'icon' => 'shopping-cart', 'route' => 'admin.orders.index',
+                        'match' => 'admin.orders.*', 'can' => 'imports.view',
+                        'keywords' => 'pesanan order marketplace shopee tiktok resi status proses'],
                     ['label' => 'Stasiun Packing', 'icon' => 'packing', 'route' => 'admin.outbounds.marketplace',
                         'match' => ['admin.outbounds.marketplace', 'admin.outbounds.scan'], 'can' => 'outbounds.scan',
                         'keywords' => 'packing scan qc resi pesanan marketplace'],
@@ -169,7 +172,7 @@ class Navigation
      */
     public static function sections(): array
     {
-        // Dipakai menu samping, breadcrumb, tab, dan pencarian dalam satu
+        // Dipakai menu samping, breadcrumb, dan pencarian dalam satu
         // permintaan — cukup dihitung sekali.
         $attributes = request()->attributes;
 
@@ -233,27 +236,6 @@ class Navigation
         }
 
         return ['section' => null, 'item' => null];
-    }
-
-    /**
-     * Tab saudara sekelompok untuk halaman utama sebuah menu (bukan halaman
-     * detail, tambah, atau ubah). Kosong bila hanya ada satu halaman.
-     *
-     * @return array<int, array<string, mixed>>
-     */
-    public static function tabs(): array
-    {
-        ['section' => $section, 'item' => $item] = static::current();
-
-        if (! $section || $section['key'] === 'home' || count($section['items']) < 2) {
-            return [];
-        }
-
-        if (! request()->routeIs($item['route'])) {
-            return [];
-        }
-
-        return $section['items'];
     }
 
     /**

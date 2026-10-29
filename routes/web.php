@@ -30,6 +30,7 @@ use App\Http\Controllers\Admin\StockReportController;
 use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\WaybillStatusController;
+use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -121,6 +122,7 @@ Route::middleware('auth')
         Route::post('approvals/{type}/{id}/reject', [ApprovalController::class, 'reject'])->name('approvals.reject');
 
         // Import resi dari Ginee
+        Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
         Route::get('imports/status', WaybillStatusController::class)->name('imports.status');
         Route::get('imports/daily/export', [DailyWaybillReportController::class, 'export'])->name('imports.daily.export');
         Route::get('imports/daily', [DailyWaybillReportController::class, 'index'])->name('imports.daily');

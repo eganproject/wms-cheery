@@ -1,56 +1,30 @@
 {{--
-    Menu samping bergaya sidebar workspace ERPNext.
+    Menu samping ala wmsxshopee: judul kelompok kecil abu-abu, item setinggi
+    28px, dan item aktif berupa "kartu" putih bergaris tipis.
 
-    Isinya dibaca dari App\Support\Navigation: halaman dikelompokkan menurut
-    pekerjaannya, dan setiap halaman bisa dibuka dengan satu klik. Kelompok
-    bisa dilipat; kelompok yang memuat halaman aktif selalu terbuka.
-
-    Ditukar ulang setiap navigasi AJAX supaya status menu aktif tetap akurat.
+    Isinya dibaca dari App\Support\Navigation. Ditukar ulang setiap navigasi
+    AJAX supaya status menu aktif tetap akurat.
 --}}
 @php
     $sections = \App\Support\Navigation::sections();
 @endphp
 
-<nav data-sidebar-nav class="scrollbar-thin min-h-0 flex-1 overflow-y-auto px-2 py-3 lg:px-0 lg:py-4 lg:pr-2">
+<nav data-sidebar-nav class="scrollbar-thin min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
     @foreach ($sections as $section)
-        @if ($section['label'] === null)
-            <div class="mb-3 space-y-px">
+        <div class="mt-1">
+            @if ($section['label'])
+                <p class="whitespace-nowrap px-2 pb-1 pt-3 text-xs text-ink-500 lg:collapsed:hidden">{{ $section['label'] }}</p>
+                <hr class="mx-2 my-2 hidden border-ink-200 lg:collapsed:block">
+            @endif
+            <ul class="space-y-px">
                 @foreach ($section['items'] as $item)
-                    <x-ui.nav-item :href="$item['href']" :icon="$item['icon']" :active="$item['active']" :badge="$item['badge']">
-                        {{ $item['label'] }}
-                    </x-ui.nav-item>
-                @endforeach
-            </div>
-        @else
-            <div x-data="{
-                    storageKey: 'wms.nav.{{ $section['key'] }}',
-                    open: true,
-                    init() {
-                        @if (! $section['active'])
-                            try { this.open = localStorage.getItem(this.storageKey) !== 'closed' } catch (e) {}
-                        @endif
-                    },
-                    toggle() {
-                        this.open = ! this.open;
-                        try { localStorage.setItem(this.storageKey, this.open ? 'open' : 'closed') } catch (e) {}
-                    },
-                 }"
-                 class="mb-2">
-                <button type="button" @click="toggle()" :aria-expanded="open.toString()"
-                        class="group flex w-full items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-medium uppercase tracking-[0.04em] text-ink-500 transition hover:text-ink-950">
-                    <span class="flex-1 truncate">{{ $section['label'] }}</span>
-                    <x-icon name="chevron-down" class="h-3.5 w-3.5 shrink-0 transition-transform duration-150"
-                            x-bind:class="open ? '' : '-rotate-90'" />
-                </button>
-
-                <div x-show="open" class="mt-0.5 space-y-px">
-                    @foreach ($section['items'] as $item)
+                    <li>
                         <x-ui.nav-item :href="$item['href']" :icon="$item['icon']" :active="$item['active']" :badge="$item['badge']">
                             {{ $item['label'] }}
                         </x-ui.nav-item>
-                    @endforeach
-                </div>
-            </div>
-        @endif
+                    </li>
+                @endforeach
+            </ul>
+        </div>
     @endforeach
 </nav>

@@ -24,7 +24,7 @@
     .ts-wrapper .ts-control,
     .ts-wrapper.single .ts-control,
     .ts-wrapper.single.input-active .ts-control {
-        @apply flex min-h-[2rem] items-center rounded-lg border border-transparent bg-control px-2.5 py-1 text-sm text-ink-950 shadow-none sm:min-h-[1.75rem];
+        @apply flex min-h-[2rem] items-center rounded-lg border border-transparent bg-control px-2.5 py-1 text-sm text-ink-950 shadow-none;
         background-image: none;
     }
 

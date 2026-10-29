@@ -6,11 +6,11 @@
 @tailwind utilities;
 
 /*
- * Tampilan bergaya ERPNext / Frappe desk v15.
+ * Tampilan mengikuti panel admin wmsxshopee.
  *
- * Ukuran, warna, dan perilaku kontrol diambil dari token "espresso" Frappe:
- * teks 13px, kontrol setinggi 28px berlatar abu-abu muda tanpa garis tepi,
- * tombol utama hitam, kartu bergaris tepi tipis tanpa bayangan.
+ * Teks 14px Inter, kontrol setinggi 32px berlatar abu-abu muda tanpa garis
+ * tepi, tombol utama hitam, kartu putih bergaris tepi tipis tanpa bayangan,
+ * dan lencana status berlatar pucat tanpa titik.
  */
 
 @layer base {
@@ -20,7 +20,7 @@
         --heading-color: theme('colors.ink.950');
         --border-color: theme('colors.ink.100');
         --control-bg: theme('colors.control');
-        --focus-default: 0px 0px 0px 2px #c9c9c9;
+        --focus-default: 0 0 0 2px #c7c7c7;
         color-scheme: light;
     }
 
@@ -30,7 +30,8 @@
     }
 
     body {
-        @apply bg-white text-sm text-ink-700 antialiased;
+        @apply bg-white text-sm text-ink-900 antialiased;
+        letter-spacing: 0.01em;
         font-feature-settings: 'cv11', 'ss01';
         font-variant-numeric: tabular-nums;
     }
@@ -45,13 +46,12 @@
 
     /* Kontrol form bawaan: latar abu-abu muda, tanpa garis tepi (Frappe .form-control). */
     [type='text'], input:where(:not([type])), [type='email'], [type='url'], [type='password'], [type='number'], [type='date'], [type='datetime-local'], [type='month'], [type='search'], [type='tel'], [type='time'], [type='week'], [multiple], textarea, select {
-        @apply rounded-lg border-transparent bg-control text-sm text-ink-950 shadow-none;
+        @apply rounded-lg border-transparent bg-control text-sm text-ink-950 shadow-none hover:bg-ink-200/70;
         transition: background-color 0.1s ease, box-shadow 0.1s ease;
     }
 
     [type='text']:focus, input:where(:not([type])):focus, [type='email']:focus, [type='url']:focus, [type='password']:focus, [type='number']:focus, [type='date']:focus, [type='datetime-local']:focus, [type='month']:focus, [type='search']:focus, [type='tel']:focus, [type='time']:focus, [type='week']:focus, [multiple]:focus, textarea:focus, select:focus {
-        @apply border-ink-400 bg-white outline-none;
-        box-shadow: var(--focus-default);
+        @apply border-ink-300 bg-white shadow-sm outline-none;
         --tw-ring-shadow: 0 0 #0000;
     }
 
@@ -109,7 +109,7 @@
     /* ------------------------------------------------------ kontrol form */
 
     .form-control {
-        @apply block h-8 w-full rounded-lg border border-transparent bg-control px-2.5 text-sm text-ink-950 placeholder:text-ink-400 sm:h-7;
+        @apply block h-8 w-full rounded-lg border border-transparent bg-control px-2.5 text-sm text-ink-950 placeholder:text-ink-400;
     }
 
     textarea.form-control {
@@ -127,7 +127,7 @@
     }
 
     .form-label {
-        @apply mb-1 block text-xs font-normal text-ink-500;
+        @apply mb-1.5 block text-xs font-normal text-ink-500;
     }
 
     .form-help {
@@ -137,7 +137,7 @@
     /* ----------------------------------------------------------- tombol */
 
     .btn {
-        @apply inline-flex h-8 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-sm font-normal leading-none transition-colors duration-100 focus:outline-none disabled:pointer-events-none disabled:opacity-50 sm:h-7 sm:px-2.5;
+        @apply inline-flex h-8 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-sm font-normal leading-none transition-colors duration-100 focus:outline-none disabled:pointer-events-none disabled:opacity-60;
     }
 
     .btn:focus-visible {
@@ -145,41 +145,41 @@
     }
 
     .btn-primary {
-        @apply bg-ink-950 text-white hover:bg-ink-700 active:bg-ink-600;
+        @apply bg-ink-950 text-white hover:bg-ink-800 active:bg-ink-700;
     }
 
     .btn-default {
-        @apply bg-control text-ink-700 hover:bg-ink-200 active:bg-ink-200;
+        @apply bg-ink-100 text-ink-950 hover:bg-ink-200 active:bg-ink-300;
     }
 
     .btn-ghost {
-        @apply bg-transparent text-ink-600 hover:bg-control hover:text-ink-950;
+        @apply bg-transparent text-ink-600 hover:bg-ink-100 hover:text-ink-950;
     }
 
     .btn-danger {
-        @apply bg-red-500 text-white hover:bg-red-600;
+        @apply bg-rose-600 text-white hover:bg-rose-700;
     }
 
     .btn-danger-soft {
-        @apply bg-red-100 text-red-700 hover:bg-red-200;
+        @apply bg-rose-50 text-rose-700 hover:bg-rose-100;
     }
 
     .btn-lg {
-        @apply h-10 px-4 text-base sm:h-9 sm:px-4;
+        @apply h-10 px-4 text-sm;
     }
 
     .btn-xs {
-        @apply h-6 px-2 text-xs sm:h-6 sm:px-2;
+        @apply h-6 rounded-md px-2 text-xs;
     }
 
     .btn-icon {
-        @apply h-8 w-8 px-0 sm:h-7 sm:w-7 sm:px-0;
+        @apply h-8 w-8 px-0;
     }
 
     /* ------------------------------------------------------- kartu/list */
 
     .frappe-card {
-        @apply rounded-2xl border border-ink-100 bg-white;
+        @apply rounded-xl border border-ink-200 bg-white;
     }
 
     .section-head {
@@ -192,11 +192,11 @@
     }
 
     .erp-table > thead > tr > th {
-        @apply whitespace-nowrap border-b border-ink-100 bg-ink-50 px-4 py-2 text-xs font-normal normal-case tracking-normal text-ink-500;
+        @apply h-8 whitespace-nowrap border-b border-ink-200 bg-ink-50 px-4 py-0 text-[13px] font-normal normal-case tracking-normal text-ink-500;
     }
 
     .erp-table > tbody > tr > td {
-        @apply border-b border-ink-100 px-4 py-2.5 align-middle text-ink-700;
+        @apply border-b border-ink-100 px-4 py-2.5 align-middle text-ink-800;
     }
 
     .erp-table > tbody > tr:last-child > td {
@@ -210,17 +210,15 @@
     /* ------------------------------------------------- indikator status */
 
     .indicator-pill {
-        @apply inline-flex h-5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 text-xs font-normal leading-none;
+        @apply inline-flex h-5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-xs font-medium leading-none;
     }
 
-    .indicator-pill::before {
+    /* Lencana ala wmsxshopee tanpa titik; titik hanya bila diminta (.with-dot). */
+    .indicator-pill.with-dot::before {
         content: '';
         @apply h-1.5 w-1.5 shrink-0 rounded-full bg-current;
     }
 
-    .indicator-pill.no-dot::before {
-        display: none;
-    }
 
     .indicator-dot {
         @apply inline-block h-2 w-2 shrink-0 rounded-full;
@@ -262,7 +260,7 @@
     /* Garis tipis di paling atas layar; tidak menggeser layout apa pun. */
     #page-progress {
         @apply pointer-events-none fixed inset-x-0 top-0 z-[100] h-0.5 w-0 opacity-0;
-        background: theme('colors.blue.500');
+        background: theme('colors.brand.500');
         transition: width 0.2s ease, opacity 0.25s ease;
     }
 
