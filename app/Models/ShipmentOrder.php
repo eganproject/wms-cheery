@@ -66,6 +66,12 @@ class ShipmentOrder extends Model
         return $this->hasOne(Outbound::class)->latestOfMany();
     }
 
+    /** Dokumen penerimaan retur untuk resi ini. */
+    public function returns(): HasMany
+    {
+        return $this->hasMany(ReturnReceipt::class);
+    }
+
     public function canceller(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cancelled_by');
@@ -223,7 +229,15 @@ class ShipmentOrder extends Model
         $outbound = $this->outbound;
 
         if ($outbound?->isPosted()) {
-            return 'Dikirim '.$outbound->posted_at?->translatedFormat('d M Y H:i');
+            // Paket yang kembali disebut, supaya resi yang sudah diretur tidak
+            // terbaca sebagai pengiriman yang tuntas. Hanya bila relasinya
+            // dimuat pemanggil, agar daftar tidak menjadi N+1.
+            $returned = $this->relationLoaded('returns')
+                ? $this->returns->firstWhere('status', ReturnReceipt::STATUS_POSTED)
+                : null;
+
+            return 'Dikirim '.$outbound->posted_at?->translatedFormat('d M Y H:i')
+                .($returned ? " · diretur ({$returned->code})" : '');
         }
 
         if ($this->isCancelled()) {

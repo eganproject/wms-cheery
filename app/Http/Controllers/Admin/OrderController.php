@@ -83,6 +83,7 @@ class OrderController extends Controller implements HasMiddleware
             ->with([
                 'items',
                 'import',
+                'returns:id,shipment_order_id,code,status',
                 'outbound' => fn ($query) => $query
                     ->withSum('items', 'quantity')
                     ->withSum('items', 'scanned_quantity'),
@@ -133,6 +134,7 @@ class OrderController extends Controller implements HasMiddleware
 
             foreach ($query()->with([
                 'items',
+                'returns:id,shipment_order_id,code,status',
                 'outbound' => fn ($query) => $query
                     ->withSum('items', 'quantity')
                     ->withSum('items', 'scanned_quantity'),

@@ -134,6 +134,42 @@ class ShipmentSkuMatcher
     /**
      * Baris pesanan yang masih menunggu dicocokkan.
      */
+    /**
+     * Tautkan baris resi yang menunggu SKU ini, saat barangnya baru didaftarkan
+     * atau SKU-nya diganti.
+     *
+     * Dengan ini mendaftarkan barang sudah cukup: resinya langsung bisa di-QC
+     * tanpa harus ingat menekan Cocokkan Ulang. Aturan kerancuan sama seperti
+     * match(): SKU yang setelah dinormalkan dimiliki lebih dari satu barang
+     * dilewati.
+     *
+     * @return int Jumlah baris resi yang tertaut.
+     */
+    public function matchProduct(Product $product): int
+    {
+        $sku = $this->normalize($product->sku);
+
+        if ($sku === '') {
+            return 0;
+        }
+
+        $owners = Product::query()->whereRaw('UPPER(TRIM(sku)) = ?', [$sku])->count();
+
+        if ($owners !== 1) {
+            return 0;
+        }
+
+        $written = $this->pending()
+            ->whereRaw('UPPER(TRIM(sku)) = ?', [$sku])
+            ->update(['product_id' => $product->id]);
+
+        if ($written > 0) {
+            $this->refreshImportCounters();
+        }
+
+        return $written;
+    }
+
     protected function pending(?ShipmentOrder $order = null): Builder
     {
         return ShipmentOrderItem::query()

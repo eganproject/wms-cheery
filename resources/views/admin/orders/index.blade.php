@@ -78,7 +78,7 @@
         </a>
         @php $onlyUnmatched = request()->boolean('unmatched'); @endphp
         <a href="{{ route('admin.orders.index', $keep(['unmatched'], ['unmatched' => $onlyUnmatched ? null : 1])) }}"
-           data-hint-title="SKU tidak dikenal" data-hint="Pesanan yang resinya memuat SKU yang tidak ada di master barang, baik sebagai barang satuan maupun paket bundling. Barangnya tidak bisa ditarik otomatis saat scan." data-hint-next="Daftarkan SKU-nya di menu Barang, lalu tekan Cocokkan Ulang di Import Resi."
+           data-hint-title="SKU tidak dikenal" data-hint="Pesanan yang resinya memuat SKU yang tidak ada di master barang, baik sebagai barang satuan maupun paket bundling. Barangnya tidak bisa ditarik otomatis saat scan." data-hint-next="Daftarkan SKU-nya di menu Barang; resinya langsung tertaut. Cocokkan Ulang hanya perlu untuk data lama."
            @class([$chip, 'font-medium',
                'border-amber-600 bg-amber-600 text-white' => $onlyUnmatched,
                'border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-300' => ! $onlyUnmatched && $unmatched,
@@ -340,7 +340,7 @@
                                                       title="{{ $item->product_name }}">{{ $item->sku }}</span>
                                                 @unless ($item->isMatched())
                                                     <span class="mt-0.5 inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-px text-[10px] font-medium text-amber-800 cursor-help"
-                                                          data-hint-title="SKU tidak dikenal" data-hint="SKU ini tidak ada di master barang (bukan barang satuan maupun paket bundling), jadi tidak bisa ditarik saat QC." data-hint-next="Daftarkan SKU-nya di menu Barang, lalu tekan Cocokkan Ulang.">Tidak ada di sistem</span>
+                                                          data-hint-title="SKU tidak dikenal" data-hint="SKU ini tidak ada di master barang (bukan barang satuan maupun paket bundling), jadi tidak bisa ditarik saat QC." data-hint-next="Daftarkan SKU-nya di menu Barang; resinya langsung tertaut.">Tidak ada di sistem</span>
                                                 @endunless
                                                 @if ($item->product_name)
                                                     <span class="block truncate text-[11px] text-ink-400">{{ $item->product_name }}</span>

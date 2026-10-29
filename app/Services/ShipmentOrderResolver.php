@@ -125,6 +125,16 @@ class ShipmentOrderResolver
             return;
         }
 
+        // Barangnya mungkin sudah didaftarkan dengan SKU yang hanya beda
+        // spasi atau besar kecil huruf; coba tautkan dulu sebelum menolak.
+        app(ShipmentSkuMatcher::class)->match($order);
+        $order->load('items.product');
+        $unmatched = $order->unmatchedItems();
+
+        if ($unmatched->isEmpty()) {
+            return;
+        }
+
         throw ValidationException::withMessages([
             'code' => 'SKU berikut belum terdaftar di master barang: '
                 .$unmatched->pluck('sku')->implode(', ')

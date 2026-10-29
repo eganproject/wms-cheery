@@ -104,6 +104,14 @@ class Product extends Model
         // Berkasnya ikut dibuang saat barangnya dihapus, supaya folder
         // unggahan tidak menumpuk gambar yatim.
         static::deleted(fn (Product $product) => $product->deleteImageFile($product->image_path));
+
+        // Resi yang SKU-nya belum dikenal langsung tertaut begitu barangnya
+        // didaftarkan, tanpa perlu menekan Cocokkan Ulang.
+        static::saved(function (Product $product) {
+            if ($product->wasRecentlyCreated || $product->wasChanged('sku')) {
+                app(\App\Services\ShipmentSkuMatcher::class)->matchProduct($product);
+            }
+        });
     }
 
     public function movements(): HasMany

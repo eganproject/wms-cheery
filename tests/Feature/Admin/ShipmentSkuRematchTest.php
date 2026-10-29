@@ -232,13 +232,18 @@ class ShipmentSkuRematchTest extends TestCase
 
     /* --------------------------------------------------- pembantu -------- */
 
+    /**
+     * Barang yang didaftarkan tanpa penautan otomatis — keadaan data lama,
+     * sebelum mendaftarkan barang langsung menautkan resinya. Tombol
+     * Cocokkan Ulang tetap ada untuk data seperti itu.
+     */
     protected function makeProduct(string $sku): Product
     {
-        return Product::create([
+        return Product::withoutEvents(fn () => Product::create([
             'sku' => $sku,
             'name' => 'Barang '.trim($sku),
             'unit' => 'pcs',
-        ]);
+        ]));
     }
 
     /**
@@ -268,5 +273,15 @@ class ShipmentSkuRematchTest extends TestCase
         ]);
 
         return $order->load('items');
+    }
+
+    public function test_registering_the_product_links_waiting_waybills_by_itself(): void
+    {
+        $order = $this->importOrder('SPXAUTO1', ['flt-oli-std']);
+
+        $product = Product::create(['sku' => 'FLT-OLI-STD', 'name' => 'Filter Oli', 'unit' => 'pcs']);
+
+        $this->assertSame($product->id, $order->items()->first()->product_id);
+        $this->assertTrue($order->refresh()->load('items')->isFullyMatched());
     }
 }
