@@ -31,6 +31,13 @@
         </x-slot>
     </x-ui.page-header>
 
+    @if ($neverShipped)
+        <div class="mb-4 flex items-start gap-2.5 rounded-lg bg-amber-100 px-4 py-3 text-sm text-amber-900">
+            <x-icon name="warning" class="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+            <span>{{ $neverShipped }}</span>
+        </div>
+    @endif
+
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div class="space-y-6 lg:col-span-2">
             {{-- Verifikasi resi --}}

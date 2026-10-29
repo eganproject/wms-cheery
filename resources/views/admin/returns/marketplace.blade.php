@@ -131,7 +131,7 @@
                         <div class="mt-3 flex flex-1 items-start px-4 pb-4 sm:px-5">
                             <div class="flex min-h-[3.25rem] w-full items-center gap-2.5 rounded-lg px-3 py-2 transition"
                                  :class="feedback
-                                    ? (feedback.type === 'success' ? 'bg-green-100' : 'bg-red-100')
+                                    ? (feedback.type === 'success' ? 'bg-green-100' : (feedback.type === 'warning' ? 'bg-amber-100' : 'bg-red-100'))
                                     : 'bg-ink-50'">
                                 <template x-if="feedback && feedback.type === 'success'">
                                     <x-icon name="check-circle" class="h-4 w-4 shrink-0 text-green-700" />
@@ -139,10 +139,13 @@
                                 <template x-if="feedback && feedback.type === 'error'">
                                     <x-icon name="x-circle" class="h-4 w-4 shrink-0 text-red-600" />
                                 </template>
+                                <template x-if="feedback && feedback.type === 'warning'">
+                                    <x-icon name="warning" class="h-4 w-4 shrink-0 text-amber-700" />
+                                </template>
 
                                 <p class="overflow-hidden text-sm leading-5"
                                    :class="feedback
-                                        ? (feedback.type === 'success' ? 'text-green-800' : 'text-red-700')
+                                        ? (feedback.type === 'success' ? 'text-green-800' : (feedback.type === 'warning' ? 'text-amber-800' : 'text-red-700'))
                                         : 'text-ink-400'"
                                    x-text="feedback ? feedback.message : 'Hasil scan muncul di sini.'"></p>
                             </div>
@@ -409,8 +412,9 @@
                         <template x-for="entry in history" :key="entry.id">
                             <li class="flex items-center gap-3 px-4 py-2.5">
                                 <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
-                                      :class="entry.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'">
+                                      :class="entry.type === 'success' ? 'bg-green-100 text-green-700' : (entry.type === 'warning' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700')">
                                     <template x-if="entry.type === 'success'"><x-icon name="check" class="h-3 w-3" /></template>
+                                    <template x-if="entry.type === 'warning'"><x-icon name="warning" class="h-3 w-3" /></template>
                                     <template x-if="entry.type === 'error'"><x-icon name="close" class="h-3 w-3" /></template>
                                 </span>
                                 <div class="min-w-0 flex-1">

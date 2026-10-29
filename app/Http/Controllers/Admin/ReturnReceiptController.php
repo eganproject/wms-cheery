@@ -222,9 +222,13 @@ class ReturnReceiptController extends Controller implements HasMiddleware
 
     public function show(ReturnReceipt $return): View
     {
-        $return->load(['items.product', 'user']);
+        $return->load(['items.product', 'user', 'shipmentOrder.outbound']);
 
-        return view('admin.returns.show', compact('return'));
+        return view('admin.returns.show', [
+            'return' => $return,
+            // Hanya relevan selama dokumennya belum diterima.
+            'neverShipped' => $return->isPosted() ? null : ReturnReceipt::neverShippedWarning($return->shipmentOrder),
+        ]);
     }
 
     public function edit(ReturnReceipt $return): View|RedirectResponse

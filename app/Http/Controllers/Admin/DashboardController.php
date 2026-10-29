@@ -8,7 +8,10 @@ use App\Models\Outbound;
 use App\Models\Product;
 use App\Models\ShipmentOrder;
 use App\Models\StockMovement;
+use App\Support\DateRange;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Support\Carbon;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\View\View;
 
@@ -26,8 +29,12 @@ class DashboardController extends Controller implements HasMiddleware
         ];
     }
 
-    public function __invoke(): View
+    public function __invoke(Request $request): View
     {
+        // Angka aktivitas mengikuti periode yang dipilih, bawaannya hari ini.
+        // Angka posisi stok (unit, rusak, menipis) selalu keadaan saat ini.
+        $range = DateRange::fromRequest($request);
+
         $stats = [
             /*
                 Angka gudang dihitung atas barang yang benar-benar ada di rak.
@@ -41,12 +48,6 @@ class DashboardController extends Controller implements HasMiddleware
             'stock_units' => (int) Product::singles()->sum('stock'),
             'low_stock' => Product::lowStock()->count(),
             'damaged_units' => (int) Product::singles()->sum('damaged_stock'),
-            'inbound_month' => Inbound::where('status', Inbound::STATUS_POSTED)
-                ->whereBetween('date', [now()->startOfMonth(), now()->endOfMonth()])
-                ->count(),
-            'outbound_month' => Outbound::where('status', Outbound::STATUS_POSTED)
-                ->whereBetween('date', [now()->startOfMonth(), now()->endOfMonth()])
-                ->count(),
             // Draft milik pesanan batal bukan pengiriman yang menunggu:
             // termasuk dokumen yang batal setelah serah terima, yang kembali
             // ke draft dan disimpan selamanya sebagai jejak kartu stok.
@@ -55,14 +56,19 @@ class DashboardController extends Controller implements HasMiddleware
                 ->where('type', Outbound::TYPE_MARKETPLACE)
                 ->notCancelled()
                 ->count(),
-        ];
+        ] + $this->periodActivity($range);
 
         return view('admin.dashboard', [
             'stats' => $stats,
-            'waybills' => $this->waybillStages(),
+            'range' => $range,
+            'periodLabel' => $this->periodLabel($range),
+            'waybills' => $this->waybillStages($range),
+            'backlog' => $range->from
+                ? ShipmentOrder::awaitingQc()->where('shipment_orders.created_at', '<', $range->from)->count()
+                : 0,
             'lowStockProducts' => Product::lowStock()->where('is_active', true)->orderBy('stock')->take(6)->get(),
             'movements' => StockMovement::with('product')->latest('id')->take(8)->get(),
-            'couriers' => $this->ordersPerCourier(),
+            'couriers' => $this->ordersPerCourier($range),
             'pendingOutbounds' => Outbound::with('items')
                 ->where('status', Outbound::STATUS_DRAFT)
                 ->notCancelled()
@@ -73,17 +79,63 @@ class DashboardController extends Controller implements HasMiddleware
     }
 
     /**
+     * Barang masuk dan keluar selama periode, dalam dokumen dan unit.
+     *
+     * Unit dibaca dari kartu stok supaya sama dengan Laporan Stok: barang
+     * keluar dihitung bersih dari paket yang batal setelah serah terima.
+     *
+     * @return array<string, int>
+     */
+    protected function periodActivity(DateRange $range): array
+    {
+        $units = DateRange::constrain(StockMovement::query(), 'created_at', $range->from, $range->to)
+            ->where('bucket', StockMovement::BUCKET_GOOD)
+            ->whereIn('reference_type', [Inbound::class, Outbound::class])
+            ->selectRaw("COALESCE(SUM(CASE WHEN reference_type = ? AND type = 'in' THEN quantity ELSE 0 END), 0) as inbound_units", [Inbound::class])
+            ->selectRaw("COALESCE(SUM(CASE WHEN reference_type = ? THEN (CASE WHEN type = 'out' THEN quantity ELSE -quantity END) ELSE 0 END), 0) as outbound_units", [Outbound::class])
+            ->toBase()
+            ->first();
+
+        return [
+            'inbound_docs' => DateRange::constrain(Inbound::where('status', Inbound::STATUS_POSTED), 'posted_at', $range->from, $range->to)->count(),
+            'outbound_docs' => DateRange::constrain(Outbound::where('status', Outbound::STATUS_POSTED), 'posted_at', $range->from, $range->to)->count(),
+            'inbound_units' => (int) ($units->inbound_units ?? 0),
+            'outbound_units' => (int) ($units->outbound_units ?? 0),
+        ];
+    }
+
+    protected function periodLabel(DateRange $range): string
+    {
+        if ($range->isAll()) {
+            return 'semua tanggal';
+        }
+
+        if ($range->isToday()) {
+            return 'hari ini';
+        }
+
+        $format = fn (?string $date) => $date ? Carbon::parse($date)->translatedFormat('d M Y') : '…';
+
+        return $range->from === $range->to
+            ? $format($range->from)
+            : $format($range->from).' – '.$format($range->to);
+    }
+
+    /**
      * Jumlah resi pada tiap tahap alur gudang.
      *
      * @return array<string, int>
      */
-    protected function waybillStages(): array
+    protected function waybillStages(DateRange $range): array
     {
+        // Resi yang diunggah dalam periode, sama seperti tab di halaman Pesanan.
+        $orders = fn () => ShipmentOrder::query()->dateBetween($range);
+
         return [
-            ShipmentOrder::STAGE_AWAITING_QC => ShipmentOrder::awaitingQc()->count(),
-            ShipmentOrder::STAGE_HANDOVER => ShipmentOrder::qualityChecked()->count(),
-            ShipmentOrder::STAGE_SHIPPED => ShipmentOrder::shipped()->count(),
-            ShipmentOrder::STAGE_CANCELLED => ShipmentOrder::cancelled()->count(),
+            ShipmentOrder::STAGE_AWAITING_QC => $orders()->awaitingQc()->count(),
+            ShipmentOrder::STAGE_HANDOVER => $orders()->qualityChecked()->count(),
+            ShipmentOrder::STAGE_SHIPPED => $orders()->shipped()->count(),
+            ShipmentOrder::STAGE_CANCELLED => $orders()->cancelled()->count(),
         ];
     }
 
@@ -93,9 +145,10 @@ class DashboardController extends Controller implements HasMiddleware
      *
      * @return \Illuminate\Support\Collection<int, object>
      */
-    protected function ordersPerCourier()
+    protected function ordersPerCourier(DateRange $range)
     {
         return ShipmentOrder::query()
+            ->dateBetween($range)
             ->leftJoin('outbounds', function ($join) {
                 $join->on('outbounds.shipment_order_id', '=', 'shipment_orders.id')
                     ->where('outbounds.status', Outbound::STATUS_POSTED);

@@ -227,27 +227,34 @@ class StockOpnameTest extends TestCase
     }
 
     /**
-     * Saldo bisa bergerak antara penghitungan dan persetujuan. Yang menang
-     * adalah angka hasil hitung fisik, dan selisih yang dibukukan dicatat apa
-     * adanya supaya jejaknya tetap jujur.
+     * Saldo bisa bergerak antara penghitungan dan persetujuan. Paket yang
+     * terkirim sesudah rak dihitung tetap tercatat keluar: selisihnya
+     * dibukukan terhadap saldo pada saat hitungan.
      */
-    public function test_the_difference_is_recomputed_against_the_stock_at_approval(): void
+    public function test_a_shipment_after_the_count_is_not_undone_by_the_opname(): void
     {
         $opname = $this->openSession();
         $this->recordCounts($opname, [$this->oli->id => 8]);
 
-        // Dokumen lain memakai 3 unit setelah rak dihitung.
-        $this->oli->forceFill(['stock' => 7])->save();
+        // Sejam kemudian, 3 unit terkirim lewat barang keluar.
+        $this->travel(1)->hours();
+        $outbound = \App\Models\Outbound::create([
+            'code' => \App\Models\Outbound::nextCode(), 'date' => now(),
+            'type' => \App\Models\Outbound::TYPE_REGULAR, 'recipient' => 'Pembeli',
+            'status' => \App\Models\Outbound::STATUS_DRAFT,
+        ]);
+        $outbound->items()->create(['product_id' => $this->oli->id, 'quantity' => 3]);
+        $this->actingAs($this->admin)->post(route('admin.outbounds.submit', $outbound));
+        $this->assertSame(7, $this->oli->refresh()->stock);
 
         $this->actingAs($this->admin)->post(route('admin.opnames.submit', $opname));
 
         $item = $opname->refresh()->items->firstWhere('product_id', $this->oli->id);
 
-        $this->assertSame(8, $this->oli->refresh()->stock);
-        // Baris menyebut selisih -2, tapi yang dibukukan +1 terhadap saldo saat disetujui.
+        // Hitungan 8 dikurangi 3 yang terkirim sesudahnya.
+        $this->assertSame(5, $this->oli->refresh()->stock);
         $this->assertSame(-2, $item->difference());
-        $this->assertSame(1, $item->applied_difference);
-        $this->assertTrue($item->wasAppliedDifferently());
+        $this->assertSame(-2, $item->applied_difference);
     }
 
     public function test_a_counter_without_approval_rights_submits_for_approval(): void

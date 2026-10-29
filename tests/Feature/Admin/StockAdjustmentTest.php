@@ -188,7 +188,11 @@ class StockAdjustmentTest extends TestCase
         $this->assertFalse($adjustment->refresh()->isPosted());
     }
 
-    public function test_the_final_stock_matches_the_count_even_if_stock_moved_meanwhile(): void
+    /**
+     * Barang yang bergerak sesudah dihitung tetap tercatat: selisihnya
+     * dibukukan terhadap saldo saat dihitung, bukan saat disetujui.
+     */
+    public function test_stock_that_moved_after_the_count_is_kept(): void
     {
         $this->giveStock($this->filter, 20);
 
@@ -201,15 +205,12 @@ class StockAdjustmentTest extends TestCase
 
         $this->actingAs($this->admin)->post(route('admin.adjustments.submit', $adjustment));
 
-        // Stok akhir tetap sama dengan hasil hitung fisik.
-        $this->assertSame(18, $this->filter->refresh()->stock);
+        // Selisih -2 dari hitungan, ditambah 5 yang masuk sesudahnya.
+        $this->assertSame(23, $this->filter->refresh()->stock);
 
         $item = $adjustment->refresh()->items->first();
-
-        // Selisih yang dibukukan berbeda dari yang tertulis, dan itu tercatat.
-        $this->assertSame(-7, $item->applied_difference);
-        $this->assertSame(-2, $item->difference());
-        $this->assertTrue($item->wasAppliedDifferently());
+        $this->assertSame(-2, $item->applied_difference);
+        $this->assertFalse($item->wasAppliedDifferently());
     }
 
     public function test_stock_never_goes_negative(): void
@@ -217,10 +218,12 @@ class StockAdjustmentTest extends TestCase
         $adjustment = $this->makeAdjustment([[$this->filter, 0, 0]]);
         $adjustment->items()->update(['system_quantity' => 5, 'actual_quantity' => 3]);
 
-        // Stok sebenarnya 0, jadi penyesuaian ke 3 justru menambah — aman.
-        $this->actingAs($this->admin)->post(route('admin.adjustments.submit', $adjustment->refresh()));
+        // Selisih -2 terhadap saldo sekarang 0 akan membuat stok minus: ditolak.
+        $this->actingAs($this->admin)->post(route('admin.adjustments.submit', $adjustment->refresh()))
+            ->assertSessionHas('error');
 
-        $this->assertSame(3, $this->filter->refresh()->stock);
+        $this->assertSame(0, $this->filter->refresh()->stock);
+        $this->assertFalse($adjustment->refresh()->isPosted());
     }
 
     /* --------------------------------------------------- persetujuan ----- */

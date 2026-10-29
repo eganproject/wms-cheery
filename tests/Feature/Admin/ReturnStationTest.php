@@ -94,6 +94,27 @@ class ReturnStationTest extends TestCase
         $this->assertSame(3, $return->totalQuantity());
     }
 
+    /**
+     * Resi yang belum pernah dikirim lewat sistem tetap bisa diterima
+     * (mungkin pesanan sebelum memakai sistem), tetapi diberi peringatan.
+     */
+    public function test_a_waybill_that_never_shipped_is_accepted_with_a_warning(): void
+    {
+        $this->importOrder('SPXRET1', [['FLT-OLI-STD', 2]]);
+
+        $response = $this->actingAs($this->admin)
+            ->postJson(route('admin.returns.marketplace.store'), ['code' => 'SPXRET1'])
+            ->assertOk()
+            ->assertJsonPath('found', true);
+
+        $this->assertStringContainsString('belum pernah dikirim', (string) $response->json('warning'));
+
+        $return = ReturnReceipt::latest('id')->firstOrFail();
+        $this->actingAs($this->admin)->get(route('admin.returns.show', $return))
+            ->assertOk()
+            ->assertSee('belum pernah dikirim');
+    }
+
     public function test_an_unknown_waybill_switches_to_manual_entry(): void
     {
         // Resi yang belum diimport bukan kegagalan: operator mengisi sendiri.

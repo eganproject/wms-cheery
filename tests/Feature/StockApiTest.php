@@ -19,7 +19,7 @@ class StockApiTest extends TestCase
         config([
             'stock_api.enabled' => true,
             'stock_api.token' => 'test-secret',
-            'stock_api.warehouse_code' => 'WMSOTOSBY',
+            'stock_api.warehouse_code' => 'WMSCHEERY',
         ]);
 
         StockApiAllowedIp::create([
@@ -41,7 +41,7 @@ class StockApiTest extends TestCase
         $this->withToken('test-secret')->getJson('/api/v1/health')
             ->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('warehouse_code', 'WMSOTOSBY')
+            ->assertJsonPath('warehouse_code', 'WMSCHEERY')
             ->assertJsonStructure(['success', 'warehouse_code', 'server_time']);
     }
 
