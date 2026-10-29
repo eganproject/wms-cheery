@@ -53,6 +53,8 @@ class Outbound extends Model
         'status',
         'resi_verified_at',
         'posted_at',
+        'reversed_at',
+        'reversed_by',
         'user_id',
         'submitted_at',
         'submitted_by',
@@ -69,6 +71,7 @@ class Outbound extends Model
             'date' => 'date',
             'resi_verified_at' => 'datetime',
             'posted_at' => 'datetime',
+            'reversed_at' => 'datetime',
             'submitted_at' => 'datetime',
             'approved_at' => 'datetime',
             'rejected_at' => 'datetime',
@@ -171,6 +174,18 @@ class Outbound extends Model
         return $this->status === self::STATUS_POSTED;
     }
 
+    /** Pernah dikirim lalu dibatalkan; stoknya sudah dikembalikan. */
+    public function wasReversed(): bool
+    {
+        return $this->reversed_at !== null;
+    }
+
+    /** Hari paket ini selesai di-QC kemas (resi discan di stasiun packing). */
+    public function qcDate(): ?\Illuminate\Support\Carbon
+    {
+        return $this->resi_verified_at ?? $this->created_at;
+    }
+
     public function isMarketplace(): bool
     {
         return $this->type === self::TYPE_MARKETPLACE;
@@ -248,6 +263,12 @@ class Outbound extends Model
 
             if (! $this->isFullyScanned()) {
                 $blockers[] = 'Masih ada barang yang belum selesai discan.';
+            }
+
+            // Pesanan yang sudah dibatalkan tidak boleh ikut terkirim lewat
+            // tombol setujui di halaman dokumen.
+            if ($this->shipmentOrder?->isCancelled()) {
+                $blockers[] = 'Pesanannya sudah dibatalkan. Kembalikan barang ke rak.';
             }
         }
 

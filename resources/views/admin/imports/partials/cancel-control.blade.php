@@ -25,8 +25,17 @@
                 Cabut pembatalan
             </button>
         </form>
+    @elseif ($blocker = $order->cancellationBlocker())
+        <span class="inline-flex h-8 cursor-help items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium text-ink-400"
+              data-hint-title="Tidak bisa dibatalkan" data-hint="{{ $blocker }}">
+            <x-icon name="x-circle" class="h-3.5 w-3.5" />
+            Tidak bisa batal
+        </span>
     @else
-        <div x-data="{ marking: false }" class="inline-block text-left">
+        <div x-data="{ marking: false }" class="inline-block text-left"
+             @if ($order->stage() === \App\Models\ShipmentOrder::STAGE_SHIPPED)
+                 data-hint-title="Batal setelah serah terima" data-hint="Paket ini di-QC kemas hari ini, jadi masih bisa dibatalkan. Stoknya akan dikembalikan; ambil kembali paketnya dari kurir."
+             @endif>
             <button type="button" x-show="! marking" x-on:click="marking = true"
                     class="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium text-red-600 transition hover:bg-red-50">
                 <x-icon name="x-circle" class="h-3.5 w-3.5" />

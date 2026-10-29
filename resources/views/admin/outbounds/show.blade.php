@@ -21,15 +21,24 @@
                     <x-ui.button :href="route('admin.outbounds.edit', $outbound)" variant="secondary" icon="pencil">Ubah</x-ui.button>
                 @endcan
                 @can('outbounds.delete')
+                    @unless ($outbound->wasReversed())
                     <x-ui.confirm-delete :action="route('admin.outbounds.destroy', $outbound)"
                                          title="Hapus dokumen ini?"
                                          :description="'Draft '.$outbound->code.' akan dihapus permanen.'" />
+                    @endunless
                 @endcan
             @else
                 @include('admin.partials.approval-actions', ['document' => $outbound, 'prefix' => 'outbounds'])
             @endif
         </x-slot>
     </x-ui.page-header>
+
+    @if ($outbound->wasReversed())
+        <div class="mb-4 flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+            <x-icon name="warning" class="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
+            <p>Paket ini pernah diserahkan ke kurir lalu pesanannya dibatalkan pada {{ $outbound->reversed_at->translatedFormat('d M Y H:i') }}. Stoknya sudah dikembalikan. Dokumen disimpan sebagai jejak kartu stok.</p>
+        </div>
+    @endif
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div class="space-y-6 lg:col-span-2">

@@ -97,6 +97,40 @@ class StockService
     }
 
     /**
+     * Batalkan pengiriman yang sudah diposting: stok kembali, dokumen kembali
+     * ke draft (tidak lagi dihitung terkirim). Dipakai saat pembeli membatalkan
+     * pesanan pada hari yang sama dengan QC kemas. Jejaknya tetap ada di kartu
+     * stok (keluar lalu masuk lagi) dan di kolom reversed_at.
+     */
+    public function reverseOutbound(Outbound $outbound, string $description): void
+    {
+        if (! $outbound->isPosted()) {
+            throw ValidationException::withMessages([
+                'status' => 'Dokumen ini belum dikirim, jadi tidak ada stok yang perlu dikembalikan.',
+            ]);
+        }
+
+        $outbound->loadMissing('items');
+
+        DB::transaction(function () use ($outbound, $description) {
+            foreach ($outbound->items as $item) {
+                $this->move($item->product_id, 'in', $item->quantity, $outbound, $description);
+            }
+
+            $outbound->forceFill([
+                'status' => Outbound::STATUS_DRAFT,
+                'posted_at' => null,
+                'submitted_at' => null,
+                'submitted_by' => null,
+                'approved_at' => null,
+                'approved_by' => null,
+                'reversed_at' => now(),
+                'reversed_by' => auth()->id(),
+            ])->save();
+        });
+    }
+
+    /**
      * Terima retur: hanya barang berkondisi layak jual yang kembali ke stok.
      * Barang rusak tetap tercatat pada dokumen tetapi tidak menambah stok.
      */

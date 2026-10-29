@@ -391,9 +391,7 @@
                                             <x-icon name="import" class="h-4 w-4" />
                                         </a>
                                     @endif
-                                    @if ($orderStage !== ShipmentOrder::STAGE_SHIPPED)
-                                        @include('admin.imports.partials.cancel-control')
-                                    @endif
+                                    @include('admin.imports.partials.cancel-control')
                                 </div>
                             </td>
                         </tr>

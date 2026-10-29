@@ -113,6 +113,36 @@ class ShipmentOrder extends Model
         return $this->isCancelled() && $this->cancelled_by !== null;
     }
 
+    /**
+     * Alasan resi ini tidak bisa lagi ditandai batal, atau null bila bisa.
+     *
+     * Paket yang sudah dikemas (Sudah QC) atau sudah diserahkan ke kurir
+     * (Dikirim) hanya bisa dibatalkan pada hari yang sama dengan QC kemasnya.
+     * Lewat dari hari itu paketnya dianggap sudah berangkat; pengembaliannya
+     * dicatat lewat penerimaan retur.
+     */
+    public function cancellationBlocker(): ?string
+    {
+        if ($this->isCancelled()) {
+            return null;
+        }
+
+        $stage = $this->stage();
+
+        if (! in_array($stage, [self::STAGE_HANDOVER, self::STAGE_SHIPPED], true)) {
+            return null;
+        }
+
+        $qc = $this->outbound->qcDate();
+
+        if ($qc === null || $qc->isToday()) {
+            return null;
+        }
+
+        return 'QC kemas '.$qc->translatedFormat('d M Y').', bukan hari ini. Batal hanya bisa pada hari yang sama dengan QC kemas'
+            .($stage === self::STAGE_SHIPPED ? '; pengembalian barangnya dicatat lewat penerimaan retur.' : '.');
+    }
+
     public function cancellationDetail(): string
     {
         if (! $this->isCancelled()) {
@@ -200,6 +230,10 @@ class ShipmentOrder extends Model
         if ($this->isCancelled()) {
             // Dokumen yang sudah terlanjur dibuat perlu disebut: barangnya
             // mungkin sudah turun dari rak dan harus dikembalikan.
+            if ($outbound?->wasReversed()) {
+                return $this->cancellationDetail().' · batal setelah serah terima, stok sudah dikembalikan. Ambil paket dari kurir, kembalikan barang ke rak';
+            }
+
             return $this->cancellationDetail()
                 .($outbound ? " · kembalikan barang, hapus {$outbound->code}" : '');
         }
