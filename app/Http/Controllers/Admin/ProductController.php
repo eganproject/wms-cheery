@@ -260,9 +260,16 @@ class ProductController extends Controller implements HasMiddleware
 
         // Baris yang nilainya sudah sama sengaja tidak disentuh supaya
         // updated_at-nya tidak ikut bergeser tanpa ada yang benar-benar berubah.
-        $changed = (clone $target)
+        $ids = (clone $target)
             ->where('min_stock', '!=', $data['min_stock'])
-            ->update(['min_stock' => $data['min_stock']]);
+            ->pluck('id');
+
+        $changed = Product::whereIn('id', $ids)->update(['min_stock' => $data['min_stock']]);
+
+        // Update borongan melewati event model, jadi data API stok (min_qty)
+        // disegarkan sendiri di sini — tanpa ini pusat tetap membaca batas lama.
+        Product::whereIn('id', $ids)->lazyById(200)
+            ->each(fn (Product $product) => \App\Services\StockApiSyncService::sync($product));
 
         return $this->backToProducts($request)->with('success', $this->bulkSummary(
             $total,

@@ -203,11 +203,11 @@ class RestockReportService
             // permintaan, jadi dikurangkan.
             ->selectRaw("SUM(CASE WHEN type = 'out' THEN quantity ELSE -quantity END) as outgoing")
             ->where('bucket', StockMovement::BUCKET_GOOD)
-            ->where(fn (Builder $query) => $query
-                ->where('type', 'out')
-                ->orWhere(fn (Builder $query) => $query
-                    ->where('type', 'in')
-                    ->where('reference_type', Outbound::class)))
+            // Hanya barang keluar lewat dokumen barang keluar, sama seperti
+            // Laporan Stok. Selisih opname, penyesuaian, atau pengeluaran
+            // barang bukan permintaan pembeli; menghitungnya membuat barang
+            // yang hilang di rak tampak laku dan disarankan dipesan lagi.
+            ->where('reference_type', Outbound::class)
             ->whereBetween('created_at', [$filters->from, $filters->to])
             ->groupBy('product_id');
     }
