@@ -54,6 +54,34 @@ trait HasApprovalWorkflow
     }
 
     /**
+     * Kunci baris dokumen, baca ulang statusnya, lalu periksa lagi apakah
+     * masih boleh diubah. Panggil di dalam transaksi penyimpanan atau
+     * penghapusan.
+     *
+     * Pemeriksaan di awal controller membaca model yang dimuat sebelum
+     * formulir dikirim. Bila di antara itu dokumennya disetujui orang lain,
+     * barisnya akan ditulis ulang setelah stoknya bergerak — dan kartu stok
+     * tidak lagi cocok dengan isi dokumennya.
+     */
+    public function lockForEditing(): bool
+    {
+        $fresh = static::query()->lockForUpdate()->find($this->getKey());
+
+        if (! $fresh) {
+            return false;
+        }
+
+        $this->setRawAttributes($fresh->getAttributes(), true);
+
+        return $this->isEditable();
+    }
+
+    public static function staleEditMessage(): string
+    {
+        return 'Dokumen ini baru saja diajukan atau disetujui orang lain, jadi perubahan tidak disimpan. Muat ulang halaman untuk melihat statusnya.';
+    }
+
+    /**
      * Label status untuk ditampilkan di tabel dan badge.
      */
     public function statusLabel(): string

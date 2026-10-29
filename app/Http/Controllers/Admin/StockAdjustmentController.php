@@ -223,7 +223,11 @@ class StockAdjustmentController extends Controller implements HasMiddleware
 
         $data = $request->validated();
 
-        DB::transaction(function () use ($adjustment, $data) {
+        $saved = DB::transaction(function () use ($adjustment, $data) {
+            if (! $adjustment->lockForEditing()) {
+                return false;
+            }
+
             $adjustment->update([
                 'date' => $data['date'],
                 'reason' => $data['reason'],
@@ -232,7 +236,13 @@ class StockAdjustmentController extends Controller implements HasMiddleware
 
             $adjustment->items()->delete();
             $adjustment->items()->createMany($this->buildLines($data['items'] ?? []));
+
+            return true;
         });
+
+        if (! $saved) {
+            return back()->with('error', $adjustment::staleEditMessage());
+        }
 
         if ($request->boolean('submit')) {
             return $this->submit($request, $adjustment->refresh())
@@ -298,7 +308,11 @@ class StockAdjustmentController extends Controller implements HasMiddleware
                 : 'Dokumen yang sudah disesuaikan tidak dapat dihapus.');
         }
 
-        $adjustment->delete();
+        $deleted = DB::transaction(fn () => $adjustment->lockForEditing() && $adjustment->delete());
+
+        if (! $deleted) {
+            return back()->with('error', $adjustment::staleEditMessage());
+        }
 
         return redirect()
             ->route('admin.adjustments.index')

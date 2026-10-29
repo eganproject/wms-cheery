@@ -263,7 +263,11 @@ class ReturnReceiptController extends Controller implements HasMiddleware
 
         $trackingChanged = ($data['tracking_number'] ?? null) !== $return->tracking_number;
 
-        DB::transaction(function () use ($return, $data, $trackingChanged) {
+        $saved = DB::transaction(function () use ($return, $data, $trackingChanged) {
+            if (! $return->lockForEditing()) {
+                return false;
+            }
+
             $return->update([
                 'date' => $data['date'],
                 'type' => $data['type'],
@@ -285,7 +289,13 @@ class ReturnReceiptController extends Controller implements HasMiddleware
                 ['resi_verified_at' => null],
                 $trackingChanged ? ['shipment_order_id' => null] : [],
             ))->save();
+
+            return true;
         });
+
+        if (! $saved) {
+            return back()->with('error', $return::staleEditMessage());
+        }
 
         if ($return->refresh()->requiresResiScan()) {
             return redirect()
@@ -359,7 +369,11 @@ class ReturnReceiptController extends Controller implements HasMiddleware
                 : 'Dokumen yang sudah disetujui bersifat final dan tidak dapat dihapus.');
         }
 
-        $return->delete();
+        $deleted = DB::transaction(fn () => $return->lockForEditing() && $return->delete());
+
+        if (! $deleted) {
+            return back()->with('error', $return::staleEditMessage());
+        }
 
         return redirect()
             ->route('admin.returns.index')

@@ -159,7 +159,11 @@ class InboundController extends Controller implements HasMiddleware
 
         $data = $request->validated();
 
-        DB::transaction(function () use ($inbound, $data) {
+        $saved = DB::transaction(function () use ($inbound, $data) {
+            if (! $inbound->lockForEditing()) {
+                return false;
+            }
+
             $inbound->update([
                 'date' => $data['date'],
                 'supplier_id' => $data['supplier_id'] ?? null,
@@ -169,7 +173,13 @@ class InboundController extends Controller implements HasMiddleware
 
             $inbound->items()->delete();
             $inbound->items()->createMany($this->mergeLines($data['items'] ?? []));
+
+            return true;
         });
+
+        if (! $saved) {
+            return back()->with('error', $inbound::staleEditMessage());
+        }
 
         if ($request->boolean('submit')) {
             return $this->submit($request, $inbound->refresh())
@@ -242,7 +252,11 @@ class InboundController extends Controller implements HasMiddleware
                 : 'Dokumen yang sudah disetujui bersifat final dan tidak dapat dihapus.');
         }
 
-        $inbound->delete();
+        $deleted = DB::transaction(fn () => $inbound->lockForEditing() && $inbound->delete());
+
+        if (! $deleted) {
+            return back()->with('error', $inbound::staleEditMessage());
+        }
 
         return redirect()
             ->route('admin.inbounds.index')

@@ -143,4 +143,22 @@ class ContinuousAuditPass2Test extends TestCase
             'role_id' => $second->role_id, 'is_active' => 0,
         ])->assertSessionHasErrors('role_id');
     }
+
+    /* ------------------------------------------------- dokumen ----------- */
+
+    public function test_a_document_approved_meanwhile_is_no_longer_editable(): void
+    {
+        $inbound = \App\Models\Inbound::create([
+            'code' => \App\Models\Inbound::nextCode(), 'date' => now(),
+            'status' => \App\Models\Inbound::STATUS_DRAFT,
+        ]);
+
+        // Model ini dimuat saat formulir dibuka; sementara itu orang lain
+        // menyetujuinya.
+        \App\Models\Inbound::whereKey($inbound->id)->update(['status' => \App\Models\Inbound::STATUS_POSTED]);
+
+        $this->assertTrue($inbound->isEditable());
+        $this->assertFalse($inbound->lockForEditing());
+        $this->assertTrue($inbound->isPosted());
+    }
 }

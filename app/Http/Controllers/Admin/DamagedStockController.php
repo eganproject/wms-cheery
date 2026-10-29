@@ -386,7 +386,11 @@ class DamagedStockController extends Controller implements HasMiddleware
                 : 'Dokumen yang sudah disetujui bersifat final dan tidak dapat dihapus.');
         }
 
-        $disposal->delete();
+        $deleted = DB::transaction(fn () => $disposal->lockForEditing() && $disposal->delete());
+
+        if (! $deleted) {
+            return back()->with('error', $disposal::staleEditMessage());
+        }
 
         return redirect()
             ->route('admin.disposals.index')

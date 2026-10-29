@@ -275,7 +275,11 @@ class OutboundController extends Controller implements HasMiddleware
         $trackingChanged = ($data['tracking_number'] ?? null) !== $outbound->tracking_number;
         $typeChanged = $data['type'] !== $outbound->type;
 
-        DB::transaction(function () use ($outbound, $data, $trackingChanged, $typeChanged) {
+        $saved = DB::transaction(function () use ($outbound, $data, $trackingChanged, $typeChanged) {
+            if (! $outbound->lockForEditing()) {
+                return false;
+            }
+
             $outbound->update([
                 'date' => $data['date'],
                 'type' => $data['type'],
@@ -306,7 +310,13 @@ class OutboundController extends Controller implements HasMiddleware
                 // berikutnya menautkan ulang ke pesanan yang benar.
                 $outbound->forceFill(['resi_verified_at' => null, 'shipment_order_id' => null])->save();
             }
+
+            return true;
         });
+
+        if (! $saved) {
+            return back()->with('error', $outbound::staleEditMessage());
+        }
 
         if ($outbound->refresh()->isMarketplace()) {
             return redirect()
@@ -388,7 +398,11 @@ class OutboundController extends Controller implements HasMiddleware
             return back()->with('error', 'Dokumen ini pernah dikirim lalu dibatalkan, stoknya sudah dikembalikan. Disimpan sebagai jejak kartu stok, jadi tidak bisa dihapus.');
         }
 
-        $outbound->delete();
+        $deleted = DB::transaction(fn () => $outbound->lockForEditing() && $outbound->delete());
+
+        if (! $deleted) {
+            return back()->with('error', $outbound::staleEditMessage());
+        }
 
         return redirect()
             ->route('admin.outbounds.index')

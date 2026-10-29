@@ -344,7 +344,11 @@ class StockOpnameController extends Controller implements HasMiddleware
                 : 'Sesi yang sudah disetujui bersifat final dan tidak dapat dihapus.');
         }
 
-        $opname->delete();
+        $deleted = DB::transaction(fn () => $opname->lockForEditing() && $opname->delete());
+
+        if (! $deleted) {
+            return back()->with('error', $opname::staleEditMessage());
+        }
 
         return redirect()
             ->route('admin.opnames.index')
