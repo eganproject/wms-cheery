@@ -9,7 +9,7 @@
         ['label' => 'Data Resi', 'icon' => 'document', 'href' => route('admin.imports.index'), 'active' => request()->routeIs('admin.imports.index'), 'count' => null,
             'hint' => 'Setiap resi hasil import beserta barang, ekspedisi, dan kecocokan SKU-nya dengan master barang.'],
         ['label' => 'Riwayat Import', 'icon' => 'clock', 'href' => route('admin.imports.batches'), 'active' => request()->routeIs('admin.imports.batches'), 'count' => $batchCount ?? null,
-            'hint' => 'Daftar berkas Ginee yang pernah diunggah. Menghapus satu berkas ikut menghapus seluruh resinya.'],
+            'hint' => 'Daftar berkas TikTok yang pernah diunggah. Menghapus satu berkas ikut menghapus seluruh resinya.'],
     ];
 @endphp
 

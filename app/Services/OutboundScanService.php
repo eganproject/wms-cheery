@@ -29,7 +29,7 @@ class OutboundScanService
     /**
      * Scan resi.
      *
-     * Sistem mencari nomor resi ke data import Ginee lebih dulu. Bila
+     * Sistem mencari nomor resi ke data import TikTok lebih dulu. Bila
      * ditemukan, daftar barang yang harus discan diambil dari sana sehingga
      * yang diverifikasi adalah isi pesanan sebenarnya, bukan input manual.
      *

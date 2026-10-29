@@ -189,7 +189,7 @@
                               :title="$onlyDuplicates ? 'Tidak ada resi kembar' : 'Tidak ada resi pada tahap ini'"
                               :description="$onlyDuplicates
                                   ? 'Setiap nomor pesanan pada saringan ini hanya punya satu resi.'
-                                  : 'Resi muncul di sini setelah berkas pesanan dari Ginee diimport.'" />
+                                  : 'Resi muncul di sini setelah berkas pesanan dari TikTok Shop diimport.'" />
         @else
             <div class="hidden overflow-x-auto md:block">
                 <table class="erp-table">

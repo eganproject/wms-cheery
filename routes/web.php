@@ -124,7 +124,7 @@ Route::middleware('auth')
         Route::post('approvals/{type}/{id}/approve', [ApprovalController::class, 'approve'])->name('approvals.approve');
         Route::post('approvals/{type}/{id}/reject', [ApprovalController::class, 'reject'])->name('approvals.reject');
 
-        // Import resi dari Ginee
+        // Import resi dari TikTok Shop
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
         Route::get('orders/packing-list', PackingListController::class)->name('orders.packing');
         Route::get('imports/status', WaybillStatusController::class)->name('imports.status');

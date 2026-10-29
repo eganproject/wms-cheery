@@ -16,7 +16,7 @@ use Illuminate\Support\Collection;
  *
  * Pencocokan hanya terjadi saat berkas diunggah, jadi resi yang masuk sebelum
  * barangnya didaftarkan tetap menggantung meskipun barangnya kemudian dibuat.
- * Sebelumnya jalan keluarnya hanya mengunggah ulang berkas Ginee-nya atau
+ * Sebelumnya jalan keluarnya hanya mengunggah ulang berkas TikTok-nya atau
  * menjalankan perintah dari terminal — dan terminal tidak selalu ada di tangan
  * orang yang menemukan masalahnya.
  *

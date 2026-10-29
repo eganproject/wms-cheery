@@ -74,7 +74,7 @@ class StoreReturnReceiptRequest extends FormRequest
     }
 
     /**
-     * Nomor resi retur yang diketik sudah pernah diimport dari Ginee?
+     * Nomor resi retur yang diketik sudah pernah diimport dari TikTok Shop?
      */
     protected function resiExistsInImport(): bool
     {

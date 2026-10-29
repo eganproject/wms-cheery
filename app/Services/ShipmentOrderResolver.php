@@ -8,12 +8,12 @@ use App\Support\BundledLines;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Jembatan antara data resi hasil import Ginee dan dokumen gudang.
+ * Jembatan antara data resi hasil import TikTok dan dokumen gudang.
  *
  * Pencocokan barang sepenuhnya bertumpu pada SKU: SKU pada baris pesanan
  * harus ada di master barang sebelum dokumen bisa dibentuk otomatis.
  *
- * Marketplace menjual sebagian barang sebagai paket, dan berkas Ginee
+ * Marketplace menjual sebagian barang sebagai paket, dan berkas TikTok
  * menuliskannya sebagai satu SKU utuh. Di sinilah SKU itu diterjemahkan
  * menjadi barang yang benar-benar ada di rak — sebelum satu baris dokumen
  * pun ditulis, sehingga seluruh hilir hanya pernah melihat barang nyata.

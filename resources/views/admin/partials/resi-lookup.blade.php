@@ -1,5 +1,5 @@
 {{--
-    Panel pencarian nomor resi ke data import Ginee.
+    Panel pencarian nomor resi ke data import TikTok.
     Ditempel di bawah input nomor resi pada form barang keluar dan retur.
 --}}
 {{-- `tracking` berasal dari x-data form induk. --}}
@@ -68,7 +68,7 @@
     <template x-if="state === 'missing'">
         <p class="flex items-start gap-2 rounded-xl bg-ink-50 p-3 text-[11px] leading-relaxed text-ink-500">
             <x-icon name="info" class="mt-px h-3.5 w-3.5 shrink-0 text-ink-300" />
-            Resi ini belum ada di data import Ginee. Baris barang silakan diisi manual di bawah.
+            Resi ini belum ada di data import TikTok. Baris barang silakan diisi manual di bawah.
         </p>
     </template>
 

@@ -65,7 +65,7 @@ class OutboundMarketplaceController extends Controller implements HasMiddleware
 
         if (! $order) {
             throw ValidationException::withMessages([
-                'code' => 'Resi tidak ditemukan di data import. Import dulu berkas pesanan dari Ginee, atau buat dokumen manual.',
+                'code' => 'Resi tidak ditemukan di data import. Import dulu berkas pesanan dari TikTok Shop, atau buat dokumen manual.',
             ]);
         }
 

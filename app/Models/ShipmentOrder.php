@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Satu pesanan hasil import Ginee, dikenali dari nomor resinya.
+ * Satu pesanan hasil import TikTok, dikenali dari nomor resinya.
  */
 class ShipmentOrder extends Model
 {
@@ -386,7 +386,7 @@ class ShipmentOrder extends Model
      * Tanggal yang dipakai menyaring dan mengurutkan resi: saat ia masuk ke
      * sistem, bukan saat pesanannya dibuat di marketplace.
      *
-     * Keduanya sering berbeda hari — berkas Ginee lazim diunduh dan diunggah
+     * Keduanya sering berbeda hari — berkas TikTok lazim diunduh dan diunggah
      * sehari setelah pesanannya masuk. Bagi gudang yang berarti "hari ini"
      * adalah batch yang barusan diunggah, dan menyaring menurut tanggal
      * pesanan justru menyembunyikan persis pekerjaan yang sedang menunggu.

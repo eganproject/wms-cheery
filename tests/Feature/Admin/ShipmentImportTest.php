@@ -42,13 +42,13 @@ class ShipmentImportTest extends TestCase
 
     /* ------------------------------------------------ proses import ------ */
 
-    public function test_a_ginee_csv_export_is_imported_and_grouped_by_waybill(): void
+    public function test_a_tiktok_csv_export_is_imported_and_grouped_by_waybill(): void
     {
         $this->uploadCsv([
-            ['Nomor Pesanan', 'Nomor Resi', 'Channel', 'Toko', 'Nama Pembeli', 'SKU', 'Nama Produk', 'Jumlah'],
-            ['INV-001', 'SPXID111', 'Shopee', 'Otosby Store', 'Andi', 'FLT-OLI-STD', 'Filter Oli', '2'],
-            ['INV-001', 'SPXID111', 'Shopee', 'Otosby Store', 'Andi', 'BSI-IRIDIUM', 'Busi Iridium', '4'],
-            ['INV-002', 'JX222', 'Tokopedia', 'Otosby Store', 'Siti', 'FLT-OLI-STD', 'Filter Oli', '1'],
+            ['Order ID', 'Tracking ID', 'Recipient', 'Seller SKU', 'Product Name', 'Quantity'],
+            ['INV-001', 'SPXID111', 'Andi', 'FLT-OLI-STD', 'Filter Oli', '2'],
+            ['INV-001', 'SPXID111', 'Andi', 'BSI-IRIDIUM', 'Busi Iridium', '4'],
+            ['INV-002', 'JX222', 'Siti', 'FLT-OLI-STD', 'Filter Oli', '1'],
         ])->assertSessionHas('success');
 
         $this->assertDatabaseCount('shipment_orders', 2);
@@ -56,8 +56,9 @@ class ShipmentImportTest extends TestCase
         $order = ShipmentOrder::where('tracking_number', 'SPXID111')->firstOrFail();
 
         $this->assertSame('INV-001', $order->order_number);
-        $this->assertSame('Shopee', $order->marketplace);
-        $this->assertSame('Andi', $order->buyer_name);
+        $this->assertSame('TikTok Shop', $order->marketplace);
+        // Nama penerima tidak disimpan.
+        $this->assertNull($order->buyer_name);
         $this->assertCount(2, $order->items);
         $this->assertSame(6, $order->totalQuantity());
     }
@@ -65,7 +66,7 @@ class ShipmentImportTest extends TestCase
     public function test_skus_are_matched_against_the_product_master(): void
     {
         $this->uploadCsv([
-            ['Nomor Resi', 'SKU', 'Jumlah'],
+            ['Tracking ID', 'Seller SKU', 'Quantity'],
             ['SPXID111', 'FLT-OLI-STD', '1'],
             ['SPXID111', 'SKU-TIDAK-ADA', '3'],
         ]);
@@ -78,24 +79,10 @@ class ShipmentImportTest extends TestCase
         $this->assertDatabaseHas('shipment_imports', ['unmatched_sku_count' => 1]);
     }
 
-    public function test_english_column_names_are_recognised_too(): void
-    {
-        $this->uploadCsv([
-            ['Order ID', 'Tracking Number', 'Channel', 'Seller SKU', 'Product Name', 'Quantity'],
-            ['INV-009', 'TIKTOK999', 'TikTok Shop', 'BSI-IRIDIUM', 'Busi Iridium', '3'],
-        ])->assertSessionHas('success');
-
-        $order = ShipmentOrder::where('tracking_number', 'TIKTOK999')->firstOrFail();
-
-        $this->assertSame('INV-009', $order->order_number);
-        $this->assertSame('TikTok Shop', $order->marketplace);
-        $this->assertSame(3, $order->totalQuantity());
-    }
-
     public function test_a_file_without_a_waybill_column_is_rejected(): void
     {
         $this->uploadCsv([
-            ['Nomor Pesanan', 'SKU', 'Jumlah'],
+            ['Order ID', 'Seller SKU', 'Quantity'],
             ['INV-001', 'FLT-OLI-STD', '2'],
         ])->assertSessionHasErrors('file');
 
@@ -105,12 +92,12 @@ class ShipmentImportTest extends TestCase
     public function test_re_importing_the_same_waybill_replaces_the_previous_data(): void
     {
         $this->uploadCsv([
-            ['Nomor Resi', 'SKU', 'Jumlah'],
+            ['Tracking ID', 'Seller SKU', 'Quantity'],
             ['SPXID111', 'FLT-OLI-STD', '2'],
         ]);
 
         $this->uploadCsv([
-            ['Nomor Resi', 'SKU', 'Jumlah'],
+            ['Tracking ID', 'Seller SKU', 'Quantity'],
             ['SPXID111', 'BSI-IRIDIUM', '5'],
         ]);
 
@@ -124,7 +111,7 @@ class ShipmentImportTest extends TestCase
     public function test_import_pages_are_rendered(): void
     {
         $this->uploadCsv([
-            ['Nomor Resi', 'SKU', 'Jumlah'],
+            ['Tracking ID', 'Seller SKU', 'Quantity'],
             ['SPXID111', 'FLT-OLI-STD', '2'],
         ]);
 
@@ -143,7 +130,7 @@ class ShipmentImportTest extends TestCase
     public function test_lookup_endpoint_returns_the_order_for_a_waybill(): void
     {
         $this->uploadCsv([
-            ['Nomor Resi', 'SKU', 'Jumlah'],
+            ['Tracking ID', 'Seller SKU', 'Quantity'],
             ['SPXID111', 'FLT-OLI-STD', '2'],
         ]);
 
@@ -164,7 +151,7 @@ class ShipmentImportTest extends TestCase
     public function test_outbound_scan_pulls_the_item_list_from_the_import(): void
     {
         $this->uploadCsv([
-            ['Nomor Resi', 'SKU', 'Jumlah'],
+            ['Tracking ID', 'Seller SKU', 'Quantity'],
             ['SPXID111', 'FLT-OLI-STD', '2'],
             ['SPXID111', 'BSI-IRIDIUM', '1'],
         ]);
@@ -198,7 +185,7 @@ class ShipmentImportTest extends TestCase
         $this->giveStock($this->filter, 10);
 
         $this->uploadCsv([
-            ['Nomor Resi', 'SKU', 'Jumlah'],
+            ['Tracking ID', 'Seller SKU', 'Quantity'],
             ['SPXID111', 'FLT-OLI-STD', '2'],
         ]);
 
@@ -223,7 +210,7 @@ class ShipmentImportTest extends TestCase
     public function test_unmatched_skus_block_pulling_items_from_the_import(): void
     {
         $this->uploadCsv([
-            ['Nomor Resi', 'SKU', 'Jumlah'],
+            ['Tracking ID', 'Seller SKU', 'Quantity'],
             ['SPXID111', 'SKU-TIDAK-ADA', '2'],
         ]);
 
@@ -247,7 +234,7 @@ class ShipmentImportTest extends TestCase
     public function test_return_scan_takes_items_from_the_import_automatically(): void
     {
         $this->uploadCsv([
-            ['Nomor Resi', 'SKU', 'Jumlah'],
+            ['Tracking ID', 'Seller SKU', 'Quantity'],
             ['SPXRET1', 'FLT-OLI-STD', '2'],
             ['SPXRET1', 'BSI-IRIDIUM', '1'],
         ]);
@@ -279,7 +266,7 @@ class ShipmentImportTest extends TestCase
     public function test_manually_entered_return_items_are_kept_instead_of_import_data(): void
     {
         $this->uploadCsv([
-            ['Nomor Resi', 'SKU', 'Jumlah'],
+            ['Tracking ID', 'Seller SKU', 'Quantity'],
             ['SPXRET1', 'FLT-OLI-STD', '5'],
         ]);
 
@@ -331,11 +318,11 @@ class ShipmentImportTest extends TestCase
     {
         $csv = collect($rows)->map(fn (array $row) => implode(',', $row))->implode("\n");
 
-        $path = tempnam(sys_get_temp_dir(), 'ginee').'.csv';
+        $path = tempnam(sys_get_temp_dir(), 'tiktok').'.csv';
         file_put_contents($path, $csv);
 
         return $this->actingAs($this->admin)->post(route('admin.imports.store'), [
-            'file' => new UploadedFile($path, 'ginee-orders.csv', 'text/csv', null, true),
+            'file' => new UploadedFile($path, 'tiktok-orders.csv', 'text/csv', null, true),
         ]);
     }
 

@@ -1,5 +1,5 @@
 /**
- * Pencarian nomor resi ke data import Ginee.
+ * Pencarian nomor resi ke data import TikTok.
  *
  * Dipakai pada form barang keluar marketplace dan penerimaan retur: begitu
  * nomor resi diketik, isi pesanannya ditarik dari data import supaya baris

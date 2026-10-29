@@ -88,7 +88,7 @@ export default function packingStation(config) {
 
         get hint() {
             return {
-                resi: 'Arahkan scanner ke label resi pada paket. Isi pesanan diambil dari data import Ginee.',
+                resi: 'Arahkan scanner ke label resi pada paket. Isi pesanan diambil dari data import TikTok.',
                 item: `Sisa ${this.remaining} unit lagi. Paket ditutup sendiri saat unit terakhir discan.`,
                 done: this.autoContinue
                     ? 'Masuk antrean serah terima. Bersiap untuk resi berikutnya…'

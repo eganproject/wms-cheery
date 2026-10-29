@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Satu berkas hasil eksport Ginee yang sudah diproses.
+ * Satu berkas hasil eksport TikTok Shop yang sudah diproses.
  */
 class ShipmentImport extends Model
 {

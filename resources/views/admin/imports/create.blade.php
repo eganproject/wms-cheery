@@ -1,5 +1,5 @@
 <x-app-layout title="Import Berkas Resi">
-    <x-ui.page-header title="Import Berkas Resi" subtitle="Unggah hasil eksport pesanan dari Ginee."
+    <x-ui.page-header title="Import Berkas Resi" subtitle="Unggah hasil eksport pesanan TikTok Shop."
                       :back="route('admin.imports.index')" />
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -9,7 +9,7 @@
                   x-data="{ name: '', drag: false }">
                 @csrf
 
-                <x-ui.card title="Berkas Eksport Ginee" subtitle="Unggah langsung berkas Excel (.xlsx / .xls) hasil eksport — CSV juga diterima. Maksimal 20 MB.">
+                <x-ui.card title="Berkas Eksport TikTok Shop" subtitle="Unggah langsung berkas Excel (.xlsx / .xls) hasil eksport — CSV juga diterima. Maksimal 20 MB.">
                     <label class="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-12 text-center transition"
                            :class="drag ? 'border-ink-950 bg-ink-50' : 'border-ink-200 hover:border-ink-300 hover:bg-ink-50/50'"
                            @dragover.prevent="drag = true" @dragleave.prevent="drag = false"
@@ -45,16 +45,15 @@
         </div>
 
         <div class="space-y-6">
-            <x-ui.card title="Kolom yang Dibaca" subtitle="Nama kolom dikenali otomatis, urutannya bebas.">
+            <x-ui.card title="Kolom yang Dibaca" subtitle="Hanya kolom ini yang disimpan. Data pembeli, alamat, dan harga tidak ikut masuk.">
                 <ul class="space-y-2.5 text-sm">
                     @foreach ([
-                        ['Nomor Resi', 'Wajib. Kunci pencocokan saat scan.', true],
-                        ['SKU', 'Wajib. Kunci pencocokan ke master barang.', true],
-                        ['Jumlah', 'Kuantitas per baris SKU.', false],
-                        ['Nomor Pesanan', 'Ditampilkan sebagai referensi.', false],
-                        ['Nama Produk', 'Cadangan bila SKU belum terdaftar.', false],
-                        ['Channel / Toko', 'Shopee, Tokopedia, dan sebagainya.', false],
-                        ['Pembeli, Status, Kurir, Tanggal', 'Informasi pelengkap.', false],
+                        ['Tracking ID', 'Wajib. Nomor resi, kunci pencocokan saat scan.', true],
+                        ['Seller SKU', 'Wajib. Kunci ke master barang; bila kosong dipakai Variation.', true],
+                        ['Quantity', 'Kuantitas per baris SKU.', false],
+                        ['Order ID', 'Ditampilkan sebagai referensi.', false],
+                        ['Product Name, Variation', 'Cadangan bila SKU belum terdaftar.', false],
+                        ['Order Status, Shipping Provider Name, Delivery Option, Created Time, Buyer Message', 'Informasi pelengkap.', false],
                     ] as [$column, $desc, $required])
                         <li class="flex items-start gap-2.5">
                             <x-icon :name="$required ? 'check-circle' : 'circle'"
@@ -79,7 +78,7 @@
                 </p>
                 <ul class="mt-3 space-y-2 text-xs leading-relaxed text-ink-600">
                     <li class="flex gap-2"><span class="font-semibold text-ink-950">1.</span> Berkas Excel dibaca langsung — tidak perlu diubah ke CSV lebih dulu.</li>
-                    <li class="flex gap-2"><span class="font-semibold text-ink-950">2.</span> Baris judul di atas nama kolom otomatis dilewati.</li>
+                    <li class="flex gap-2"><span class="font-semibold text-ink-950">2.</span> Baris keterangan kolom dari TikTok otomatis dilewati. Pesanan yang Tracking ID-nya masih kosong (belum Atur Pengiriman) juga dilewati.</li>
                     <li class="flex gap-2"><span class="font-semibold text-ink-950">3.</span> Beberapa baris dengan nomor resi sama digabung menjadi satu pesanan.</li>
                     <li class="flex gap-2"><span class="font-semibold text-ink-950">4.</span> Setiap SKU dicocokkan ke master barang. SKU yang belum ada ditandai.</li>
                     <li class="flex gap-2"><span class="font-semibold text-ink-950">5.</span> Resi yang sudah pernah diimport akan diperbarui dengan data terbaru.</li>

@@ -25,7 +25,7 @@ class ReturnScanService
     /**
      * Scan resi retur.
      *
-     * Nomor resi dicari lebih dulu ke data import Ginee. Bila ketemu, isi
+     * Nomor resi dicari lebih dulu ke data import TikTok. Bila ketemu, isi
      * paket diambil otomatis dari pesanan aslinya; bila tidak, baris barang
      * tetap memakai apa yang diinput operator.
      *

@@ -66,7 +66,7 @@ class CancelledOrderTest extends TestCase
     public function test_the_import_reads_a_cancellation_from_the_order_status(string $status): void
     {
         $this->uploadCsv([
-            ['Nomor Resi', 'SKU', 'Jumlah', 'Status Pesanan'],
+            ['Tracking ID', 'Seller SKU', 'Quantity', 'Order Status'],
             ['SPXID111', 'FLT-OLI-STD', '2', $status],
         ])->assertSessionHas('success');
 
@@ -80,7 +80,7 @@ class CancelledOrderTest extends TestCase
     public function test_an_ordinary_status_is_left_alone(): void
     {
         $this->uploadCsv([
-            ['Nomor Resi', 'SKU', 'Jumlah', 'Status Pesanan'],
+            ['Tracking ID', 'Seller SKU', 'Quantity', 'Order Status'],
             ['SPXID111', 'FLT-OLI-STD', '2', 'Siap Dikirim'],
         ])->assertSessionHas('success');
 
@@ -101,7 +101,7 @@ class CancelledOrderTest extends TestCase
         ])->assertSessionHas('success');
 
         $this->uploadCsv([
-            ['Nomor Resi', 'SKU', 'Jumlah', 'Status Pesanan'],
+            ['Tracking ID', 'Seller SKU', 'Quantity', 'Order Status'],
             ['SPXID111', 'FLT-OLI-STD', '2', 'Siap Dikirim'],
         ])->assertSessionHas('success');
 
@@ -123,7 +123,7 @@ class CancelledOrderTest extends TestCase
         $outbound = $this->makePackage($order, scanned: 2);
 
         $this->uploadCsv([
-            ['Nomor Resi', 'SKU', 'Jumlah', 'Status Pesanan'],
+            ['Tracking ID', 'Seller SKU', 'Quantity', 'Order Status'],
             ['SPXID111', 'FLT-OLI-STD', '2', 'Siap Dikirim'],
         ])->assertSessionHas('success');
 
@@ -349,7 +349,7 @@ class CancelledOrderTest extends TestCase
     protected function makeOrder(string $tracking = 'SPXID111'): ShipmentOrder
     {
         $import = \App\Models\ShipmentImport::create([
-            'filename' => 'ginee.csv', 'source' => 'ginee', 'row_count' => 1,
+            'filename' => 'tiktok.csv', 'source' => 'ginee', 'row_count' => 1,
             'detected_columns' => ['tracking_number', 'sku'],
         ]);
 
@@ -412,11 +412,11 @@ class CancelledOrderTest extends TestCase
     {
         $csv = collect($rows)->map(fn (array $row) => implode(',', $row))->implode("\n");
 
-        $path = tempnam(sys_get_temp_dir(), 'ginee').'.csv';
+        $path = tempnam(sys_get_temp_dir(), 'tiktok').'.csv';
         file_put_contents($path, $csv);
 
         return $this->actingAs($this->admin)->post(route('admin.imports.store'), [
-            'file' => new UploadedFile($path, 'ginee-orders.csv', 'text/csv', null, true),
+            'file' => new UploadedFile($path, 'tiktok-orders.csv', 'text/csv', null, true),
         ]);
     }
 

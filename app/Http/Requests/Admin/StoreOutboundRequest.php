@@ -92,7 +92,7 @@ class StoreOutboundRequest extends FormRequest
     }
 
     /**
-     * Nomor resi yang diketik sudah pernah diimport dari Ginee?
+     * Nomor resi yang diketik sudah pernah diimport dari TikTok Shop?
      */
     protected function resiExistsInImport(): bool
     {
