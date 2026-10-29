@@ -40,7 +40,7 @@ class NavigationTest extends TestCase
         }
 
         // Setiap halaman bisa dibuka dengan satu klik dari menu samping.
-        foreach (['Beranda', 'Persetujuan', 'Packing List', 'QC Kemas', 'Siap Dikirim', 'Retur Marketplace',
+        foreach (['Beranda', 'Persetujuan', 'Packing List', 'QC Kemas', 'Serah Terima Paket', 'Retur Marketplace',
             'Status Resi', 'Import Resi', 'Barang Masuk', 'Barang Keluar', 'Penerimaan Retur',
             'Stok Opname', 'Penyesuaian Stok', 'Barang Rusak', 'Pemasok', 'Laporan Stok',
             'Mutasi Stok', 'Kebutuhan Restock', 'Resi per Hari', 'Resi per Ekspedisi',
@@ -117,14 +117,14 @@ class NavigationTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('admin.outbounds.index'))
             ->assertOk()
-            ->assertSee('Siap Dikirim')
-            ->assertSee(route('admin.outbounds.ready'));
+            ->assertSee('Serah Terima Paket')
+            ->assertSee(route('admin.outbounds.handover'));
     }
 
     /* --------------------------------------------------- helpers --------- */
 
     /**
-     * Potongan HTML menu samping saja — label seperti "Siap Dikirim" juga
+     * Potongan HTML menu samping saja — label seperti "Serah Terima Paket" juga
      * muncul sebagai isi halaman, dan itu bukan yang sedang diuji di sini.
      */
     protected function sidebar(?User $user = null): string

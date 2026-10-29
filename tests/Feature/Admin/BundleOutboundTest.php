@@ -341,15 +341,15 @@ class BundleOutboundTest extends TestCase
             $this->scanItem($outbound, $barcode, $quantity)->assertOk();
         }
 
-        // Antrean Siap Dikirim menilai kelengkapan dari baris barang, yang
+        // Antrean Serah Terima Paket menilai kelengkapan dari baris barang, yang
         // sudah berupa komponen — paketnya tidak menghalangi.
-        $this->actingAs($this->admin)->get(route('admin.outbounds.ready'))
+        $this->actingAs($this->admin)->get(route('admin.outbounds.handover'))
             ->assertOk()
             ->assertSee($outbound->code);
 
         // Serah ke kurir: resi discan, dokumennya diproses.
         $this->actingAs($this->admin)
-            ->postJson(route('admin.outbounds.ready.scan'), ['code' => 'SPXID111'])
+            ->postJson(route('admin.outbounds.handover.scan'), ['code' => 'SPXID111'])
             ->assertOk()
             ->assertJsonPath('shipped', true)
             ->assertJsonPath('outbound.units', 6);

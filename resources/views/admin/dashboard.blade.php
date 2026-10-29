@@ -60,7 +60,7 @@
     @php
         $shortcuts = collect([
             ['label' => 'QC Kemas', 'icon' => 'packing', 'route' => 'admin.outbounds.marketplace', 'can' => 'outbounds.scan'],
-            ['label' => 'Siap Dikirim', 'icon' => 'outbound', 'route' => 'admin.outbounds.ready', 'can' => 'outbounds.view'],
+            ['label' => 'Serah Terima Paket', 'icon' => 'outbound', 'route' => 'admin.outbounds.handover', 'can' => 'outbounds.view'],
             ['label' => 'Retur Marketplace', 'icon' => 'scan', 'route' => 'admin.returns.marketplace', 'can' => 'returns.scan'],
             ['label' => 'Import Resi', 'icon' => 'import', 'route' => 'admin.imports.create', 'can' => 'imports.create'],
             ['label' => 'Barang', 'icon' => 'box', 'route' => 'admin.products.index', 'can' => 'products.view'],
@@ -126,7 +126,7 @@
                 $stages = [
                     \App\Models\ShipmentOrder::STAGE_AWAITING_QC => ['label' => 'Belum QC', 'icon' => 'clock',
                         'hint' => 'Resi atau barangnya belum tuntas discan', 'tone' => 'text-amber-700 bg-amber-50'],
-                    \App\Models\ShipmentOrder::STAGE_CHECKED => ['label' => 'Siap Dikirim', 'icon' => 'check-circle',
+                    \App\Models\ShipmentOrder::STAGE_HANDOVER => ['label' => 'Serah Terima', 'icon' => 'check-circle',
                         'hint' => 'QC selesai, menunggu diproses', 'tone' => 'text-blue-700 bg-blue-100'],
                     \App\Models\ShipmentOrder::STAGE_SHIPPED => ['label' => 'Dikirim', 'icon' => 'outbound',
                         'hint' => 'Disetujui, stok sudah berkurang', 'tone' => 'text-emerald-700 bg-emerald-50'],

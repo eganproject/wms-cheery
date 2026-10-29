@@ -6,7 +6,7 @@
  *   scan resi → scan barang → paket lengkap → kembali menunggu resi
  *
  * Stasiun ini berhenti sampai "isi paket terverifikasi". Pengirimannya —
- * yang memindahkan stok — dikerjakan di antrean Siap Dikirim, jadi operator
+ * yang memindahkan stok — dikerjakan di antrean Serah Terima Paket, jadi operator
  * tidak pernah berhenti untuk mengurus dokumen. Kursor selalu dikembalikan ke
  * kolom input dan tahapannya berganti sendiri, jadi tidak ada klik antar paket.
  */
@@ -16,7 +16,7 @@ import { cameraState } from './scan-state';
 export default function packingStation(config) {
     return {
         urls: { start: config.url },
-        readyUrl: config.readyUrl,
+        handoverUrl: config.handoverUrl,
 
         stage: 'resi', // resi | item | done
         code: '',
@@ -91,8 +91,8 @@ export default function packingStation(config) {
                 resi: 'Arahkan scanner ke label resi pada paket. Isi pesanan diambil dari data import Ginee.',
                 item: `Sisa ${this.remaining} unit lagi. Paket ditutup sendiri saat unit terakhir discan.`,
                 done: this.autoContinue
-                    ? 'Masuk antrean siap kirim. Bersiap untuk resi berikutnya…'
-                    : 'Masuk antrean siap kirim. Tekan Lanjut untuk paket berikutnya.',
+                    ? 'Masuk antrean serah terima. Bersiap untuk resi berikutnya…'
+                    : 'Masuk antrean serah terima. Tekan Lanjut untuk paket berikutnya.',
             }[this.stage];
         },
 
@@ -215,7 +215,7 @@ export default function packingStation(config) {
             this.report('success', payload.message, code, 'item');
 
             // Unit terakhir menutup paket. Tidak ada tombol, tidak ada dialog:
-            // paketnya masuk antrean siap kirim dan layar lanjut sendiri.
+            // paketnya masuk antrean serah terima dan layar lanjut sendiri.
             if (this.progress.ready) this.completePackage();
         },
 

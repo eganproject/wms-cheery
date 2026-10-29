@@ -6,7 +6,7 @@
 --}}
 <x-app-layout title="Status Resi">
     <x-ui.page-header title="Status Resi" icon="search"
-                      subtitle="Posisi setiap resi hasil import: belum QC, siap dikirim, sudah dikirim, atau dibatalkan.">
+                      subtitle="Posisi setiap resi hasil import: belum QC, serah terima, sudah dikirim, atau dibatalkan.">
         <x-slot name="actions">
             @can('outbounds.scan')
                 <x-ui.button :href="route('admin.outbounds.marketplace')" variant="secondary" icon="search">
@@ -28,9 +28,9 @@
             \App\Models\ShipmentOrder::STAGE_AWAITING_QC => ['label' => 'Belum QC', 'icon' => 'clock',
                    'hint' => 'Resi atau barangnya belum tuntas discan',
                    'count' => $counts[\App\Models\ShipmentOrder::STAGE_AWAITING_QC], 'ring' => 'ring-amber-200', 'text' => 'text-amber-700'],
-            \App\Models\ShipmentOrder::STAGE_CHECKED => ['label' => 'Siap Dikirim', 'icon' => 'check-circle',
+            \App\Models\ShipmentOrder::STAGE_HANDOVER => ['label' => 'Serah Terima', 'icon' => 'check-circle',
                    'hint' => 'QC selesai, menunggu diproses',
-                   'count' => $counts[\App\Models\ShipmentOrder::STAGE_CHECKED], 'ring' => 'ring-ink-950', 'text' => 'text-ink-950'],
+                   'count' => $counts[\App\Models\ShipmentOrder::STAGE_HANDOVER], 'ring' => 'ring-ink-950', 'text' => 'text-ink-950'],
             \App\Models\ShipmentOrder::STAGE_SHIPPED => ['label' => 'Dikirim', 'icon' => 'logout',
                    'hint' => 'Disetujui, stok sudah berkurang',
                    'count' => $counts[\App\Models\ShipmentOrder::STAGE_SHIPPED], 'ring' => 'ring-emerald-200', 'text' => 'text-emerald-700'],
@@ -199,7 +199,7 @@
                             <th>Pesanan</th>
                             <th>Ekspedisi</th>
                             <th class="text-right"><span class="inline-flex items-center gap-1">Isi <x-ui.hint text="Total unit dan jumlah SKU di resi ini." /></span></th>
-                            <th><span class="inline-flex items-center gap-1">Tahap <x-ui.hint text="Posisi resi di gudang: Belum QC, Siap Dikirim, Dikirim, atau Dibatalkan. Dihitung otomatis dari dokumen gudang." /></span></th>
+                            <th><span class="inline-flex items-center gap-1">Tahap <x-ui.hint text="Posisi resi di gudang: Belum QC, Serah Terima, Dikirim, atau Dibatalkan. Dihitung otomatis dari dokumen gudang." /></span></th>
                             <th class="text-right">Aksi</th>
                         </tr>
                     </thead>
@@ -299,7 +299,7 @@
                             </div>
                             <x-ui.badge :variant="match ($orderStage) {
                                 \App\Models\ShipmentOrder::STAGE_SHIPPED => 'success',
-                                \App\Models\ShipmentOrder::STAGE_CHECKED => 'dark',
+                                \App\Models\ShipmentOrder::STAGE_HANDOVER => 'dark',
                                 \App\Models\ShipmentOrder::STAGE_CANCELLED => 'danger',
                                 default => 'warning',
                             }">{{ $order->stageLabel() }}</x-ui.badge>

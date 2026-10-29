@@ -16,7 +16,6 @@
         'outbound' => $outbound,
         'code' => $code,
         'products' => $products,
-        'marketplaces' => $marketplaces,
         'defaultType' => $defaultType,
     ])
 </x-app-layout>

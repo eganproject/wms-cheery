@@ -213,14 +213,15 @@ class MarketplaceScanTest extends TestCase
 
     /* ------------------------------------------ pembuatan dokumen -------- */
 
-    public function test_marketplace_order_requires_marketplace_and_waybill(): void
+    public function test_marketplace_order_requires_a_waybill_but_not_a_marketplace_name(): void
     {
         $this->actingAs($this->admin)->post(route('admin.outbounds.store'), [
             'date' => now()->format('Y-m-d'),
             'type' => Outbound::TYPE_MARKETPLACE,
             'recipient' => 'Siti Rahma',
             'items' => [['product_id' => $this->product->id, 'quantity' => 1]],
-        ])->assertSessionHasErrors(['marketplace', 'tracking_number']);
+        ])->assertSessionHasErrors(['tracking_number'])
+            ->assertSessionDoesntHaveErrors(['marketplace']);
     }
 
     public function test_creating_a_marketplace_order_redirects_to_the_scan_page(): void

@@ -22,7 +22,7 @@ use Illuminate\View\View;
  *
  * Satu halaman dipakai berulang: scan resi, scan barangnya, lalu layar
  * langsung kembali menunggu resi berikutnya. Stasiun ini hanya memverifikasi
- * isi paket — pengirimannya dikerjakan di antrean "Siap Dikirim", supaya
+ * isi paket — pengirimannya dikerjakan di antrean "Serah Terima Paket", supaya
  * operator tidak pernah berhenti untuk mengurus dokumen.
  */
 class OutboundMarketplaceController extends Controller implements HasMiddleware
@@ -45,9 +45,9 @@ class OutboundMarketplaceController extends Controller implements HasMiddleware
     {
         return view('admin.outbounds.marketplace', [
             // Hanya yang scannya belum tuntas; yang sudah lengkap ada di
-            // antrean siap kirim, bukan pekerjaan stasiun ini lagi.
+            // antrean serah terima, bukan pekerjaan stasiun ini lagi.
             'pending' => Outbound::stillScanning()->latest('id')->take(5)->get(),
-            'readyCount' => Outbound::readyToShip()->count(),
+            'handoverCount' => Outbound::awaitingHandover()->count(),
         ]);
     }
 
@@ -177,7 +177,6 @@ class OutboundMarketplaceController extends Controller implements HasMiddleware
 
             $outbound->fill([
                 'recipient' => $order->buyer_name ?: ($order->store_name ?: 'Pembeli marketplace'),
-                'marketplace' => $order->marketplace,
                 'tracking_number' => $order->tracking_number,
                 'shipment_order_id' => $order->id,
                 'status' => Outbound::STATUS_DRAFT,

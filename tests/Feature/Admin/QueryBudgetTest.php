@@ -50,7 +50,7 @@ class QueryBudgetTest extends TestCase
             'pemasok' => ['admin.suppliers.index', 12],
             'barang masuk' => ['admin.inbounds.index', 14],
             'barang keluar' => ['admin.outbounds.index', 15],
-            'siap dikirim' => ['admin.outbounds.ready', 15],
+            'serah terima paket' => ['admin.outbounds.handover', 15],
             'penerimaan retur' => ['admin.returns.index', 14],
             'penyesuaian stok' => ['admin.adjustments.index', 15],
             'stok opname' => ['admin.opnames.index', 15],
@@ -112,7 +112,7 @@ class QueryBudgetTest extends TestCase
     {
         $routes = [
             'admin.products.index', 'admin.movements.index', 'admin.inbounds.index',
-            'admin.outbounds.index', 'admin.outbounds.ready', 'admin.adjustments.index',
+            'admin.outbounds.index', 'admin.outbounds.handover', 'admin.adjustments.index',
             'admin.opnames.index', 'admin.disposals.index', 'admin.imports.status',
         ];
 

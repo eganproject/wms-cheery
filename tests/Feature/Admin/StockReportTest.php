@@ -122,7 +122,7 @@ class StockReportTest extends TestCase
 
     /**
      * Inti pertanyaannya: stok bergerak saat dokumen keluar disetujui, bukan
-     * saat barang selesai discan. Paket yang menunggu di antrean siap kirim
+     * saat barang selesai discan. Paket yang menunggu di antrean serah terima
      * belum boleh muncul sebagai barang keluar.
      */
     public function test_a_fully_scanned_package_does_not_move_stock_until_it_is_processed(): void
@@ -145,11 +145,11 @@ class StockReportTest extends TestCase
             'scanned_quantity' => 5,
         ]);
 
-        $this->assertSame(1, Outbound::readyToShip()->count());
+        $this->assertSame(1, Outbound::awaitingHandover()->count());
         $this->assertSame(0, $this->reportRow()->outgoing);
 
         $this->actingAs($this->admin)
-            ->post(route('admin.outbounds.ready.process'), ['ids' => [$outbound->id]])
+            ->post(route('admin.outbounds.handover.process'), ['ids' => [$outbound->id]])
             ->assertSessionHas('success');
 
         $this->assertSame(5, $this->reportRow()->outgoing);

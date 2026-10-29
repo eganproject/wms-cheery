@@ -171,7 +171,7 @@ class BugHuntTest extends TestCase
         $order = $this->makeCancelledOrder();
         $outbound = $this->makePackage($order);
 
-        $html = $this->actingAs($this->admin)->get(route('admin.outbounds.ready'))
+        $html = $this->actingAs($this->admin)->get(route('admin.outbounds.handover'))
             ->assertOk()
             ->getContent();
 

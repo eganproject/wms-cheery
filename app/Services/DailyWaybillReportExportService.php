@@ -24,7 +24,7 @@ class DailyWaybillReportExportService
         ['Total Unit', 'units'],
         ['Jumlah Ekspedisi', 'couriers'],
         ['Belum QC', 'awaiting'],
-        ['Siap Dikirim', 'checked'],
+        ['Serah Terima', 'checked'],
         ['Dikirim', 'shipped'],
         ['Dibatalkan', 'cancelled'],
         ['Kesiapan (%)', 'readiness'],

@@ -11,8 +11,8 @@ use Illuminate\Support\Collection;
  * cepat (Ctrl+K). Halaman dikelompokkan menurut
  * pekerjaannya:
  *
- *  - Penjualan Marketplace: pekerjaan harian pesanan online — pesanan, packing list,
- *    QC kemas, antrean kirim, retur, dan resi.
+ *  - Penjualan Marketplace: pekerjaan harian pesanan online — pesanan, packing,
+ *    antrean kirim, retur, dan resi.
  *  - Transaksi Stok: dokumen yang menggerakkan saldo.
  *  - Master Data: barang dan pemasok.
  *  - Laporan: semua yang hanya dibaca.
@@ -55,11 +55,11 @@ class Navigation
                         'keywords' => 'packing list picking daftar barang dikemas sisa remaining resi import'],
                     ['label' => 'QC Kemas', 'icon' => 'packing', 'route' => 'admin.outbounds.marketplace',
                         'match' => ['admin.outbounds.marketplace', 'admin.outbounds.scan'], 'can' => 'outbounds.scan',
-                        'keywords' => 'qc kemas packing stasiun scan resi pesanan marketplace'],
-                    ['label' => 'Siap Dikirim', 'icon' => 'outbound', 'route' => 'admin.outbounds.ready',
-                        'match' => 'admin.outbounds.ready', 'can' => 'outbounds.view',
-                        'badge' => fn () => ReadyToShipCounter::count() ?: null,
-                        'keywords' => 'kirim dispatch serah terima kurir antrean'],
+                        'keywords' => 'qc kemas stasiun packing scan qc resi pesanan marketplace'],
+                    ['label' => 'Serah Terima Paket', 'icon' => 'outbound', 'route' => 'admin.outbounds.handover',
+                        'match' => 'admin.outbounds.handover', 'can' => 'outbounds.view',
+                        'badge' => fn () => HandoverQueueCounter::count() ?: null,
+                        'keywords' => 'serah terima paket handover kurir kirim siap kirim antrean'],
                     ['label' => 'Retur Marketplace', 'icon' => 'scan', 'route' => 'admin.returns.marketplace',
                         'match' => ['admin.returns.marketplace', 'admin.returns.scan'], 'can' => 'returns.scan',
                         'keywords' => 'retur scan stasiun pengembalian'],

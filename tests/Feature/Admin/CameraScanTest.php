@@ -67,12 +67,12 @@ class CameraScanTest extends TestCase
     }
 
     /**
-     * Antrean siap kirim ikut memindai resi untuk mengirim paket, jadi ia
+     * Antrean serah terima ikut memindai resi untuk mengirim paket, jadi ia
      * butuh tombol yang sama seperti stasiun lainnya.
      */
     public function test_the_dispatch_queue_offers_the_camera(): void
     {
-        $this->actingAs($this->admin)->get(route('admin.outbounds.ready'))
+        $this->actingAs($this->admin)->get(route('admin.outbounds.handover'))
             ->assertOk()
             ->assertSee('cameraScanner()', false)
             ->assertSee('Pindai dengan kamera')

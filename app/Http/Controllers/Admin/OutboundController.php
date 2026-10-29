@@ -43,7 +43,7 @@ class OutboundController extends Controller implements HasMiddleware
     public function index(Request $request): View
     {
         $outbounds = Outbound::query()
-            ->with('user')
+            ->with('user', 'shipmentOrder:id,marketplace')
             ->withCount('items')
             ->withSum('items', 'quantity')
             // Progres scan dinilai dari jumlahnya, jadi baris barang tidak
@@ -52,7 +52,7 @@ class OutboundController extends Controller implements HasMiddleware
             ->search($request->string('search')->trim()->value())
             ->when($request->filled('status'), fn ($query) => $query->atStage($request->string('status')->value()))
             ->when($request->filled('type'), fn ($query) => $query->where('type', $request->string('type')))
-            ->when($request->filled('marketplace'), fn ($query) => $query->where('marketplace', $request->string('marketplace')))
+            ->fromMarketplace($request->string('marketplace')->value())
             ->dateBetween(DateRange::fromRequest($request))
             ->latest('date')
             ->latest('id')
@@ -71,7 +71,6 @@ class OutboundController extends Controller implements HasMiddleware
             'outbound' => null,
             'code' => Outbound::nextCode(),
             'products' => $this->products(),
-            'marketplaces' => Outbound::marketplaces(),
             'defaultType' => $request->input('type') === Outbound::TYPE_MARKETPLACE
                 ? Outbound::TYPE_MARKETPLACE
                 : Outbound::TYPE_REGULAR,
@@ -88,7 +87,6 @@ class OutboundController extends Controller implements HasMiddleware
                 'date' => $data['date'],
                 'type' => $data['type'],
                 'recipient' => $data['recipient'],
-                'marketplace' => $data['marketplace'] ?? null,
                 'tracking_number' => $data['tracking_number'] ?? null,
                 'note' => $data['note'] ?? null,
                 'status' => Outbound::STATUS_DRAFT,
@@ -122,7 +120,7 @@ class OutboundController extends Controller implements HasMiddleware
 
     public function show(Outbound $outbound): View
     {
-        $outbound->load(['items.product', 'bundles.bundle', 'user']);
+        $outbound->load(['items.product', 'bundles.bundle', 'user', 'shipmentOrder']);
 
         return view('admin.outbounds.show', compact('outbound'));
     }
@@ -143,7 +141,6 @@ class OutboundController extends Controller implements HasMiddleware
             'outbound' => $outbound,
             'code' => $outbound->code,
             'products' => $this->products($outbound),
-            'marketplaces' => Outbound::marketplaces(),
             'defaultType' => $outbound->type,
         ]);
     }
@@ -167,7 +164,6 @@ class OutboundController extends Controller implements HasMiddleware
                 'date' => $data['date'],
                 'type' => $data['type'],
                 'recipient' => $data['recipient'],
-                'marketplace' => $data['marketplace'] ?? null,
                 'tracking_number' => $data['tracking_number'] ?? null,
                 'note' => $data['note'] ?? null,
             ]);
@@ -176,7 +172,7 @@ class OutboundController extends Controller implements HasMiddleware
             // masih sahih harus diselamatkan lebih dulu. Tanpa ini setiap
             // penyimpanan — termasuk yang tidak mengubah apa pun — memulangkan
             // paket yang sudah selesai QC ke titik nol, dan paket itu diam-diam
-            // hilang dari antrean Siap Dikirim.
+            // hilang dari antrean Serah Terima Paket.
             $scanned = $outbound->items()->pluck('scanned_quantity', 'product_id');
 
             $lines = $this->buildLines($data['items'] ?? [], $scanned, $data['bundles'] ?? []);
@@ -190,7 +186,9 @@ class OutboundController extends Controller implements HasMiddleware
             // yang berganti — atau dokumen yang berpindah jenis — yang
             // membatalkannya. Mengetik ulang catatan tidak.
             if ($trackingChanged || $typeChanged) {
-                $outbound->forceFill(['resi_verified_at' => null])->save();
+                // Tautan ke data import juga milik resi lama; scan resi
+                // berikutnya menautkan ulang ke pesanan yang benar.
+                $outbound->forceFill(['resi_verified_at' => null, 'shipment_order_id' => null])->save();
             }
         });
 

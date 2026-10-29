@@ -13,7 +13,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Stasiun packing: scan resi, scan barang, paket masuk antrean siap kirim,
+ * Stasiun packing: scan resi, scan barang, paket masuk antrean serah terima,
  * lalu layar langsung siap untuk resi berikutnya — semuanya tanpa berpindah
  * halaman dan tanpa satu pun klik di antara paket.
  */
@@ -63,7 +63,7 @@ class MarketplaceIntakeTest extends TestCase
             ->assertSee('Lanjut otomatis ke resi berikutnya')
             ->assertSee('unit discan')
             // Pengiriman dikerjakan di antrean, bukan di stasiun ini.
-            ->assertSee('Siap Dikirim')
+            ->assertSee('Serah Terima Paket')
             ->assertDontSee('Proses &amp; Kirim', false);
     }
 
@@ -307,7 +307,7 @@ class MarketplaceIntakeTest extends TestCase
 
         $this->assertTrue($outbound->isDraft());
         $this->assertSame(10, $this->product->refresh()->stock);
-        $this->assertTrue(Outbound::readyToShip()->whereKey($outbound->id)->exists());
+        $this->assertTrue(Outbound::awaitingHandover()->whereKey($outbound->id)->exists());
     }
 
     public function test_two_waybills_can_be_scanned_back_to_back(): void
@@ -329,7 +329,7 @@ class MarketplaceIntakeTest extends TestCase
         }
 
         // Keduanya menunggu di antrean, stok belum tersentuh.
-        $this->assertSame(2, Outbound::readyToShip()->count());
+        $this->assertSame(2, Outbound::awaitingHandover()->count());
         $this->assertSame(20, $this->product->refresh()->stock);
     }
 
@@ -390,7 +390,7 @@ class MarketplaceIntakeTest extends TestCase
 
         $this->assertSame(2, $outbound->totalScanned());
         $this->assertSame(1, Outbound::where('tracking_number', 'SPXID111')->count());
-        $this->assertTrue(Outbound::readyToShip()->whereKey($outbound->id)->exists());
+        $this->assertTrue(Outbound::awaitingHandover()->whereKey($outbound->id)->exists());
     }
 
     /**
@@ -436,9 +436,9 @@ class MarketplaceIntakeTest extends TestCase
         $outbound = Outbound::where('tracking_number', 'SPXID111')->firstOrFail();
         $this->scanItem($outbound, 'FLT-OLI-STD');
 
-        // Diproses lewat antrean siap kirim.
+        // Diproses lewat antrean serah terima.
         $this->actingAs($this->admin)
-            ->post(route('admin.outbounds.ready.process'), ['ids' => [$outbound->id]])
+            ->post(route('admin.outbounds.handover.process'), ['ids' => [$outbound->id]])
             ->assertSessionHas('success');
 
         $this->actingAs($this->admin)

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\FiltersByDate;
 use App\Models\Concerns\HasApprovalWorkflow;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -33,14 +34,19 @@ class Outbound extends Model
     public const STAGE_SCANNING = 'scan_barang';
 
     /** Lengkap discan, menunggu diserahkan ke kurir. */
-    public const STAGE_READY = 'siap_kirim';
+    public const STAGE_HANDOVER = 'serah_terima';
+
+    /**
+     * Nilai tahap lama yang mungkin masih tersimpan di bookmark atau tautan.
+     * Tahap tidak pernah disimpan di database, jadi cukup diterjemahkan di sini.
+     */
+    public const LEGACY_STAGES = ['siap_kirim' => self::STAGE_HANDOVER];
 
     protected $fillable = [
         'code',
         'date',
         'type',
         'recipient',
-        'marketplace',
         'tracking_number',
         'shipment_order_id',
         'note',
@@ -93,6 +99,23 @@ class Outbound extends Model
     public function shipmentOrder(): BelongsTo
     {
         return $this->belongsTo(ShipmentOrder::class);
+    }
+
+    /**
+     * Nama marketplace, dibaca dari data import resi yang tertaut.
+     *
+     * Tidak lagi diketik di form: satu sumber saja supaya tidak ada dua nilai
+     * yang bisa saling berbeda. Muat relasi shipmentOrder bila dipakai di daftar.
+     */
+    protected function marketplace(): Attribute
+    {
+        return Attribute::get(fn () => $this->isMarketplace() ? $this->shipmentOrder?->marketplace : null);
+    }
+
+    public function scopeFromMarketplace(Builder $query, ?string $marketplace): Builder
+    {
+        return $query->when(filled($marketplace), fn (Builder $query) => $query
+            ->whereHas('shipmentOrder', fn (Builder $orders) => $orders->where('marketplace', $marketplace)));
     }
 
     /**
@@ -206,7 +229,7 @@ class Outbound extends Model
     }
 
     /**
-     * Alasan dokumen belum boleh diproses. Kosong berarti siap dikirim.
+     * Alasan dokumen belum boleh diproses. Kosong berarti boleh diserahterimakan.
      *
      * @return array<int, string>
      */
@@ -244,7 +267,7 @@ class Outbound extends Model
      * Kolom status hanya mengenal draft, diajukan, ditolak, dan diposting.
      * Bagi paket marketplace itu terlalu kasar: satu kata "draft" dipakai
      * bersama oleh paket yang belum disentuh sama sekali dan paket yang sudah
-     * selesai QC dan sedang mengantre di Siap Dikirim. Keduanya menuntut
+     * selesai QC dan sedang mengantre di Serah Terima Paket. Keduanya menuntut
      * tindakan yang sama sekali berbeda, jadi keduanya harus punya nama sendiri.
      *
      * Urutannya penting: keputusan penyetuju selalu didahulukan, supaya
@@ -260,7 +283,7 @@ class Outbound extends Model
             ! $this->isResiVerified() => self::STAGE_NEED_RESI,
             $this->totalQuantity() < 1 => self::STAGE_NEED_ITEMS,
             $this->totalScanned() < $this->totalQuantity() => self::STAGE_SCANNING,
-            default => self::STAGE_READY,
+            default => self::STAGE_HANDOVER,
         };
     }
 
@@ -276,7 +299,7 @@ class Outbound extends Model
             self::STAGE_NEED_RESI => ['label' => 'Perlu scan resi', 'variant' => 'neutral', 'icon' => 'key'],
             self::STAGE_NEED_ITEMS => ['label' => 'Belum ada barang', 'variant' => 'danger', 'icon' => 'warning'],
             self::STAGE_SCANNING => ['label' => 'Scan barang', 'variant' => 'warning', 'icon' => 'key'],
-            self::STAGE_READY => ['label' => 'Siap dikirim', 'variant' => 'dark', 'icon' => 'box'],
+            self::STAGE_HANDOVER => ['label' => 'Menunggu serah terima', 'variant' => 'dark', 'icon' => 'box'],
             self::STATUS_PENDING => ['label' => 'Menunggu persetujuan', 'variant' => 'warning', 'icon' => 'clock'],
             self::STATUS_REJECTED => ['label' => 'Ditolak', 'variant' => 'danger', 'icon' => 'x-circle'],
             self::STATUS_POSTED => ['label' => 'Terkirim', 'variant' => 'success', 'icon' => 'check-circle'],
@@ -303,10 +326,12 @@ class Outbound extends Model
      *
      * Setiap pilihan saringan menunjuk tepat satu badge, tanpa tumpang tindih —
      * "Draft" tidak lagi ikut memuat paket marketplace yang sebenarnya sudah
-     * siap dikirim.
+     * menunggu serah terima.
      */
     public function scopeAtStage(Builder $query, ?string $stage): Builder
     {
+        $stage = self::LEGACY_STAGES[$stage] ?? $stage;
+
         return match ($stage) {
             self::STATUS_DRAFT => $query->where('status', self::STATUS_DRAFT)
                 ->where('type', self::TYPE_REGULAR),
@@ -317,7 +342,7 @@ class Outbound extends Model
             self::STAGE_SCANNING => $query->stillScanning()
                 ->whereNotNull('resi_verified_at')
                 ->whereHas('items'),
-            self::STAGE_READY => $query->readyToShip(),
+            self::STAGE_HANDOVER => $query->awaitingHandover(),
             self::STATUS_PENDING, self::STATUS_REJECTED, self::STATUS_POSTED => $query->where('status', $stage),
             default => $query,
         };
@@ -326,10 +351,10 @@ class Outbound extends Model
     /**
      * Paket marketplace yang sudah lengkap discan tetapi belum diproses.
      *
-     * Ini isi antrean "Siap Dikirim": stasiun packing hanya memverifikasi isi
+     * Ini isi antrean "Serah Terima Paket": stasiun packing hanya memverifikasi isi
      * paket, pengirimannya diputuskan belakangan.
      */
-    public function scopeReadyToShip(Builder $query): Builder
+    public function scopeAwaitingHandover(Builder $query): Builder
     {
         return $query->where('type', self::TYPE_MARKETPLACE)
             ->where('status', self::STATUS_DRAFT)

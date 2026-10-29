@@ -10,10 +10,10 @@ use App\Models\Outbound;
  * Dipakai badge di menu samping supaya antrean packing terlihat tanpa perlu
  * membuka halamannya — itu satu-satunya isyarat bahwa ada pekerjaan menumpuk.
  */
-class ReadyToShipCounter
+class HandoverQueueCounter
 {
     public static function count(): int
     {
-        return Outbound::readyToShip()->count();
+        return Outbound::awaitingHandover()->count();
     }
 }

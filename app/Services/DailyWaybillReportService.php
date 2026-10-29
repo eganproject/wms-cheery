@@ -14,7 +14,7 @@ use Illuminate\Support\Collection;
  *
  * Tahap memakai scope ShipmentOrder yang sama dengan halaman Status Resi.
  * Dengan begitu angka harian dan daftar rinci tidak bisa memiliki definisi
- * Belum QC, Siap Dikirim, Dikirim, atau Dibatalkan yang berbeda.
+ * Belum QC, Serah Terima Paket, Dikirim, atau Dibatalkan yang berbeda.
  */
 class DailyWaybillReportService
 {

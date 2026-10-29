@@ -90,6 +90,12 @@ class OutboundScanService
         $lines = $this->resolver->toOutboundLines($order);
 
         if ($this->signatureOf($outbound) === $lines->signature()) {
+            // Isinya sudah sama, tetapi tautannya tetap dicatat: nama
+            // marketplace dan status batal dibaca lewat tautan ini.
+            if ($outbound->shipment_order_id !== $order->id) {
+                $outbound->forceFill(['shipment_order_id' => $order->id])->save();
+            }
+
             return 0;
         }
 

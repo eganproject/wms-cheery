@@ -18,7 +18,7 @@ use Illuminate\View\View;
  * manual, sehingga tidak mungkin melenceng dari kenyataan:
  *
  *   Belum QC   → resi atau barangnya belum tuntas discan
- *   Siap Kirim → scan lengkap, dokumen belum diproses
+ *   Serah Terima → scan lengkap, dokumen belum diproses
  *   Dikirim    → dokumen disetujui, stok sudah berkurang
  *   Dibatalkan → pesanan batal dan barangnya belum berangkat
  *
@@ -42,6 +42,7 @@ class WaybillStatusController extends Controller implements HasMiddleware
     public function __invoke(Request $request): View
     {
         $stage = $request->string('stage')->value();
+        $stage = ShipmentOrder::LEGACY_STAGES[$stage] ?? $stage;
         $onlyDuplicates = $request->boolean('duplicate');
 
         $orders = $this->narrowed($request)
@@ -126,7 +127,7 @@ class WaybillStatusController extends Controller implements HasMiddleware
     {
         return [
             ShipmentOrder::STAGE_AWAITING_QC => $this->narrowed($request)->awaitingQc()->count(),
-            ShipmentOrder::STAGE_CHECKED => $this->narrowed($request)->qualityChecked()->count(),
+            ShipmentOrder::STAGE_HANDOVER => $this->narrowed($request)->qualityChecked()->count(),
             ShipmentOrder::STAGE_SHIPPED => $this->narrowed($request)->shipped()->count(),
             ShipmentOrder::STAGE_CANCELLED => $this->narrowed($request)->cancelled()->count(),
         ];

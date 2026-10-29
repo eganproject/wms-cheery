@@ -37,7 +37,7 @@
                  satu. Sebelumnya hanya ada Draft dan Terkirim, sehingga paket
                  yang menunggu persetujuan atau ditolak tidak bisa dicari sama
                  sekali, dan "Draft" ikut memuat paket yang sebenarnya sudah
-                 siap dikirim. --}}
+                 menunggu serah terima. --}}
             <x-ui.select name="status" class="col-span-2 sm:col-span-1 sm:w-48">
                 <option value="">Semua status</option>
                 @foreach (App\Models\Outbound::stages() as $value => $stage)
