@@ -69,12 +69,12 @@
             <x-ui.card title="Identitas Barang" subtitle="SKU dan barcode dipakai saat proses scan barang keluar.">
                 <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <x-ui.field label="Nama Barang" for="name" :error="$errors->get('name')" required class="sm:col-span-2">
-                        <x-text-input id="name" name="name" type="text" :value="old('name', $product?->name)"
+                        <x-text-input id="name" name="name" type="text" :value="old('name', $product?->name ?? request('name'))"
                                       required autofocus placeholder="Contoh: Filter Oli Standar" />
                     </x-ui.field>
 
                     <x-ui.field label="SKU" info="Kode unik barang. Harus sama persis dengan SKU di TikTok Shop agar pesanan bisa dicocokkan otomatis." for="sku" :error="$errors->get('sku')" required>
-                        <x-text-input id="sku" name="sku" type="text" :value="old('sku', $product?->sku)"
+                        <x-text-input id="sku" name="sku" type="text" :value="old('sku', $product?->sku ?? request('sku'))"
                                       required class="font-mono uppercase" placeholder="FLT-OLI-STD" />
                         <p class="mt-1.5 text-[11px] text-ink-500" x-show="isBundle" x-cloak>
                             Isi persis seperti SKU paket di marketplace — inilah yang dicocokkan saat berkas TikTok diimport.

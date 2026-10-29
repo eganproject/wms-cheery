@@ -116,6 +116,14 @@ class ShipmentSkuMatchController extends Controller implements HasMiddleware
      */
     protected function backToList(Request $request): RedirectResponse
     {
+        // Tombol yang sama juga ada di halaman Pesanan.
+        if ($request->input('return') === 'orders') {
+            return redirect()->route('admin.orders.index', array_filter(
+                $request->only(OrderController::FILTER_KEYS),
+                fn ($value) => filled($value),
+            ));
+        }
+
         return redirect()->route('admin.imports.index', array_filter(
             $request->only(['search', 'marketplace', 'courier', 'match', 'from', 'to']),
             fn ($value) => filled($value),

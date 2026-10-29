@@ -72,12 +72,12 @@
         </a>
         @php $onlyUnmatched = request()->boolean('unmatched'); @endphp
         <a href="{{ route('admin.orders.index', $keep(['unmatched'], ['unmatched' => $onlyUnmatched ? null : 1])) }}"
-           data-hint-title="SKU belum terdaftar" data-hint="Ada SKU pesanan yang belum terdaftar di master barang, jadi barangnya tidak bisa ditarik otomatis saat scan." data-hint-next="Daftarkan SKU-nya di menu Barang, lalu tekan Cocokkan Ulang di Import Resi."
+           data-hint-title="SKU tidak dikenal" data-hint="Pesanan yang resinya memuat SKU yang tidak ada di master barang, baik sebagai barang satuan maupun paket bundling. Barangnya tidak bisa ditarik otomatis saat scan." data-hint-next="Daftarkan SKU-nya di menu Barang, lalu tekan Cocokkan Ulang di Import Resi."
            @class([$chip, 'font-medium',
                'border-amber-600 bg-amber-600 text-white' => $onlyUnmatched,
                'border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-300' => ! $onlyUnmatched && $unmatched,
                'border-ink-200 bg-white text-ink-400' => ! $onlyUnmatched && ! $unmatched])>
-            <x-icon name="box" class="h-3.5 w-3.5" /> SKU belum terdaftar
+            <x-icon name="box" class="h-3.5 w-3.5" /> SKU tidak dikenal
             @if ($onlyUnmatched)
                 <x-icon name="close" class="h-3.5 w-3.5" />
             @else
@@ -85,6 +85,66 @@
             @endif
         </a>
     </div>
+
+    {{--
+        Peringatan SKU tidak dikenal: SKU di resi yang tidak ada di master
+        barang (bukan barang satuan, bukan paket bundling). Paketnya tidak bisa
+        di-QC sampai SKU-nya didaftarkan dan dicocokkan ulang.
+    --}}
+    @if ($unknownSkus->isNotEmpty())
+        <div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4" data-unknown-skus>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start">
+                <x-icon name="warning" class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-semibold text-amber-900">
+                        {{ $unknownSkus->count() }} SKU di resi tidak dikenal sistem · {{ number_format($unmatched, 0, ',', '.') }} pesanan terdampak
+                    </p>
+                    <p class="mt-0.5 text-xs text-amber-800">
+                        SKU ini tidak ada di master barang, baik sebagai barang satuan maupun paket bundling. Pesanannya tidak bisa
+                        di-QC sampai SKU-nya didaftarkan (atau diperbaiki agar sama persis), lalu dicocokkan ulang.
+                    </p>
+                    <div class="mt-3 flex flex-wrap gap-1.5">
+                        @foreach ($unknownSkus->take(12) as $unknown)
+                            <span class="inline-flex max-w-full items-center gap-1 rounded-lg border border-amber-200 bg-white py-0.5 pl-2 pr-0.5 text-xs">
+                                <a href="{{ route('admin.orders.index', $keep(['search', 'search_by', 'unmatched'], ['search' => $unknown->sku, 'search_by' => 'sku'])) }}"
+                                   class="min-w-0 truncate font-mono font-medium text-amber-900 hover:underline"
+                                   title="{{ $unknown->product_name ? $unknown->product_name.' · ' : '' }}Tampilkan pesanan dengan SKU ini">{{ $unknown->sku }}</a>
+                                <span class="shrink-0 text-amber-700" title="{{ $unknown->orders }} pesanan, {{ $unknown->units }} unit">{{ $unknown->orders }} psn</span>
+                                @can('products.create')
+                                    <a href="{{ route('admin.products.create', ['sku' => $unknown->sku, 'name' => $unknown->product_name]) }}"
+                                       class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-amber-700 hover:bg-amber-100"
+                                       title="Daftarkan {{ $unknown->sku }} di master barang">
+                                        <x-icon name="plus" class="h-3.5 w-3.5" />
+                                    </a>
+                                @endcan
+                            </span>
+                        @endforeach
+                        @if ($unknownSkus->count() > 12)
+                            <span class="self-center text-xs text-amber-800">dan {{ $unknownSkus->count() - 12 }} SKU lainnya</span>
+                        @endif
+                    </div>
+                </div>
+                <div class="flex shrink-0 flex-wrap items-center gap-2">
+                    @unless (request()->boolean('unmatched'))
+                        <x-ui.button :href="route('admin.orders.index', $keep(['unmatched'], ['unmatched' => 1]))" variant="secondary" size="sm">Tampilkan pesanannya</x-ui.button>
+                    @endunless
+                    @can('imports.create')
+                        <form method="POST" action="{{ route('admin.imports.rematch') }}"
+                              data-hint="Setelah SKU didaftarkan di master barang, tekan ini agar resi yang sudah diimport ikut tersambung ke barangnya.">
+                            @csrf
+                            <input type="hidden" name="return" value="orders">
+                            @foreach (OrderController::FILTER_KEYS as $filter)
+                                @if (request()->filled($filter))
+                                    <input type="hidden" name="{{ $filter }}" value="{{ request($filter) }}">
+                                @endif
+                            @endforeach
+                            <x-ui.button type="submit" size="sm" icon="refresh">Cocokkan Ulang</x-ui.button>
+                        </form>
+                    @endcan
+                </div>
+            </div>
+        </div>
+    @endif
 
     <div class="frappe-card">
         {{-- Filter sekali klik: marketplace, toko, dan kurir. --}}
@@ -252,7 +312,7 @@
                                     @endif
                                     @if ($unmatchedItems->isNotEmpty())
                                         <span class="inline-flex items-center gap-1 font-medium text-amber-700">
-                                            <x-icon name="warning" class="h-3.5 w-3.5" /> SKU belum terdaftar
+                                            <x-icon name="warning" class="h-3.5 w-3.5" /> SKU tidak dikenal: <span class="font-mono">{{ $unmatchedItems->pluck('sku')->unique()->implode(', ') }}</span>
                                         </span>
                                     @endif
                                     <span class="ml-auto flex items-center gap-4 whitespace-nowrap text-ink-500">
@@ -272,6 +332,10 @@
                                             <span class="min-w-0">
                                                 <span @class(['block truncate font-mono', 'text-ink-900' => $item->isMatched(), 'text-amber-700' => ! $item->isMatched()])
                                                       title="{{ $item->product_name }}">{{ $item->sku }}</span>
+                                                @unless ($item->isMatched())
+                                                    <span class="mt-0.5 inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-px text-[10px] font-medium text-amber-800 cursor-help"
+                                                          data-hint-title="SKU tidak dikenal" data-hint="SKU ini tidak ada di master barang (bukan barang satuan maupun paket bundling), jadi tidak bisa ditarik saat QC." data-hint-next="Daftarkan SKU-nya di menu Barang, lalu tekan Cocokkan Ulang.">Tidak ada di sistem</span>
+                                                @endunless
                                                 @if ($item->product_name)
                                                     <span class="block truncate text-[11px] text-ink-400">{{ $item->product_name }}</span>
                                                 @endif

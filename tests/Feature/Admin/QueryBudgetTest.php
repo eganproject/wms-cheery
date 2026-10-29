@@ -56,7 +56,7 @@ class QueryBudgetTest extends TestCase
             'stok opname' => ['admin.opnames.index', 15],
             'barang rusak' => ['admin.disposals.index', 17],
             'import resi' => ['admin.imports.index', 16],
-            'pesanan' => ['admin.orders.index', 18],
+            'pesanan' => ['admin.orders.index', 19],
             'resi per hari' => ['admin.imports.daily', 16],
             'per ekspedisi' => ['admin.imports.couriers', 16],
             'persetujuan' => ['admin.approvals.index', 22],

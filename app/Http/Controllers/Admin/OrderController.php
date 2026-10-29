@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ShipmentOrder;
+use App\Models\ShipmentOrderItem;
 use App\Support\DateRange;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -102,6 +103,7 @@ class OrderController extends Controller implements HasMiddleware
             'counts' => $this->counts($request),
             'duplicates' => $this->filtered($request, withFlags: false)->duplicated()->count(),
             'unmatched' => $this->filtered($request, withFlags: false)->whereHas('items', fn (Builder $items) => $items->whereNull('product_id'))->count(),
+            'unknownSkus' => $this->unknownSkus($request),
             'twins' => ShipmentOrder::twinsFor($orders->items()),
             'marketplaces' => $distinct('marketplace'),
             'stores' => $distinct('store_name'),
@@ -134,6 +136,26 @@ class OrderController extends Controller implements HasMiddleware
             ->when($withFlags && $request->boolean('duplicate'), fn (Builder $query) => $query->duplicated())
             ->when($withFlags && $request->boolean('unmatched'),
                 fn (Builder $query) => $query->whereHas('items', fn (Builder $items) => $items->whereNull('product_id')));
+    }
+
+    /**
+     * SKU di resi yang tidak dikenal sistem: bukan barang satuan maupun paket
+     * bundling di master barang. Dihitung untuk saringan yang berlaku (tanpa
+     * tab), supaya peringatannya sama di tab mana pun.
+     *
+     * @return \Illuminate\Support\Collection<int, object{sku: string, product_name: ?string, orders: int, units: int}>
+     */
+    protected function unknownSkus(Request $request)
+    {
+        return ShipmentOrderItem::query()
+            ->whereNull('product_id')
+            ->whereIn('shipment_order_id', $this->filtered($request, withFlags: false)->select('shipment_orders.id'))
+            ->selectRaw('sku, MAX(product_name) as product_name, COUNT(DISTINCT shipment_order_id) as orders, SUM(quantity) as units')
+            ->groupBy('sku')
+            ->orderByDesc('orders')
+            ->orderBy('sku')
+            ->toBase()
+            ->get();
     }
 
     /**

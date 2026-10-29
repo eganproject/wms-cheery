@@ -154,4 +154,41 @@ class OrderPageTest extends TestCase
 
         $this->assertTrue($order->fresh()->isCancelled());
     }
+
+    public function test_unknown_skus_on_imported_waybills_are_called_out(): void
+    {
+        $product = Product::create(['sku' => 'SKU-ADA', 'name' => 'Barang Ada', 'unit' => 'pcs']);
+
+        $known = $this->order('RESIKNOWN');
+        $known->items()->create(['sku' => 'SKU-ADA', 'quantity' => 1, 'product_id' => $product->id]);
+
+        $unknown = $this->order('RESIUNKNOWN');
+        $unknown->items()->create(['sku' => 'SKU-ASING', 'product_name' => 'Barang Asing', 'quantity' => 2, 'product_id' => null]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.orders.index'))->assertOk();
+
+        $this->assertSame(['SKU-ASING'], $response->viewData('unknownSkus')->pluck('sku')->all());
+        $response->assertSee('data-unknown-skus', false)
+            ->assertSee('1 SKU di resi tidak dikenal sistem')
+            ->assertSee('SKU tidak dikenal: ')
+            ->assertSee('Tidak ada di sistem')
+            ->assertSee(route('admin.products.create', ['sku' => 'SKU-ASING', 'name' => 'Barang Asing']));
+
+        $this->actingAs($this->admin)->get(route('admin.orders.index', ['unmatched' => 1]))
+            ->assertSee('RESIUNKNOWN')
+            ->assertDontSee('RESIKNOWN');
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.imports.rematch'), ['return' => 'orders', 'unmatched' => 1])
+            ->assertRedirect(route('admin.orders.index', ['unmatched' => 1]));
+    }
+
+    public function test_the_warning_is_hidden_when_every_sku_is_known(): void
+    {
+        $this->order('RESIEMPTY');
+
+        $this->actingAs($this->admin)->get(route('admin.orders.index'))
+            ->assertOk()
+            ->assertDontSee('data-unknown-skus', false);
+    }
 }
