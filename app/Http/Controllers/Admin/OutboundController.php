@@ -266,6 +266,12 @@ class OutboundController extends Controller implements HasMiddleware
                 : 'Dokumen yang sudah disetujui bersifat final dan tidak dapat dihapus.');
         }
 
+        // Dokumen yang pernah mengurangi stok lalu dibatalkan tetap disimpan:
+        // kartu stok menunjuk ke sini.
+        if ($outbound->wasReversed()) {
+            return back()->with('error', 'Dokumen ini pernah dikirim lalu dibatalkan, stoknya sudah dikembalikan. Disimpan sebagai jejak kartu stok, jadi tidak bisa dihapus.');
+        }
+
         $outbound->delete();
 
         return redirect()

@@ -243,7 +243,7 @@ class OrderController extends Controller implements HasMiddleware
             ShipmentOrder::STAGE_AWAITING_QC => 'Resi sudah diimport tapi resi atau barangnya belum tuntas discan di QC Kemas.',
             ShipmentOrder::STAGE_HANDOVER => 'QC kemas selesai: resi dan semua barang sudah discan. Paket menunggu discan di Serah Terima Paket saat diserahkan ke kurir.',
             ShipmentOrder::STAGE_SHIPPED => 'Paket sudah discan di Serah Terima Paket (diserahkan ke kurir). Dokumen barang keluar disetujui dan stok sudah berkurang.',
-            ShipmentOrder::STAGE_CANCELLED => 'Pesanan batal sebelum berangkat. Jangan dikirim.',
+            ShipmentOrder::STAGE_CANCELLED => 'Pesanan batal. Jangan dikirim. Paket yang sudah dikemas atau sudah serah terima hanya bisa dibatalkan pada hari yang sama dengan QC kemasnya; stok paket yang sudah serah terima dikembalikan otomatis.',
         ];
     }
 

@@ -232,12 +232,52 @@ class CancelledOrderTest extends TestCase
     }
 
     /**
-     * Barang yang sudah berangkat tidak bisa ditarik dengan menandai resinya.
+     * Sudah serah terima, tapi QC kemasnya hari ini: masih bisa dibatalkan,
+     * dan stoknya kembali.
      */
-    public function test_a_shipped_waybill_can_not_be_cancelled(): void
+    public function test_a_waybill_shipped_today_can_be_cancelled_and_its_stock_returns(): void
     {
         $order = $this->makeOrder();
         $outbound = $this->makePackage($order, scanned: 2);
+
+        $this->actingAs($this->admin)->post(route('admin.outbounds.handover.process'), ['ids' => [$outbound->id]]);
+        $this->assertTrue($outbound->refresh()->isPosted());
+        $this->assertSame(48, $this->product->refresh()->stock);
+
+        $this->actingAs($this->admin)->post(route('admin.imports.orders.cancel', $order), [
+            'cancellation_reason' => 'Pembeli minta batal.',
+        ])->assertSessionHas('success');
+
+        $order->refresh()->load('outbound');
+        $this->assertTrue($order->isCancelled());
+        $this->assertSame(ShipmentOrder::STAGE_CANCELLED, $order->stage());
+        $this->assertSame(50, $this->product->refresh()->stock);
+        $this->assertFalse($outbound->refresh()->isPosted());
+        $this->assertTrue($outbound->wasReversed());
+        $this->assertSame(1, ShipmentOrder::cancelled()->count());
+        $this->assertSame(0, ShipmentOrder::shipped()->count());
+
+        // Kartu stok menunjuk dokumen ini, jadi ia tidak boleh dihapus.
+        $this->actingAs($this->admin)->delete(route('admin.outbounds.destroy', $outbound))->assertSessionHas('error');
+        $this->assertNotNull($outbound->fresh());
+        $this->actingAs($this->admin)->get(route('admin.outbounds.show', $outbound))
+            ->assertOk()
+            ->assertSee('Stoknya sudah dikembalikan');
+
+        // Dicabut: paket kembali ke antrean serah terima, stok tidak bergerak.
+        $this->actingAs($this->admin)->delete(route('admin.imports.orders.restore', $order))->assertSessionHas('success');
+        $this->assertSame(ShipmentOrder::STAGE_HANDOVER, $order->refresh()->load('outbound')->stage());
+        $this->assertSame(50, $this->product->refresh()->stock);
+    }
+
+    /**
+     * Sudah serah terima, tapi QC kemasnya kemarin: tidak bisa dibatalkan.
+     */
+    public function test_a_waybill_packed_on_an_earlier_day_can_not_be_cancelled(): void
+    {
+        $order = $this->makeOrder();
+        $outbound = $this->makePackage($order, scanned: 2);
+        $outbound->forceFill(['resi_verified_at' => now()->subDay()])->save();
 
         $this->actingAs($this->admin)->post(route('admin.outbounds.handover.process'), ['ids' => [$outbound->id]]);
         $this->assertTrue($outbound->refresh()->isPosted());
@@ -247,6 +287,48 @@ class CancelledOrderTest extends TestCase
         ])->assertSessionHas('error');
 
         $this->assertFalse($order->refresh()->isCancelled());
+        $this->assertSame(48, $this->product->refresh()->stock);
+        $this->assertTrue($outbound->refresh()->isPosted());
+
+        $this->actingAs($this->admin)->get(route('admin.orders.index', ['range' => 'semua']))
+            ->assertOk()
+            ->assertSee('Tidak bisa batal');
+    }
+
+    /**
+     * Sudah dikemas (belum serah terima): sama, hanya pada hari QC-nya.
+     */
+    public function test_a_packed_waybill_follows_the_same_day_rule(): void
+    {
+        $today = $this->makeOrder('SPXIDTODAY');
+        $this->makePackage($today, scanned: 2);
+
+        $yesterday = $this->makeOrder('SPXIDYESTERDAY');
+        $this->makePackage($yesterday, scanned: 2)->forceFill(['resi_verified_at' => now()->subDay()])->save();
+
+        foreach ([$today, $yesterday] as $order) {
+            $this->actingAs($this->admin)->post(route('admin.imports.orders.cancel', $order), [
+                'cancellation_reason' => 'Pembeli minta batal.',
+            ]);
+        }
+
+        $this->assertTrue($today->refresh()->isCancelled());
+        $this->assertFalse($yesterday->refresh()->isCancelled());
+    }
+
+    /**
+     * Belum selesai QC: selalu bisa dibatalkan, berapa hari pun lewatnya.
+     */
+    public function test_a_waybill_still_being_packed_can_always_be_cancelled(): void
+    {
+        $order = $this->makeOrder();
+        $this->makePackage($order, scanned: 1)->forceFill(['resi_verified_at' => now()->subDays(3)])->save();
+
+        $this->actingAs($this->admin)->post(route('admin.imports.orders.cancel', $order), [
+            'cancellation_reason' => 'Pembeli minta batal.',
+        ])->assertSessionHas('success');
+
+        $this->assertTrue($order->refresh()->isCancelled());
     }
 
     public function test_a_cancellation_can_be_withdrawn(): void

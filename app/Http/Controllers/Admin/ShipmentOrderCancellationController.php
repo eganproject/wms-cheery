@@ -5,7 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Outbound;
 use App\Models\ShipmentOrder;
+use App\Services\ApprovalService;
+use App\Services\StockService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -20,6 +24,10 @@ use Illuminate\Routing\Controllers\Middleware;
  */
 class ShipmentOrderCancellationController extends Controller implements HasMiddleware
 {
+    public function __construct(protected StockService $stock, protected ApprovalService $approvals)
+    {
+    }
+
     public static function middleware(): array
     {
         return [
@@ -33,26 +41,44 @@ class ShipmentOrderCancellationController extends Controller implements HasMiddl
             'cancellation_reason' => ['required', 'string', 'max:255'],
         ], [], ['cancellation_reason' => 'alasan pembatalan'])['cancellation_reason'];
 
-        // Barang yang sudah berangkat tidak bisa ditarik dengan menandai
-        // resinya; yang seperti itu kembali lewat penerimaan retur, dan di
-        // sanalah stoknya bertambah lagi.
-        if ($order->outbounds()->where('status', Outbound::STATUS_POSTED)->exists()) {
-            return $this->backToStatus($request)->with(
-                'error',
-                "Resi {$order->tracking_number} sudah dikirim. Pembatalan setelah barang berangkat dicatat lewat penerimaan retur.",
-            );
+        $order->load('outbound.items');
+
+        // Paket yang sudah dikemas atau sudah diserahkan ke kurir hanya bisa
+        // dibatalkan pada hari QC kemasnya. Lewat dari itu, pengembaliannya
+        // dicatat lewat penerimaan retur.
+        if ($blocker = $order->cancellationBlocker()) {
+            return $this->backToStatus($request)->with('error', "Resi {$order->tracking_number} tidak bisa dibatalkan. {$blocker}");
         }
 
-        $order->forceFill([
-            'cancelled_at' => now(),
-            'cancelled_by' => $request->user()->id,
-            'cancellation_reason' => $reason,
-        ])->save();
+        $outbound = $order->outbound;
+        $shipped = (bool) $outbound?->isPosted();
 
-        return $this->backToStatus($request)->with(
-            'success',
-            "Resi {$order->tracking_number} ditandai batal. Paketnya tidak bisa lagi discan maupun dikirim.",
-        );
+        try {
+            DB::transaction(function () use ($order, $outbound, $request, $reason) {
+                if ($outbound?->isPosted()) {
+                    // Sudah serah terima hari ini: stoknya dikembalikan.
+                    $this->stock->reverseOutbound(
+                        $outbound,
+                        "Batal kirim {$outbound->code} · resi {$order->tracking_number} dibatalkan: {$reason}",
+                    );
+                } elseif ($outbound?->isPending()) {
+                    // Jangan sampai pengajuannya disetujui setelah pesanannya batal.
+                    $this->approvals->withdraw($outbound);
+                }
+
+                $order->forceFill([
+                    'cancelled_at' => now(),
+                    'cancelled_by' => $request->user()->id,
+                    'cancellation_reason' => $reason,
+                ])->save();
+            });
+        } catch (ValidationException $exception) {
+            return $this->backToStatus($request)->with('error', collect($exception->errors())->flatten()->implode(' '));
+        }
+
+        return $this->backToStatus($request)->with('success', $shipped
+            ? "Resi {$order->tracking_number} dibatalkan dan stok {$outbound->items->sum('quantity')} unit dikembalikan. Ambil kembali paketnya dari kurir dan kembalikan barangnya ke rak."
+            : "Resi {$order->tracking_number} ditandai batal. Paketnya tidak bisa lagi discan maupun dikirim.");
     }
 
     public function destroy(Request $request, ShipmentOrder $order): RedirectResponse
@@ -65,7 +91,9 @@ class ShipmentOrderCancellationController extends Controller implements HasMiddl
 
         return $this->backToStatus($request)->with(
             'success',
-            "Pembatalan resi {$order->tracking_number} dicabut. Paketnya bisa dipacking seperti biasa.",
+            $order->outbound?->wasReversed() && $order->outbound->isDraft()
+                ? "Pembatalan resi {$order->tracking_number} dicabut. Paketnya kembali ke antrean Serah Terima Paket; scan lagi di sana saat diserahkan ke kurir."
+                : "Pembatalan resi {$order->tracking_number} dicabut. Paketnya bisa dipacking seperti biasa.",
         );
     }
 
