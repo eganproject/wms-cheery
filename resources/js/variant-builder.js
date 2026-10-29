@@ -6,6 +6,8 @@
  * baris tetap bisa diubah atau dihapus sebelum disimpan, karena SKU-nya harus
  * sama persis dengan Seller SKU di marketplace.
  */
+let uid = 0;
+
 export default function variantBuilder(initial = {}) {
     return {
         option1Name: initial.option1Name ?? 'Warna',
@@ -14,7 +16,7 @@ export default function variantBuilder(initial = {}) {
         values2: initial.values2 ?? '',
         skuPrefix: initial.skuPrefix ?? '',
         minStock: initial.minStock ?? 0,
-        rows: (initial.rows ?? []).map((row) => ({ ...row })),
+        rows: (initial.rows ?? []).map((row) => ({ ...row, uid: ++uid })),
 
         get hasSecond() {
             return this.option2Name.trim() !== '';
@@ -61,6 +63,7 @@ export default function variantBuilder(initial = {}) {
                 const parts = [prefix, this.code(option1), option2 ? this.code(option2) : null].filter(Boolean);
 
                 return {
+                    uid: ++uid,
                     option1,
                     option2: option2 ?? '',
                     sku: parts.join('-'),
@@ -72,7 +75,7 @@ export default function variantBuilder(initial = {}) {
         },
 
         addRow() {
-            this.rows.push({ option1: '', option2: '', sku: '', barcode: '', location: '', min_stock: this.minStock });
+            this.rows.push({ uid: ++uid, option1: '', option2: '', sku: '', barcode: '', location: '', min_stock: this.minStock });
         },
 
         removeRow(index) {

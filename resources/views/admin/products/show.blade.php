@@ -111,7 +111,7 @@
             @if ($product->isVariant() && $product->group)
                 <x-ui.card title="Varian Produk" :subtitle="$product->group->name">
                     <x-slot name="actions">
-                        <x-ui.button :href="route('admin.product-groups.show', $product->group)" variant="ghost" size="sm" icon="layers">Lihat Produk</x-ui.button>
+                        <x-ui.button :href="route('admin.products.groups.show', $product->group)" variant="ghost" size="sm" icon="layers">Lihat Produk</x-ui.button>
                     </x-slot>
                     <ul class="space-y-2">
                         @foreach ($product->group->variants as $sibling)

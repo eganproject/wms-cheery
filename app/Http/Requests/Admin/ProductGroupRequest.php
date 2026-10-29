@@ -62,6 +62,7 @@ class ProductGroupRequest extends FormRequest
             "{$key}.*.barcode" => ['nullable', 'string', 'max:64', 'distinct', 'unique:products,barcode'],
             "{$key}.*.location" => ['nullable', 'string', 'max:100'],
             "{$key}.*.min_stock" => ['nullable', 'integer', 'min:0', 'max:1000000'],
+            "{$key}.*.image" => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ];
     }
 
@@ -78,6 +79,7 @@ class ProductGroupRequest extends FormRequest
             'variants.*.barcode' => 'barcode varian',
             'variants.*.location' => 'lokasi rak',
             'variants.*.min_stock' => 'stok minimum',
+            'variants.*.image' => 'gambar varian',
         ];
     }
 

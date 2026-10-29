@@ -34,7 +34,7 @@ class ProductVariantTest extends TestCase
 
     protected function makeGroup(): ProductGroup
     {
-        $this->actingAs($this->admin)->post(route('admin.product-groups.store'), [
+        $this->actingAs($this->admin)->post(route('admin.products.groups.store'), [
             'name' => 'Kaos Polos',
             'category' => 'Atasan',
             'unit' => 'pcs',
@@ -69,7 +69,7 @@ class ProductVariantTest extends TestCase
 
     public function test_duplicate_combinations_are_rejected(): void
     {
-        $this->actingAs($this->admin)->post(route('admin.product-groups.store'), [
+        $this->actingAs($this->admin)->post(route('admin.products.groups.store'), [
             'name' => 'Kaos',
             'unit' => 'pcs',
             'option1_name' => 'Warna',
@@ -87,7 +87,7 @@ class ProductVariantTest extends TestCase
     {
         $group = $this->makeGroup();
 
-        $this->actingAs($this->admin)->put(route('admin.product-groups.update', $group), [
+        $this->actingAs($this->admin)->put(route('admin.products.groups.update', $group), [
             'name' => 'Kaos Cotton',
             'category' => 'Kaos',
             'unit' => 'pcs',
@@ -106,7 +106,7 @@ class ProductVariantTest extends TestCase
         $old = Product::create(['sku' => 'KAOS-HITAM-L', 'name' => 'Kaos hitam L', 'unit' => 'pcs']);
         $old->forceFill(['stock' => 12])->save();
 
-        $this->actingAs($this->admin)->post(route('admin.product-groups.attach', $group), [
+        $this->actingAs($this->admin)->post(route('admin.products.groups.attach', $group), [
             'product_id' => $old->id,
             'option1' => 'Hitam',
             'option2' => 'L',
@@ -118,7 +118,7 @@ class ProductVariantTest extends TestCase
         $this->assertSame(12, $old->stock);
 
         // Lepas lagi: barang tetap ada, stok tetap.
-        $this->actingAs($this->admin)->delete(route('admin.product-groups.detach', [$group, $old]))->assertRedirect();
+        $this->actingAs($this->admin)->delete(route('admin.products.groups.detach', [$group, $old]))->assertRedirect();
         $old->refresh();
         $this->assertNull($old->product_group_id);
         $this->assertSame(12, $old->stock);
@@ -128,13 +128,13 @@ class ProductVariantTest extends TestCase
     {
         $group = $this->makeGroup();
 
-        $this->actingAs($this->admin)->post(route('admin.product-groups.variants.store', $group), [
+        $this->actingAs($this->admin)->post(route('admin.products.groups.variants.store', $group), [
             'variants' => [['option1' => 'Hijau', 'option2' => 'S', 'sku' => 'KAOS-HIJAU-S']],
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertSame('Kaos Polos - Hijau / S', Product::where('sku', 'KAOS-HIJAU-S')->value('name'));
 
-        $this->actingAs($this->admin)->post(route('admin.product-groups.variants.store', $group), [
+        $this->actingAs($this->admin)->post(route('admin.products.groups.variants.store', $group), [
             'variants' => [['option1' => 'Hijau', 'option2' => 'S', 'sku' => 'KAOS-HIJAU-S2']],
         ])->assertSessionHasErrors('variants');
     }
@@ -172,7 +172,7 @@ class ProductVariantTest extends TestCase
     {
         $group = $this->makeGroup();
 
-        $this->actingAs($this->admin)->delete(route('admin.product-groups.destroy', $group))->assertRedirect();
+        $this->actingAs($this->admin)->delete(route('admin.products.groups.destroy', $group))->assertRedirect();
 
         $this->assertSame(0, ProductGroup::count());
         $this->assertSame(3, Product::whereNull('product_group_id')->count());
@@ -183,7 +183,7 @@ class ProductVariantTest extends TestCase
     {
         $group = $this->makeGroup();
 
-        $this->actingAs($this->admin)->put(route('admin.product-groups.update', $group), [
+        $this->actingAs($this->admin)->put(route('admin.products.groups.update', $group), [
             'name' => 'Kaos Polos',
             'category' => 'Atasan',
             'unit' => 'pcs',
@@ -216,11 +216,16 @@ class ProductVariantTest extends TestCase
         $group = $this->makeGroup();
         $variant = Product::where('sku', 'KAOS-MERAH-L')->firstOrFail();
 
-        $this->actingAs($this->admin)->get(route('admin.product-groups.index'))->assertOk()->assertSee('Kaos Polos');
-        $this->actingAs($this->admin)->get(route('admin.product-groups.create'))->assertOk();
-        $this->actingAs($this->admin)->get(route('admin.product-groups.show', $group))->assertOk()->assertSee('KAOS-BIRU-L');
-        $this->actingAs($this->admin)->get(route('admin.product-groups.edit', $group))->assertOk();
-        $this->actingAs($this->admin)->get(route('admin.products.index'))->assertOk()->assertSee('Varian');
+        $this->actingAs($this->admin)->get(route('admin.products.index'))->assertOk()->assertSee('Kaos Polos');
+        $this->actingAs($this->admin)->get(route('admin.products.create', ['type' => 'variant']))->assertOk()->assertSee('Produk ini punya varian');
+        $this->actingAs($this->admin)->get(route('admin.products.groups.show', $group))->assertOk()->assertSee('KAOS-BIRU-L');
+        $this->actingAs($this->admin)->get(route('admin.products.groups.edit', $group))->assertOk();
+        $this->actingAs($this->admin)->get(route('admin.products.index'))->assertOk()->assertSee('3 varian');
+        $this->actingAs($this->admin)->get(route('admin.products.index', ['type' => 'variant']))->assertOk()->assertSee('KAOS-MERAH-M');
+
+        // URL menu lama diarahkan ke halaman Barang.
+        $this->actingAs($this->admin)->get('/admin/product-groups')->assertRedirect(route('admin.products.index', ['type' => 'variant']));
+        $this->actingAs($this->admin)->get('/admin/product-groups/'.$group->id)->assertRedirect(route('admin.products.groups.show', $group));
         $this->actingAs($this->admin)->get(route('admin.products.show', $variant))->assertOk()->assertSee('Varian Produk');
         $this->actingAs($this->admin)->get(route('admin.products.edit', $variant))->assertOk()->assertSee('Varian dari');
     }
@@ -249,5 +254,33 @@ class ProductVariantTest extends TestCase
         $plain = Product::where('sku', 'FLT-1')->firstOrFail();
         $this->assertNull($plain->product_group_id);
         $this->assertSame('Filter Oli', $plain->name);
+    }
+
+    public function test_unified_form_creates_variants_with_their_own_images(): void
+    {
+        $this->actingAs($this->admin)->post(route('admin.products.groups.store'), [
+            'has_variants' => 1,
+            'type' => 'single',
+            'name' => 'Hijab Segi Empat',
+            'unit' => 'pcs',
+            'is_active' => 1,
+            'option1_name' => 'Warna',
+            'option2_name' => '',
+            'image' => UploadedFile::fake()->image('hijab.jpg'),
+            'variants' => [
+                ['option1' => 'Mocca', 'sku' => 'HJB-MOCCA', 'image' => UploadedFile::fake()->image('mocca.jpg')],
+                ['option1' => 'Navy', 'sku' => 'HJB-NAVY'],
+            ],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $group = ProductGroup::where('name', 'Hijab Segi Empat')->firstOrFail();
+        $mocca = Product::where('sku', 'HJB-MOCCA')->firstOrFail();
+        $navy = Product::where('sku', 'HJB-NAVY')->firstOrFail();
+
+        $this->assertSame('Hijab Segi Empat - Mocca', $mocca->name);
+        $this->assertNotNull($mocca->image_path);
+        Storage::disk('public')->assertExists($mocca->image_path);
+        $this->assertNull($navy->image_path);
+        $this->assertSame($group->imageUrl(), $navy->image_url);
     }
 }

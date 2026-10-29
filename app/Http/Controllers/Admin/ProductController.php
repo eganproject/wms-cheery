@@ -36,7 +36,11 @@ class ProductController extends Controller implements HasMiddleware
             // fungsi itu juga dipakai sebagai sasaran update massal, dan
             // kueri ber-selectSub tidak bisa dipakai untuk menulis.
             ->withBundleAvailability()
-            ->with('group')
+            ->with(['group' => fn ($query) => $query->withCount('variants')])
+            // Varian satu produk selalu berurutan di bawah nama induknya,
+            // supaya daftar bisa menampilkannya berkelompok.
+            ->orderByRaw('COALESCE((SELECT pg.name FROM product_groups pg WHERE pg.id = products.product_group_id), products.name)')
+            ->orderBy('product_group_id')
             ->orderBy('name')
             ->paginate(10)
             ->withQueryString();
@@ -382,7 +386,8 @@ class ProductController extends Controller implements HasMiddleware
             ->when($request->filled('category'), fn ($query) => $query->where('category', $request->string('category')))
             ->when($request->filled('status'), fn ($query) => $query->where('is_active', $request->input('status') === 'active'))
             ->when($request->input('type') === Product::TYPE_BUNDLE, fn ($query) => $query->bundles())
-            ->when($request->input('type') === Product::TYPE_SINGLE, fn ($query) => $query->singles());
+            ->when($request->input('type') === Product::TYPE_SINGLE, fn ($query) => $query->singles())
+            ->when($request->input('type') === 'variant', fn ($query) => $query->whereNotNull('product_group_id'));
     }
 
     public function destroy(Product $product): RedirectResponse

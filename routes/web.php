@@ -49,11 +49,21 @@ Route::middleware('auth')
         Route::post('products/import', [ProductImportController::class, 'store'])->name('products.import.store');
         Route::get('products/import/template', [ProductImportController::class, 'template'])->name('products.import.template');
         Route::patch('products/bulk/min-stock', [ProductController::class, 'bulkMinStock'])->name('products.bulk.min-stock');
+        Route::post('products/variants', [ProductGroupController::class, 'store'])->name('products.groups.store');
+        Route::get('products/variants/{product_group}', [ProductGroupController::class, 'show'])->name('products.groups.show');
+        Route::get('products/variants/{product_group}/edit', [ProductGroupController::class, 'edit'])->name('products.groups.edit');
+        Route::put('products/variants/{product_group}', [ProductGroupController::class, 'update'])->name('products.groups.update');
+        Route::delete('products/variants/{product_group}', [ProductGroupController::class, 'destroy'])->name('products.groups.destroy');
+        Route::post('products/variants/{product_group}/variants', [ProductGroupController::class, 'addVariants'])->name('products.groups.variants.store');
+        Route::post('products/variants/{product_group}/attach', [ProductGroupController::class, 'attach'])->name('products.groups.attach');
+        Route::delete('products/variants/{product_group}/variants/{product}', [ProductGroupController::class, 'detach'])->name('products.groups.detach');
         Route::resource('products', ProductController::class);
-        Route::post('product-groups/{product_group}/variants', [ProductGroupController::class, 'addVariants'])->name('product-groups.variants.store');
-        Route::post('product-groups/{product_group}/attach', [ProductGroupController::class, 'attach'])->name('product-groups.attach');
-        Route::delete('product-groups/{product_group}/variants/{product}', [ProductGroupController::class, 'detach'])->name('product-groups.detach');
-        Route::resource('product-groups', ProductGroupController::class);
+        // Barang bervarian dikelola dari halaman Barang. URL lama menu
+        // Produk Varian diarahkan ke sana.
+        Route::get('product-groups', fn () => redirect()->route('admin.products.index', ['type' => 'variant']));
+        Route::get('product-groups/create', fn () => redirect()->route('admin.products.create', ['type' => 'variant']));
+        Route::get('product-groups/{id}', fn (int $id) => redirect()->route('admin.products.groups.show', $id))->whereNumber('id');
+        Route::get('product-groups/{id}/edit', fn (int $id) => redirect()->route('admin.products.groups.edit', $id))->whereNumber('id');
 
         Route::get('movements/export', [StockMovementController::class, 'export'])->name('movements.export');
         Route::get('movements', [StockMovementController::class, 'index'])->name('movements.index');

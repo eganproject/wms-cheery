@@ -1,15 +1,15 @@
-<x-app-layout title="Produk Varian">
+<x-app-layout title="Barang Bervarian">
     <x-ui.page-header :title="$group->name"
                       :subtitle="collect([$group->category, $group->variants->count().' varian'])->filter()->implode(' · ')"
-                      :back="route('admin.product-groups.index')">
+                      :back="route('admin.products.index')">
         <x-slot name="actions">
             @can('products.delete')
-                <x-ui.confirm-delete :action="route('admin.product-groups.destroy', $group)"
+                <x-ui.confirm-delete :action="route('admin.products.groups.destroy', $group)"
                                      title="Hapus produk induk ini?"
                                      description="Hanya induknya yang dihapus. Semua varian tetap ada sebagai barang biasa beserta stok dan riwayatnya." />
             @endcan
             @can('products.update')
-                <x-ui.button :href="route('admin.product-groups.edit', $group)" icon="pencil">Ubah Produk</x-ui.button>
+                <x-ui.button :href="route('admin.products.groups.edit', $group)" icon="pencil">Ubah Produk</x-ui.button>
             @endcan
         </x-slot>
     </x-ui.page-header>
@@ -39,7 +39,7 @@
 
             @can('products.update')
                 <x-ui.card title="Gabungkan Barang yang Ada" subtitle="Jadikan barang yang sudah terdaftar sebagai varian. SKU, stok, dan riwayatnya tidak berubah.">
-                    <form method="POST" action="{{ route('admin.product-groups.attach', $group) }}" class="space-y-3">
+                    <form method="POST" action="{{ route('admin.products.groups.attach', $group) }}" class="space-y-3">
                         @csrf
                         <x-ui.field label="Barang" for="product_id" :error="$errors->get('product_id')" required>
                             <x-ui.select id="product_id" name="product_id" required>
@@ -110,7 +110,7 @@
                                                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-950">
                                                     <x-icon name="pencil" class="h-4 w-4" />
                                                 </a>
-                                                <form method="POST" action="{{ route('admin.product-groups.detach', [$group, $variant]) }}"
+                                                <form method="POST" action="{{ route('admin.products.groups.detach', [$group, $variant]) }}"
                                                       onsubmit="return confirm('Lepas {{ $variant->sku }} dari produk ini? Barangnya tetap ada sebagai barang tanpa varian.')">
                                                     @csrf
                                                     @method('DELETE')
@@ -135,11 +135,11 @@
 
             @can('products.create')
                 <x-ui.card title="Tambah Varian Baru" subtitle="Setiap baris menjadi SKU baru dengan stok nol. Stoknya diisi lewat Barang Masuk.">
-                    <form method="POST" action="{{ route('admin.product-groups.variants.store', $group) }}"
+                    <form method="POST" enctype="multipart/form-data" action="{{ route('admin.products.groups.variants.store', $group) }}"
                           x-data="variantBuilder({{ Js::from([
                               'option1Name' => $group->option1_name,
                               'option2Name' => $group->option2_name ?? '',
-                              'rows' => collect(old('variants', [['option1' => '', 'option2' => '', 'sku' => '', 'barcode' => '', 'location' => '', 'min_stock' => 0]]))->values()->all(),
+                              'rows' => collect(old('variants', [['option1' => '', 'option2' => '', 'sku' => '', 'barcode' => '', 'location' => '', 'min_stock' => 0]]))->map(fn ($row) => collect($row)->except('image')->all())->values()->all(),
                           ]) }})">
                         @csrf
                         <x-input-error :messages="$errors->get('variants')" class="mb-3" />
@@ -147,6 +147,7 @@
                             <table class="erp-table">
                                 <thead>
                                     <tr>
+                                        <th class="w-16">Gambar</th>
                                         <th>{{ $group->option1_name }}</th>
                                         @if ($group->hasSecondOption())
                                             <th>{{ $group->option2_name }}</th>
@@ -159,16 +160,24 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <template x-for="(row, index) in rows" :key="index">
-                                        <tr>
-                                            <td><input type="text" class="form-control" :name="`variants[${index}][option1]`" x-model="row.option1" required></td>
+                                    <template x-for="(row, index) in rows" :key="row.uid">
+                                        <tr x-data="{ preview: null }">
+                                            <td>
+                                                <label class="relative flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-ink-50 text-ink-300 ring-1 ring-inset ring-ink-100 hover:ring-ink-300" title="Pilih gambar varian">
+                                                    <template x-if="preview"><img :src="preview" alt="" class="h-full w-full object-cover"></template>
+                                                    <x-icon name="camera" class="h-4 w-4" x-show="! preview" />
+                                                    <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" :name="`variants[${index}][image]`"
+                                                           x-on:change="preview = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : null">
+                                                </label>
+                                            </td>
+                                            <td><input type="text" class="form-control min-w-[6rem]" :name="`variants[${index}][option1]`" x-model="row.option1" required></td>
                                             @if ($group->hasSecondOption())
-                                                <td><input type="text" class="form-control" :name="`variants[${index}][option2]`" x-model="row.option2" required></td>
+                                                <td><input type="text" class="form-control min-w-[6rem]" :name="`variants[${index}][option2]`" x-model="row.option2" required></td>
                                             @endif
-                                            <td><input type="text" class="form-control font-mono uppercase" :name="`variants[${index}][sku]`" x-model="row.sku" required></td>
-                                            <td><input type="text" class="form-control font-mono" :name="`variants[${index}][barcode]`" x-model="row.barcode"></td>
-                                            <td><input type="text" class="form-control font-mono" :name="`variants[${index}][location]`" x-model="row.location"></td>
-                                            <td><input type="number" min="0" class="form-control" :name="`variants[${index}][min_stock]`" x-model="row.min_stock"></td>
+                                            <td><input type="text" class="form-control min-w-[10rem] font-mono uppercase" :name="`variants[${index}][sku]`" x-model="row.sku" required></td>
+                                            <td><input type="text" class="form-control min-w-[8rem] font-mono" :name="`variants[${index}][barcode]`" x-model="row.barcode"></td>
+                                            <td><input type="text" class="form-control min-w-[6rem] font-mono" :name="`variants[${index}][location]`" x-model="row.location"></td>
+                                            <td><input type="number" min="0" class="form-control min-w-[4.5rem]" :name="`variants[${index}][min_stock]`" x-model="row.min_stock"></td>
                                             <td>
                                                 <button type="button" class="btn btn-ghost btn-icon text-ink-400" title="Hapus baris" x-on:click="removeRow(index)">
                                                     <x-icon name="trash" class="h-4 w-4" />

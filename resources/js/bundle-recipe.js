@@ -8,14 +8,20 @@
  */
 let sequence = 0;
 
-export default function bundleRecipe(initial = [], catalog = [], type = 'single') {
+export default function bundleRecipe(initial = [], catalog = [], type = 'single', hasVariants = false) {
     return {
         type,
         catalog,
+        // "Produk ini punya varian" — hanya untuk barang biasa yang baru.
+        hasVariants,
         rows: initial.length ? initial.map(normalize) : [blankRow()],
 
         get isBundle() {
             return this.type === 'bundle';
+        },
+
+        get isVariant() {
+            return this.hasVariants && this.type !== 'bundle';
         },
 
         add() {

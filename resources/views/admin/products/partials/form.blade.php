@@ -9,6 +9,15 @@
     // barang biasa.
     $variantGroup = $product?->isVariant() ? $product->group : null;
 
+    // "Produk ini punya varian" hanya ditawarkan saat menambah barang baru.
+    // Varian yang sudah ada diatur dari halaman produk induknya.
+    $hasVariants = ! $isEdit && (bool) old('has_variants', request('type') === 'variant');
+    $variantInitial = [
+        'option1Name' => old('option1_name', 'Warna'),
+        'option2Name' => old('option2_name', 'Ukuran'),
+        'rows' => collect(old('variants', []))->map(fn ($row) => collect($row)->except('image')->all())->values()->all(),
+    ];
+
     // Barang yang sudah punya saldo atau jejak mutasi tidak bisa lagi menjadi
     // paket — paket tidak punya saldo, dan yang tersisa akan menggantung tanpa
     // cara menggerakkannya. Pilihannya dikunci di layar, dan ditolak lagi di
@@ -23,7 +32,11 @@
 @endphp
 
 <form method="POST" enctype="multipart/form-data" action="{{ $isEdit ? route('admin.products.update', $product) : route('admin.products.store') }}"
-      x-data="bundleRecipe({{ Js::from($initialComponents) }}, {{ Js::from($catalog) }}, '{{ $type }}')">
+      x-data="bundleRecipe({{ Js::from($initialComponents) }}, {{ Js::from($catalog) }}, '{{ $type }}', {{ Js::from($hasVariants) }})"
+      @unless ($isEdit)
+          {{-- Barang bervarian disimpan sebagai produk induk beserta SKU variannya. --}}
+          x-bind:action="isVariant ? @js(route('admin.products.groups.store')) : @js(route('admin.products.store'))"
+      @endunless>
     @csrf
     @if ($isEdit)
         @method('PUT')
@@ -38,7 +51,7 @@
                     <div class="mb-4 flex items-center gap-3 rounded-xl border border-ink-100 bg-ink-50/50 p-3 text-sm">
                         <x-icon name="layers" class="h-4 w-4 shrink-0 text-ink-400" />
                         <span class="min-w-0 flex-1">Varian dari
-                            <a href="{{ route('admin.product-groups.show', $variantGroup) }}" class="font-medium text-ink-950 underline underline-offset-4">{{ $variantGroup->name }}</a>
+                            <a href="{{ route('admin.products.groups.show', $variantGroup) }}" class="font-medium text-ink-950 underline underline-offset-4">{{ $variantGroup->name }}</a>
                         </span>
                     </div>
                     <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -100,15 +113,18 @@
                             <x-text-input type="text" :value="$product->name" disabled />
                         </x-ui.field>
                     @else
-                    <x-ui.field label="Nama Barang" for="name" :error="$errors->get('name')" required class="sm:col-span-2">
+                    <x-ui.field for="name" :error="$errors->get('name')" class="sm:col-span-2">
+                        <x-input-label for="name" required><span x-text="isVariant ? 'Nama Produk' : 'Nama Barang'">Nama Barang</span></x-input-label>
                         <x-text-input id="name" name="name" type="text" :value="old('name', $product?->name ?? request('name'))"
                                       required autofocus placeholder="Contoh: Filter Oli Standar" />
                     </x-ui.field>
                     @endif
 
+                    <div x-show="! isVariant">
                     <x-ui.field label="SKU" info="Kode unik barang. Harus sama persis dengan SKU di TikTok Shop agar pesanan bisa dicocokkan otomatis." for="sku" :error="$errors->get('sku')" required>
                         <x-text-input id="sku" name="sku" type="text" :value="old('sku', $product?->sku ?? request('sku'))"
-                                      required class="font-mono uppercase" placeholder="FLT-OLI-STD" />
+                                      required class="font-mono uppercase" placeholder="FLT-OLI-STD"
+                                      x-bind:disabled="isVariant" />
                         <p class="mt-1.5 text-[11px] text-ink-500" x-show="isBundle" x-cloak>
                             Isi persis seperti SKU paket di marketplace — inilah yang dicocokkan saat berkas TikTok diimport.
                         </p>
@@ -116,6 +132,7 @@
                             Kode internal, otomatis dibuat huruf besar.
                         </p>
                     </x-ui.field>
+                    </div>
 
                     {{--
                         Paket tidak punya wujud, jadi tidak ada yang bisa
@@ -124,12 +141,12 @@
                         benar-benar kehilangan barcodenya, supaya tidak ada
                         label lama yang masih bisa terbaca scanner.
                     --}}
-                    <div x-show="! isBundle">
+                    <div x-show="! isBundle && ! isVariant">
                         <x-ui.field label="Barcode" info="Kode batang pada kemasan. Bisa discan sebagai pengganti SKU di QC Kemas." for="barcode" :error="$errors->get('barcode')"
                                     hint="Kode yang dibaca scanner saat verifikasi.">
                             <x-text-input id="barcode" name="barcode" type="text" :value="old('barcode', $product?->barcode)"
                                           class="font-mono" placeholder="8991234500035"
-                                          x-bind:disabled="isBundle" />
+                                          x-bind:disabled="isBundle || isVariant" />
                         </x-ui.field>
                     </div>
                 </div>
@@ -139,6 +156,13 @@
             <div x-show="isBundle" x-cloak>
                 @include('admin.products.partials.components')
             </div>
+
+            {{-- Varian, seperti di Shopee: centang lalu susun kombinasinya. --}}
+            @unless ($isEdit)
+                <div x-show="! isBundle">
+                    @include('admin.products.partials.variants')
+                </div>
+            @endunless
 
             <x-ui.card title="Klasifikasi & Penyimpanan">
                 <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
@@ -162,11 +186,11 @@
                         </datalist>
                     </x-ui.field>
 
-                    <div x-show="! isBundle">
+                    <div x-show="! isBundle && ! isVariant">
                         <x-ui.field label="Lokasi Rak" info="Posisi barang di gudang, mis. A-01-03. Ditampilkan saat packing supaya mudah diambil." for="location" :error="$errors->get('location')">
                             <x-text-input id="location" name="location" type="text" :value="old('location', $product?->location)"
                                           class="font-mono" placeholder="A-01-01"
-                                          x-bind:disabled="isBundle" />
+                                          x-bind:disabled="isBundle || isVariant" />
                         </x-ui.field>
                     </div>
                 </div>
@@ -174,7 +198,7 @@
         </div>
 
         <div class="space-y-6">
-            <x-ui.card title="Gambar Barang" subtitle="Membantu packer mengenali barang. JPG, PNG, atau WEBP, maks. 4 MB.">
+            <x-ui.card title="Gambar Barang" subtitle="Membantu packer mengenali barang. JPG, PNG, atau WEBP, maks. 4 MB. Untuk barang bervarian, ini gambar utama yang dipakai varian tanpa gambar sendiri.">
                 <div x-data="{
                         preview: {{ Js::from($product?->image_url) }},
                         hasSaved: {{ Js::from((bool) $product?->image_url) }},
@@ -229,12 +253,12 @@
                         tetapi tetap terkirim sebagai nol supaya aturan
                         validasinya tidak perlu bercabang.
                     --}}
-                    <div x-show="! isBundle">
+                    <div x-show="! isBundle && ! isVariant">
                         <x-ui.field label="Stok Minimum" info="Batas stok menipis. Barang muncul di peringatan dan Kebutuhan Restock bila stok tersedia sudah sampai batas ini." for="min_stock" :error="$errors->get('min_stock')"
                                     hint="Sistem menandai barang sebagai menipis bila stok mencapai angka ini." required>
                             <x-text-input id="min_stock" name="min_stock" type="number" min="0"
                                           :value="old('min_stock', $product?->min_stock ?? 0)"
-                                          x-bind:disabled="isBundle" x-bind:required="! isBundle" />
+                                          x-bind:disabled="isBundle || isVariant" x-bind:required="! isBundle && ! isVariant" />
                         </x-ui.field>
                     </div>
                     {{--
@@ -245,7 +269,7 @@
                         untuk satu nama membuat yang menang bergantung pada
                         urutan penulisan.
                     --}}
-                    <input type="hidden" name="min_stock" value="0" x-bind:disabled="! isBundle">
+                    <input type="hidden" name="min_stock" value="0" x-bind:disabled="! isBundle || isVariant">
 
                     <template x-if="isBundle">
                         <div class="rounded-xl border border-ink-100 bg-ink-50/50 p-4">

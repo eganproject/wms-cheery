@@ -73,6 +73,7 @@
             <x-ui.select name="type" class="sm:w-36">
                 <option value="">Semua jenis</option>
                 <option value="single" @selected(request('type') === 'single')>Barang</option>
+                <option value="variant" @selected(request('type') === 'variant')>Bervarian</option>
                 <option value="bundle" @selected(request('type') === 'bundle')>Paket</option>
             </x-ui.select>
         </div>
@@ -242,9 +243,19 @@
                             <th class="text-right">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    {{--
+                        Varian satu produk berurutan (diurutkan di controller),
+                        jadi cukup sisipkan satu baris induk setiap kali
+                        kelompoknya berganti. Baris induk bisa dilipat.
+                    --}}
+                    <tbody x-data="{ closed: [] }">
+                        @php $previousGroup = null; @endphp
                         @foreach ($products as $product)
-                            <tr
+                            @if ($product->isVariant() && $product->product_group_id !== $previousGroup)
+                                @include('admin.products.partials.group-row', ['group' => $product->group])
+                            @endif
+                            @php $previousGroup = $product->product_group_id; @endphp
+                            <tr @if ($product->isVariant()) x-show="! closed.includes({{ $product->product_group_id }})" @endif
                                 :class="selected.includes({{ $product->id }}) && 'bg-ink-50/70'">
                                 @can('products.update')
                                     <td class="w-12 pl-6 pr-0 align-top">
@@ -255,19 +266,14 @@
                                     </td>
                                 @endcan
                                 <td>
-                                    <div class="flex items-center gap-3">
+                                    <div class="flex items-center gap-3 {{ $product->isVariant() ? 'pl-6' : '' }}">
                                         <x-ui.product-image :product="$product" size="sm" />
                                         <div class="min-w-0">
                                             <div class="flex items-center gap-2">
                                                 <x-ui.sku :value="$product->sku" />
-                                                <p class="truncate text-sm font-medium text-ink-950">{{ $product->name }}</p>
+                                                <p class="truncate text-sm font-medium text-ink-950">{{ $product->isVariant() ? $product->variantLabel() : $product->name }}</p>
                                                 @if ($product->isBundle())
                                                     <x-ui.badge variant="dark" icon="sparkles">Paket</x-ui.badge>
-                                                @endif
-                                                @if ($product->isVariant())
-                                                    <a href="{{ route('admin.product-groups.show', $product->product_group_id) }}" title="Lihat semua varian">
-                                                        <x-ui.badge variant="purple" icon="layers">Varian</x-ui.badge>
-                                                    </a>
                                                 @endif
                                             </div>
                                             @if ($product->barcode)
@@ -316,8 +322,20 @@
                 </div>
 
                 <div class="divide-y divide-ink-50 md:hidden">
+                    @php $previousGroup = null; @endphp
                     @foreach ($products as $product)
-                        <div class="flex items-start gap-3 p-4"
+                        @if ($product->isVariant() && $product->product_group_id !== $previousGroup)
+                            <a href="{{ route('admin.products.groups.show', $product->product_group_id) }}"
+                               class="flex items-center gap-3 bg-ink-50/70 px-4 py-2.5">
+                                @if ($product->group?->imageUrl())
+                                    <img src="{{ $product->group->imageUrl() }}" alt="" class="h-8 w-8 rounded-md object-cover">
+                                @endif
+                                <span class="min-w-0 flex-1 truncate text-sm font-semibold text-ink-950">{{ $product->group?->name }}</span>
+                                <x-ui.badge variant="purple" icon="layers">{{ $product->group?->variants_count }} varian</x-ui.badge>
+                            </a>
+                        @endif
+                        @php $previousGroup = $product->product_group_id; @endphp
+                        <div class="flex items-start gap-3 p-4 {{ $product->isVariant() ? 'pl-8' : '' }}"
                              :class="selected.includes({{ $product->id }}) && 'bg-ink-50/70'">
                             @can('products.update')
                                 <label class="mt-1 shrink-0">

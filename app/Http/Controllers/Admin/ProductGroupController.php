@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ProductGroupRequest;
 use App\Models\Product;
 use App\Models\ProductGroup;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -32,33 +31,11 @@ class ProductGroupController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:products.view', only: ['index', 'show']),
-            new Middleware('can:products.create', only: ['create', 'store', 'addVariants']),
+            new Middleware('can:products.view', only: ['show']),
+            new Middleware('can:products.create', only: ['store', 'addVariants']),
             new Middleware('can:products.update', only: ['edit', 'update', 'attach', 'detach']),
             new Middleware('can:products.delete', only: ['destroy']),
         ];
-    }
-
-    public function index(Request $request): View
-    {
-        $groups = ProductGroup::query()
-            ->search($request->string('search')->trim()->value())
-            ->when($request->filled('category'), fn (Builder $query) => $query->where('category', $request->string('category')))
-            ->withCount('variants')
-            ->withSum('variants as total_stock', 'stock')
-            ->orderBy('name')
-            ->paginate(15)
-            ->withQueryString();
-
-        return view('admin.product-groups.index', [
-            'groups' => $groups,
-            'categories' => ProductGroup::query()->whereNotNull('category')->distinct()->orderBy('category')->pluck('category'),
-        ]);
-    }
-
-    public function create(): View
-    {
-        return view('admin.product-groups.create');
     }
 
     public function store(ProductGroupRequest $request): RedirectResponse
@@ -77,7 +54,7 @@ class ProductGroupController extends Controller implements HasMiddleware
         });
 
         return redirect()
-            ->route('admin.product-groups.show', $group)
+            ->route('admin.products.groups.show', $group)
             ->with('success', "Produk {$group->name} dibuat dengan ".count($data['variants']).' varian.');
     }
 
@@ -86,7 +63,7 @@ class ProductGroupController extends Controller implements HasMiddleware
         $productGroup->load('variants');
         $productGroup->variants->each->setRelation('group', $productGroup);
 
-        return view('admin.product-groups.show', [
+        return view('admin.products.groups.show', [
             'group' => $productGroup,
             'committed' => Product::committedUnits($productGroup->variants->pluck('id')),
             // Barang tanpa induk yang bisa dijadikan varian produk ini.
@@ -99,7 +76,7 @@ class ProductGroupController extends Controller implements HasMiddleware
 
     public function edit(ProductGroup $productGroup): View
     {
-        return view('admin.product-groups.edit', ['group' => $productGroup]);
+        return view('admin.products.groups.edit', ['group' => $productGroup]);
     }
 
     public function update(ProductGroupRequest $request, ProductGroup $productGroup): RedirectResponse
@@ -125,7 +102,7 @@ class ProductGroupController extends Controller implements HasMiddleware
         });
 
         return redirect()
-            ->route('admin.product-groups.show', $productGroup)
+            ->route('admin.products.groups.show', $productGroup)
             ->with('success', 'Produk induk diperbarui. Nama semua varian ikut disesuaikan.');
     }
 
@@ -212,7 +189,7 @@ class ProductGroupController extends Controller implements HasMiddleware
         });
 
         return redirect()
-            ->route('admin.product-groups.index')
+            ->route('admin.products.index')
             ->with('success', 'Produk induk dihapus. Variannya tetap ada sebagai barang biasa.');
     }
 
@@ -254,7 +231,13 @@ class ProductGroupController extends Controller implements HasMiddleware
 
         $product->product_group_id = $group->id;
         $product->setRelation('group', $group);
-        $product->fillFromGroup()->save();
+        $product->fillFromGroup();
+
+        if (($row['image'] ?? null) instanceof UploadedFile) {
+            $product->replaceImage($row['image']);
+        }
+
+        $product->save();
 
         return $product;
     }
