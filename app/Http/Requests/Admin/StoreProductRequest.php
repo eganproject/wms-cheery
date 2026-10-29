@@ -29,6 +29,9 @@ class StoreProductRequest extends FormRequest
             'location' => ['nullable', 'string', 'max:100'],
             'min_stock' => ['required', 'integer', 'min:0', 'max:1000000'],
             'is_active' => ['boolean'],
+            // Foto dari HP biasanya 2–5 MB; batas 4 MB cukup tanpa membebani hosting.
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'remove_image' => ['boolean'],
         ] + $this->recipeRules();
     }
 
@@ -39,6 +42,7 @@ class StoreProductRequest extends FormRequest
             'barcode' => filled($this->input('barcode')) ? trim((string) $this->input('barcode')) : null,
             'min_stock' => $this->input('min_stock', 0),
             'is_active' => $this->boolean('is_active'),
+            'remove_image' => $this->boolean('remove_image'),
         ]);
 
         $this->prepareRecipe();
@@ -65,6 +69,7 @@ class StoreProductRequest extends FormRequest
             'unit' => 'satuan',
             'location' => 'lokasi rak',
             'min_stock' => 'stok minimum',
+            'image' => 'gambar barang',
         ];
     }
 }

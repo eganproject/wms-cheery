@@ -255,21 +255,26 @@
                                     </td>
                                 @endcan
                                 <td>
-                                    <div class="flex items-center gap-2">
-                                        <x-ui.sku :value="$product->sku" />
-                                        <p class="truncate text-sm font-medium text-ink-950">{{ $product->name }}</p>
-                                        @if ($product->isBundle())
-                                            <x-ui.badge variant="dark" icon="sparkles">Paket</x-ui.badge>
-                                        @endif
-                                        @if ($product->isVariant())
-                                            <a href="{{ route('admin.product-groups.show', $product->product_group_id) }}" title="Lihat semua varian">
-                                                <x-ui.badge variant="purple" icon="layers">Varian</x-ui.badge>
-                                            </a>
-                                        @endif
+                                    <div class="flex items-center gap-3">
+                                        <x-ui.product-image :product="$product" size="sm" />
+                                        <div class="min-w-0">
+                                            <div class="flex items-center gap-2">
+                                                <x-ui.sku :value="$product->sku" />
+                                                <p class="truncate text-sm font-medium text-ink-950">{{ $product->name }}</p>
+                                                @if ($product->isBundle())
+                                                    <x-ui.badge variant="dark" icon="sparkles">Paket</x-ui.badge>
+                                                @endif
+                                                @if ($product->isVariant())
+                                                    <a href="{{ route('admin.product-groups.show', $product->product_group_id) }}" title="Lihat semua varian">
+                                                        <x-ui.badge variant="purple" icon="layers">Varian</x-ui.badge>
+                                                    </a>
+                                                @endif
+                                            </div>
+                                            @if ($product->barcode)
+                                                <p class="mt-1 font-mono text-[11px] text-ink-400">Barcode {{ $product->barcode }}</p>
+                                            @endif
+                                        </div>
                                     </div>
-                                    @if ($product->barcode)
-                                        <p class="mt-1 font-mono text-[11px] text-ink-400">Barcode {{ $product->barcode }}</p>
-                                    @endif
                                 </td>
                                 <td class="text-sm text-ink-600">{{ $product->category ?: '—' }}</td>
                                 <td class="font-mono text-xs text-ink-500">{{ $product->location ?: '—' }}</td>
@@ -322,6 +327,8 @@
                                     <span class="sr-only">Pilih {{ $product->name }}</span>
                                 </label>
                             @endcan
+
+                            <x-ui.product-image :product="$product" size="lg" />
 
                             <div class="min-w-0 flex-1">
                                 <div class="flex items-start justify-between gap-3">

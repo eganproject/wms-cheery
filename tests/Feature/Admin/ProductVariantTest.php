@@ -197,7 +197,18 @@ class ProductVariantTest extends TestCase
         Storage::disk('public')->assertExists($group->image_path);
 
         $variant = Product::where('sku', 'KAOS-MERAH-L')->firstOrFail();
-        $this->assertSame($group->imageUrl(), $variant->displayImageUrl());
+        $this->assertSame($group->imageUrl(), $variant->image_url);
+
+        // Gambar varian sendiri menang atas gambar induk.
+        $this->actingAs($this->admin)->put(route('admin.products.update', $variant), [
+            'sku' => 'KAOS-MERAH-L', 'unit' => 'pcs', 'min_stock' => 0, 'is_active' => 1,
+            'option1' => 'Merah', 'option2' => 'L',
+            'image' => UploadedFile::fake()->image('merah.jpg'),
+        ])->assertSessionHasNoErrors();
+
+        $variant->refresh();
+        $this->assertNotNull($variant->image_path);
+        $this->assertNotSame($group->imageUrl(), $variant->image_url);
     }
 
     public function test_pages_render(): void

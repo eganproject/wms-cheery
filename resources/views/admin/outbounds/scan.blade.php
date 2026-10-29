@@ -232,6 +232,8 @@
                                         <template x-if="itemProgress(itemId).completed"><x-icon name="check" class="h-3 w-3" /></template>
                                     </span>
 
+                                    <x-ui.product-image :product="$item->product" size="md" />
+
                                     <div class="min-w-0 flex-1">
                                         <x-ui.sku :value="$item->product->sku" />
                                         <p class="mt-1 text-sm font-medium text-ink-950">{{ $item->product->name }}</p>

@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class Product extends Model
 {
@@ -34,6 +36,11 @@ class Product extends Model
         'option2',
     ];
 
+    /** Disk tempat gambar barang disimpan. Perlu `php artisan storage:link`. */
+    public const IMAGE_DISK = 'public';
+
+    public const IMAGE_DIR = 'products';
+
     protected function casts(): array
     {
         return [
@@ -41,6 +48,62 @@ class Product extends Model
             'min_stock' => 'integer',
             'is_active' => 'boolean',
         ];
+    }
+
+    /* ----------------------------------------------------------- gambar -- */
+
+    /**
+     * URL gambar barang, atau null bila belum ada.
+     *
+     * Semua tampilan membaca gambar lewat sini, bukan dari image_path
+     * langsung. Varian tanpa gambar sendiri memakai gambar utama produk
+     * induknya.
+     */
+    public function getImageUrlAttribute(): ?string
+    {
+        if (blank($this->image_path)) {
+            return ($this->attributes['product_group_id'] ?? null)
+                ? $this->group?->imageUrl()
+                : null;
+        }
+
+        return Storage::disk(self::IMAGE_DISK)->url($this->image_path);
+    }
+
+    /**
+     * Simpan gambar baru dan buang yang lama. Tidak memanggil save().
+     */
+    public function replaceImage(UploadedFile $file): void
+    {
+        $old = $this->image_path;
+
+        $this->image_path = $file->store(self::IMAGE_DIR, self::IMAGE_DISK);
+
+        $this->deleteImageFile($old);
+    }
+
+    /**
+     * Lepas gambar dari barang ini. Tidak memanggil save().
+     */
+    public function removeImage(): void
+    {
+        $this->deleteImageFile($this->image_path);
+
+        $this->image_path = null;
+    }
+
+    protected function deleteImageFile(?string $path): void
+    {
+        if (filled($path)) {
+            Storage::disk(self::IMAGE_DISK)->delete($path);
+        }
+    }
+
+    protected static function booted(): void
+    {
+        // Berkasnya ikut dibuang saat barangnya dihapus, supaya folder
+        // unggahan tidak menumpuk gambar yatim.
+        static::deleted(fn (Product $product) => $product->deleteImageFile($product->image_path));
     }
 
     public function movements(): HasMany
@@ -83,20 +146,6 @@ class Product extends Model
         }
 
         return $this;
-    }
-
-    /**
-     * Gambar barang: gambar varian sendiri bila ada, kalau tidak gambar induk.
-     */
-    public function displayImageUrl(): ?string
-    {
-        $own = $this->attributes['image_path'] ?? null;
-
-        if ($own) {
-            return \Illuminate\Support\Facades\Storage::disk('public')->url($own);
-        }
-
-        return $this->isVariant() ? $this->group?->imageUrl() : null;
     }
 
     /* ------------------------------------------------------------ paket -- */

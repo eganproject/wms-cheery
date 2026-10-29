@@ -32,6 +32,12 @@
         {{-- Ringkasan --}}
         <div class="space-y-4 lg:col-span-1">
             <div class="frappe-card overflow-hidden p-4">
+                @if ($product->image_url)
+                    <a href="{{ $product->image_url }}" target="_blank" rel="noopener"
+                       class="mb-4 block aspect-square w-full overflow-hidden rounded-xl bg-ink-50 ring-1 ring-inset ring-ink-100">
+                        <img src="{{ $product->image_url }}" alt="{{ $product->name }}" class="h-full w-full object-contain">
+                    </a>
+                @endif
                 <div class="mb-4 flex items-center gap-2">
                     <x-ui.sku :value="$product->sku" />
                     @if ($isBundle)
@@ -107,9 +113,6 @@
                     <x-slot name="actions">
                         <x-ui.button :href="route('admin.product-groups.show', $product->group)" variant="ghost" size="sm" icon="layers">Lihat Produk</x-ui.button>
                     </x-slot>
-                    @if ($image = $product->displayImageUrl())
-                        <img src="{{ $image }}" alt="{{ $product->name }}" class="mb-4 aspect-square w-full rounded-lg border border-ink-100 object-cover">
-                    @endif
                     <ul class="space-y-2">
                         @foreach ($product->group->variants as $sibling)
                             <li class="flex items-center justify-between gap-3 text-sm">

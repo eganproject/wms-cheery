@@ -85,9 +85,7 @@
                                 <tr>
                                     <td>
                                         <div class="flex items-center gap-3">
-                                            @if ($url = $variant->displayImageUrl())
-                                                <img src="{{ $url }}" alt="" class="h-9 w-9 shrink-0 rounded-md border border-ink-100 object-cover">
-                                            @endif
+                                            <x-ui.product-image :product="$variant" size="sm" />
                                             <div class="min-w-0">
                                                 <p class="text-sm font-medium text-ink-950">{{ $variant->variantLabel() ?: '—' }}</p>
                                                 @unless ($variant->is_active)

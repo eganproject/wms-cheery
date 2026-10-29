@@ -84,6 +84,7 @@ class ProductGroupController extends Controller implements HasMiddleware
     public function show(ProductGroup $productGroup): View
     {
         $productGroup->load('variants');
+        $productGroup->variants->each->setRelation('group', $productGroup);
 
         return view('admin.product-groups.show', [
             'group' => $productGroup,

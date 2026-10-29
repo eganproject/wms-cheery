@@ -191,6 +191,18 @@
                         <tr class="align-top" x-data="{ open: false }">
                             <td class="text-right tabular-nums text-ink-400">{{ $loop->iteration }}</td>
                             <td>
+                                <div class="flex items-start gap-3">
+                                @if ($row['image_url'])
+                                    <a href="{{ $row['image_url'] }}" target="_blank" rel="noopener"
+                                       class="block h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-ink-50 ring-1 ring-inset ring-ink-100">
+                                        <img src="{{ $row['image_url'] }}" alt="{{ $row['name'] }}" loading="lazy" class="h-full w-full object-cover">
+                                    </a>
+                                @else
+                                    <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ink-50 text-ink-300 ring-1 ring-inset ring-ink-100">
+                                        <x-icon name="box" class="h-4 w-4" />
+                                    </span>
+                                @endif
+                                <div class="min-w-0">
                                 <span @class(['block font-mono text-[13px]', 'text-ink-950' => $row['matched'], 'text-amber-700' => ! $row['matched']])>{{ $row['sku'] }}</span>
                                 @if ($row['name'])
                                     <span class="block text-xs text-ink-500">{{ $row['name'] }}</span>
@@ -214,6 +226,8 @@
                                         {{ implode(', ', $row['open_resi']) }}@if ($row['open_orders'] > count($row['open_resi'])), dan {{ $row['open_orders'] - count($row['open_resi']) }} lainnya @endif
                                     </p>
                                 @endif
+                                </div>
+                                </div>
                             </td>
                             <td class="text-right tabular-nums text-ink-600">{{ $num($row['orders']) }}</td>
                             <td class="text-right text-base font-semibold tabular-nums text-ink-950">{{ $num($row['ordered']) }}</td>
