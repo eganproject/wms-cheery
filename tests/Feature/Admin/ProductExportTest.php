@@ -22,7 +22,7 @@ class ProductExportTest extends TestCase
         parent::setUp();
 
         $this->seed(RolePermissionSeeder::class);
-        $this->admin = User::where('email', 'admin@wmsotosby.test')->firstOrFail();
+        $this->admin = User::where('email', 'admin@cheery.test')->firstOrFail();
 
         Product::create(['sku' => 'FLT-OLI-STD', 'name' => 'Filter Oli Standar', 'category' => 'Filter', 'unit' => 'pcs', 'min_stock' => 5]);
         Product::create(['sku' => 'BSI-IRIDIUM', 'name' => 'Busi Iridium', 'category' => 'Kelistrikan', 'unit' => 'pcs', 'min_stock' => 10]);

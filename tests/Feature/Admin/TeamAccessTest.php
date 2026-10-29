@@ -31,7 +31,7 @@ class TeamAccessTest extends TestCase
 
         $this->seed(RolePermissionSeeder::class);
 
-        $this->admin = User::where('email', 'admin@wmsotosby.test')->firstOrFail();
+        $this->admin = User::where('email', 'admin@cheery.test')->firstOrFail();
 
         $this->staff = User::factory()->create([
             'name' => 'Budi Gudang',

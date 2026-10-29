@@ -20,7 +20,7 @@ class StockApiAccessManagementTest extends TestCase
         parent::setUp();
 
         $this->seed(RolePermissionSeeder::class);
-        $this->superAdmin = User::where('email', 'admin@wmsotosby.test')->firstOrFail();
+        $this->superAdmin = User::where('email', 'admin@cheery.test')->firstOrFail();
 
         config([
             'stock_api.enabled' => true,

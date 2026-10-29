@@ -44,7 +44,7 @@ class BundleOutboundTest extends TestCase
         parent::setUp();
 
         $this->seed(RolePermissionSeeder::class);
-        $this->admin = User::where('email', 'admin@wmsotosby.test')->firstOrFail();
+        $this->admin = User::where('email', 'admin@cheery.test')->firstOrFail();
 
         $this->oli = $this->makeProduct('OLI-MTC-1L', '8991234500011', 'Oli Matic 1L');
         $this->filterOli = $this->makeProduct('FLT-OLI-STD', '8991234500035', 'Filter Oli Standar');

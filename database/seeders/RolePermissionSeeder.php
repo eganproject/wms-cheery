@@ -186,7 +186,7 @@ class RolePermissionSeeder extends Seeder
         );
 
         User::updateOrCreate(
-            ['email' => 'admin@wmsotosby.test'],
+            ['email' => 'admin@cheery.test'],
             [
                 'name' => 'Super Admin',
                 'password' => Hash::make('password'),
