@@ -47,6 +47,14 @@ class PermissionController extends Controller implements HasMiddleware
 
         $matrix = $validated['matrix'] ?? [];
 
+        // Selain super admin, hanya izin yang dimiliki sendiri yang bisa
+        // ditambahkan ke role mana pun — termasuk role-nya sendiri.
+        foreach (Role::where('is_super_admin', false)->get() as $role) {
+            if (\App\Support\AccessGuard::unheldPermissions($request->user(), $matrix[$role->id] ?? [], $role)) {
+                return back()->with('error', 'Anda hanya bisa memberikan hak akses yang Anda miliki sendiri.');
+            }
+        }
+
         Role::where('is_super_admin', false)->get()->each(function (Role $role) use ($matrix) {
             $role->permissions()->sync($matrix[$role->id] ?? []);
         });

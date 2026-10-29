@@ -28,6 +28,16 @@ class StoreUserRequest extends FormRequest
         ];
     }
 
+    public function withValidator(\Illuminate\Contracts\Validation\Validator $validator): void
+    {
+        $validator->after(function ($validator) {
+            if (! $this->user()->isSuperAdmin()
+                && \App\Models\Role::whereKey($this->input('role_id'))->where('is_super_admin', true)->exists()) {
+                $validator->errors()->add('role_id', 'Hanya super admin yang bisa memberikan role super admin.');
+            }
+        });
+    }
+
     protected function prepareForValidation(): void
     {
         $this->merge([

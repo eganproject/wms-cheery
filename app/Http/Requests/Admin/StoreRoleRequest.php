@@ -26,6 +26,19 @@ class StoreRoleRequest extends FormRequest
         ];
     }
 
+    public function withValidator(\Illuminate\Contracts\Validation\Validator $validator): void
+    {
+        $validator->after(function ($validator) {
+            $unheld = \App\Support\AccessGuard::unheldPermissions(
+                $this->user(), (array) $this->input('permissions', []), null,
+            );
+
+            if ($unheld) {
+                $validator->errors()->add('permissions', 'Anda hanya bisa memberikan hak akses yang Anda miliki sendiri.');
+            }
+        });
+    }
+
     protected function prepareForValidation(): void
     {
         $this->merge([

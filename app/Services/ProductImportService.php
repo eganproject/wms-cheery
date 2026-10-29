@@ -363,7 +363,16 @@ class ProductImportService
                 continue;
             }
 
-            $entries->put(Str::upper(trim($sku)), [
+            /*
+                Kolom yang tidak ada di berkas tidak ikut ditulis.
+
+                Berkas "SKU, Nama, Stok" untuk memperbarui stok saja adalah
+                hal yang lazim. Tanpa saringan ini setiap barang di berkas itu
+                kehilangan barcode, kategori, lokasi, dan batas minimumnya,
+                dan barang non-aktif diam-diam aktif kembali. Barang baru
+                tetap mendapat nilai bawaannya di persist().
+            */
+            $entries->put(Str::upper(trim($sku)), array_filter([
                 'sku' => Str::upper(trim($sku)),
                 'name' => $name,
                 'barcode' => $this->optional($row, $header, 'barcode'),
@@ -379,7 +388,8 @@ class ProductImportService
                 'parent' => $this->optional($row, $header, 'parent'),
                 'option1' => $this->optional($row, $header, 'option1'),
                 'option2' => $this->optional($row, $header, 'option2'),
-            ]);
+            ], fn ($value, string $field) => in_array($field, ['sku', 'name', 'stock', 'parent', 'option1', 'option2'], true)
+                || isset($header[$field]), ARRAY_FILTER_USE_BOTH));
         }
 
         return $entries;
@@ -466,7 +476,11 @@ class ProductImportService
 
                     $updated++;
                 } else {
-                    $product = new Product($entry);
+                    $product = new Product($entry + [
+                        'unit' => 'pcs',
+                        'min_stock' => 0,
+                        'is_active' => true,
+                    ]);
                     $product->fillFromGroup()->save();
                     $created++;
                 }
@@ -525,8 +539,8 @@ class ProductImportService
             $this->groups[$key] = ProductGroup::query()->whereRaw('LOWER(name) = ?', [$key])->first()
                 ?? ProductGroup::create([
                     'name' => trim($name),
-                    'category' => $entry['category'],
-                    'unit' => $entry['unit'],
+                    'category' => $entry['category'] ?? null,
+                    'unit' => $entry['unit'] ?? 'pcs',
                     'option1_name' => $this->optionNames['option1'],
                     'option2_name' => $hasSecondOption ? $this->optionNames['option2'] : null,
                 ]);

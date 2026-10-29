@@ -52,7 +52,7 @@ class UserController extends Controller implements HasMiddleware
         return view('admin.users.create', [
             // Izinnya ikut dimuat supaya kartu role bisa menjelaskan
             // kemampuan tiap role dengan bahasa manusia.
-            'roles' => Role::with('permissions')->orderBy('name')->get(),
+            'roles' => $this->assignableRoles(),
         ]);
     }
 
@@ -74,11 +74,13 @@ class UserController extends Controller implements HasMiddleware
 
     public function edit(User $user): View
     {
+        abort_unless(\App\Support\AccessGuard::mayManage(auth()->user(), $user), 403);
+
         return view('admin.users.edit', [
             'user' => $user,
             // Izinnya ikut dimuat supaya kartu role bisa menjelaskan
             // kemampuan tiap role dengan bahasa manusia.
-            'roles' => Role::with('permissions')->orderBy('name')->get(),
+            'roles' => $this->assignableRoles(),
         ]);
     }
 
@@ -103,10 +105,29 @@ class UserController extends Controller implements HasMiddleware
             return back()->with('error', 'Anda tidak dapat menghapus akun Anda sendiri.');
         }
 
+        if (! \App\Support\AccessGuard::mayManage(auth()->user(), $user)) {
+            return back()->with('error', 'Hanya super admin yang bisa menghapus akun super admin.');
+        }
+
+        if (\App\Support\AccessGuard::isLastActiveSuperAdmin($user)) {
+            return back()->with('error', 'Ini satu-satunya super admin yang aktif dan tidak dapat dihapus.');
+        }
+
         $user->delete();
 
         return redirect()
             ->route('admin.users.index')
             ->with('success', 'Pengguna berhasil dihapus.');
+    }
+
+    /**
+     * Role yang boleh dipilih: super admin hanya ditawarkan kepada super admin.
+     */
+    protected function assignableRoles()
+    {
+        return Role::with('permissions')
+            ->when(! auth()->user()->isSuperAdmin(), fn ($query) => $query->where('is_super_admin', false))
+            ->orderBy('name')
+            ->get();
     }
 }

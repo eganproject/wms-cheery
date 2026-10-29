@@ -10,7 +10,10 @@ class UpdateUserRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('users.update');
+        // Akun super admin hanya boleh diubah super admin: siapa pun yang
+        // bisa mengganti kata sandinya bisa masuk sebagai dia.
+        return $this->user()->can('users.update')
+            && \App\Support\AccessGuard::mayManage($this->user(), $this->route('user'));
     }
 
     /**
@@ -29,6 +32,36 @@ class UpdateUserRequest extends FormRequest
             'password' => ['nullable', 'confirmed', Password::defaults()],
             'is_active' => ['boolean'],
         ];
+    }
+
+    public function withValidator(\Illuminate\Contracts\Validation\Validator $validator): void
+    {
+        $validator->after(function ($validator) {
+            $actor = $this->user();
+            $target = $this->route('user');
+            $role = \App\Models\Role::find($this->input('role_id'));
+
+            if ($role?->is_super_admin && ! $actor->isSuperAdmin()) {
+                $validator->errors()->add('role_id', 'Hanya super admin yang bisa memberikan role super admin.');
+            }
+
+            // Mengunci diri sendiri di luar pintu tidak bisa dibatalkan dari
+            // akun yang sama.
+            if ($target->is($actor)) {
+                if ((int) $this->input('role_id') !== (int) $target->role_id) {
+                    $validator->errors()->add('role_id', 'Anda tidak bisa mengubah role akun Anda sendiri.');
+                }
+
+                if (! $this->boolean('is_active')) {
+                    $validator->errors()->add('is_active', 'Anda tidak bisa menonaktifkan akun Anda sendiri.');
+                }
+            }
+
+            if (\App\Support\AccessGuard::isLastActiveSuperAdmin($target)
+                && (! $role?->is_super_admin || ! $this->boolean('is_active'))) {
+                $validator->errors()->add('role_id', 'Ini satu-satunya super admin yang aktif. Jadikan pengguna lain super admin lebih dulu.');
+            }
+        });
     }
 
     protected function prepareForValidation(): void
