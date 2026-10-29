@@ -27,7 +27,7 @@
 
 <x-app-layout title="Pesanan">
     <x-ui.page-header title="Pesanan"
-                      subtitle="Pesanan marketplace hasil import resi. Tab mengikuti proses di gudang: belum QC, serah terima, dikirim, atau dibatalkan.">
+                      subtitle="Semua resi hasil import dan posisinya di gudang: belum QC, sudah QC (menunggu serah terima), dikirim, atau dibatalkan.">
         <x-slot name="actions">
             <x-ui.button :href="route('admin.orders.packing', request()->only(['marketplace', 'store', 'courier', 'from', 'to', 'range']))" variant="secondary" icon="list">Packing List</x-ui.button>
             @can('imports.create')
@@ -41,12 +41,12 @@
 
     {{-- Tab status: hanya proses internal gudang. --}}
     <div class="scrollbar-none mb-4 flex gap-1 overflow-x-auto border-b border-ink-200 text-sm" data-order-tabs>
-        <a href="{{ route('admin.orders.index', $keep(['status'])) }}" data-hint-title="Semua pesanan" data-hint="Seluruh pesanan sesuai filter yang sedang dipakai, dari Belum QC sampai Dibatalkan."
+        <a href="{{ route('admin.orders.index', $keep(['stage', 'status'])) }}" data-hint-title="Semua pesanan" data-hint="Seluruh pesanan sesuai filter yang sedang dipakai, dari Belum QC sampai Dibatalkan."
            @class(['-mb-px whitespace-nowrap border-b-2 px-3 py-2', 'border-brand-500 font-medium text-ink-950' => $stage === '', 'border-transparent text-ink-500 hover:text-ink-700' => $stage !== ''])>
             Semua <span class="ml-1 text-xs text-ink-400">{{ number_format(array_sum($counts), 0, ',', '.') }}</span>
         </a>
-        @foreach (ShipmentOrder::STAGES as $value => $label)
-            <a href="{{ route('admin.orders.index', $keep(['status'], ['status' => $value])) }}" data-hint-title="{{ $label }}" data-hint="{{ $hints[$value] ?? '' }}" @if ($next = OrderController::stageNext()[$value] ?? null) data-hint-next="{{ $next }}" @endif
+        @foreach (OrderController::STAGE_LABELS as $value => $label)
+            <a href="{{ route('admin.orders.index', $keep(['stage', 'status'], ['stage' => $value])) }}" data-hint-title="{{ $label }}" data-hint="{{ $hints[$value] ?? '' }}" @if ($next = OrderController::stageNext()[$value] ?? null) data-hint-next="{{ $next }}" @endif
                @class(['-mb-px whitespace-nowrap border-b-2 px-3 py-2', 'border-brand-500 font-medium text-ink-950' => $stage === $value, 'border-transparent text-ink-500 hover:text-ink-700' => $stage !== $value])>
                 {{ $label }} <span class="ml-1 text-xs text-ink-400">{{ number_format($counts[$value] ?? 0, 0, ',', '.') }}</span>
             </a>
@@ -58,12 +58,12 @@
         <span class="mr-1 inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-ink-500">Perlu dicek <x-ui.hint text="Penanda pesanan yang perlu diperiksa orang. Bisa dipakai bersama tab status mana pun; klik lagi untuk melepas." /></span>
         @php $onlyDuplicates = request()->boolean('duplicate'); @endphp
         <a href="{{ route('admin.orders.index', $keep(['duplicate'], ['duplicate' => $onlyDuplicates ? null : 1])) }}"
-           data-hint-title="Resi kembar" data-hint="Satu nomor pesanan punya lebih dari satu resi, biasanya karena resi dicetak ulang. Resi lama masih menunggu dipacking, jadi pesanannya berisiko dikirim dua kali." data-hint-next="Klik untuk menampilkan daftarnya, lalu batalkan resi yang lama di Status Resi."
+           data-hint-title="Resi Duplikat" data-hint="Satu nomor pesanan punya lebih dari satu resi, biasanya karena resi dicetak ulang. Resi lama masih menunggu dipacking, jadi pesanannya berisiko dikirim dua kali." data-hint-next="Klik untuk menampilkan daftarnya, lalu tandai batal resi yang lama dari baris pesanannya."
            @class([$chip, 'font-medium',
                'border-rose-600 bg-rose-600 text-white' => $onlyDuplicates,
                'border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300' => ! $onlyDuplicates && $duplicates,
                'border-ink-200 bg-white text-ink-400' => ! $onlyDuplicates && ! $duplicates])>
-            <x-icon name="warning" class="h-3.5 w-3.5" /> Resi kembar
+            <x-icon name="warning" class="h-3.5 w-3.5" /> Resi Duplikat
             @if ($onlyDuplicates)
                 <x-icon name="close" class="h-3.5 w-3.5" />
             @else
@@ -150,7 +150,7 @@
         {{-- Pencarian: satu kata kunci, atau tempel banyak nomor sekaligus (satu per baris). --}}
         <form method="GET" action="{{ route('admin.orders.index') }}" class="space-y-3 border-b border-ink-100 p-4"
               x-data="{ multi: @js($searchTerms > 1) }">
-            @foreach (['status', 'marketplace', 'store', 'courier', 'duplicate', 'unmatched'] as $field)
+            @foreach (['stage', 'marketplace', 'store', 'courier', 'duplicate', 'unmatched'] as $field)
                 @if (request()->filled($field))
                     <input type="hidden" name="{{ $field }}" value="{{ request($field) }}">
                 @endif
@@ -201,7 +201,7 @@
                     </select>
                     <x-ui.button type="submit" icon="filter">Cari</x-ui.button>
                     @if (request()->hasAny(['search', 'search_by', 'from', 'to', 'range', 'sort']))
-                        <x-ui.button :href="route('admin.orders.index', request()->only(['status', 'marketplace', 'store', 'courier', 'per_page']))"
+                        <x-ui.button :href="route('admin.orders.index', request()->only(['stage', 'marketplace', 'store', 'courier', 'per_page']))"
                                      variant="ghost" size="icon" title="Reset pencarian">
                             <x-icon name="close" class="h-4 w-4" />
                         </x-ui.button>
@@ -247,7 +247,7 @@
                                     </span>
                                     @if ($twin->isNotEmpty())
                                         <span class="inline-flex items-center gap-1 font-medium text-rose-700" title="Pesanan yang sama juga punya resi: {{ $twin->implode(', ') }}">
-                                            <x-icon name="warning" class="h-3.5 w-3.5" /> Resi kembar: <span class="font-mono">{{ $twin->implode(', ') }}</span>
+                                            <x-icon name="warning" class="h-3.5 w-3.5" /> Resi duplikat: <span class="font-mono">{{ $twin->implode(', ') }}</span>
                                         </span>
                                     @endif
                                     @if ($unmatchedItems->isNotEmpty())
@@ -297,14 +297,17 @@
                                 @endif
                             </td>
                             <td class="px-3 py-3">
-                                <x-ui.badge :variant="OrderController::stageTone($orderStage)" class="cursor-help" data-hint-title="{{ $order->stageLabel() }}" data-hint="{{ $hints[$orderStage] ?? '' }}">{{ $order->stageLabel() }}</x-ui.badge>
+                                <x-ui.badge :variant="OrderController::stageTone($orderStage)" class="cursor-help" data-hint-title="{{ OrderController::STAGE_LABELS[$orderStage] }}" data-hint="{{ $hints[$orderStage] ?? '' }}">{{ OrderController::STAGE_LABELS[$orderStage] }}</x-ui.badge>
+                                @if ($twin->isNotEmpty())
+                                    <x-ui.badge variant="danger" class="ml-1 cursor-help" data-hint-title="Resi duplikat" data-hint="Pesanan yang sama juga punya resi {{ $twin->implode(', ') }}. Pastikan hanya satu resi yang dikirim." data-hint-next="Tandai batal resi yang tidak dipakai.">Duplikat</x-ui.badge>
+                                @endif
                                 <p class="mt-1 max-w-56 text-[11px] text-ink-500">{{ $order->stageDetail() }}</p>
                                 @if ($order->order_status)
                                     <p class="mt-1 text-[11px] text-ink-400" title="Status di marketplace saat diimport (hanya keterangan)">Marketplace: {{ $order->order_status }}</p>
                                 @endif
                             </td>
                             <td class="px-4 py-3">
-                                <div class="flex justify-end gap-0.5">
+                                <div class="flex flex-wrap items-start justify-end gap-0.5">
                                     @if ($order->outbound)
                                         @if ($orderStage === ShipmentOrder::STAGE_AWAITING_QC && ! $order->outbound->isPosted())
                                             @can('outbounds.scan')
@@ -324,9 +327,9 @@
                                             <x-icon name="import" class="h-4 w-4" />
                                         </a>
                                     @endif
-                                    <a href="{{ route('admin.imports.status', ['search' => $order->tracking_number, 'range' => \App\Support\DateRange::ALL]) }}" class="btn btn-ghost btn-icon" title="Buka di Status Resi">
-                                        <x-icon name="waybill" class="h-4 w-4" />
-                                    </a>
+                                    @if ($orderStage !== ShipmentOrder::STAGE_SHIPPED)
+                                        @include('admin.imports.partials.cancel-control')
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -336,7 +339,7 @@
                         <tr>
                             <td colspan="4">
                                 <x-ui.empty-state icon="shopping-cart" title="Belum ada pesanan"
-                                                  description="Pesanan muncul di sini setelah berkas resi dari Ginee diimport. Coba ubah tanggal atau filter bila sudah pernah import." />
+                                                  description="Pesanan muncul di sini setelah berkas resi marketplace diimport. Coba ubah tanggal atau filter bila sudah pernah import." />
                             </td>
                         </tr>
                     </tbody>

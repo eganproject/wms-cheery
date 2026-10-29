@@ -12,7 +12,7 @@ use Illuminate\Support\Collection;
 /**
  * Rekap resi per tanggal masuk ke sistem.
  *
- * Tahap memakai scope ShipmentOrder yang sama dengan halaman Status Resi.
+ * Tahap memakai scope ShipmentOrder yang sama dengan halaman Pesanan.
  * Dengan begitu angka harian dan daftar rinci tidak bisa memiliki definisi
  * Belum QC, Serah Terima Paket, Dikirim, atau Dibatalkan yang berbeda.
  */

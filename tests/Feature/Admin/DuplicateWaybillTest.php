@@ -186,7 +186,7 @@ class DuplicateWaybillTest extends TestCase
                 'cancellation_reason' => 'Resi cetak ulang',
                 'duplicate' => 1,
             ])
-            ->assertRedirect(route('admin.imports.status', ['duplicate' => 1]));
+            ->assertRedirect(route('admin.orders.index', ['duplicate' => 1]));
     }
 
     /**
@@ -231,7 +231,7 @@ class DuplicateWaybillTest extends TestCase
     protected function open(array $query = []): \Illuminate\Testing\TestResponse
     {
         return $this->actingAs($this->admin)
-            ->get(route('admin.imports.status', $query))
+            ->get(route('admin.orders.index', $query))
             ->assertOk();
     }
 

@@ -491,7 +491,7 @@ class GineeImportService
      * pada dokumen barang keluar diatur nullOnDelete, sehingga setiap import
      * ulang diam-diam memutus tautan dokumen yang sudah ada — termasuk yang
      * sudah dikirim, yang lalu muncul lagi sebagai "Belum QC" di halaman
-     * Status Resi padahal stoknya sudah berkurang.
+     * Pesanan padahal stoknya sudah berkurang.
      *
      * @param  array<string, mixed>  $data
      */

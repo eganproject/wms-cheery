@@ -111,7 +111,7 @@ class WaybillStatusTest extends TestCase
         $this->makeDocument($shipped, quantity: 1, scanned: 1)
             ->forceFill(['status' => Outbound::STATUS_POSTED, 'posted_at' => now()])->save();
 
-        $response = $this->actingAs($this->admin)->get(route('admin.imports.status'))->assertOk();
+        $response = $this->actingAs($this->admin)->get(route('admin.orders.index'))->assertOk();
 
         $counts = $response->viewData('counts');
 
@@ -135,7 +135,7 @@ class WaybillStatusTest extends TestCase
         $this->makeDocument($checked, quantity: 2, scanned: 2);
 
         $response = $this->actingAs($this->admin)
-            ->get(route('admin.imports.status', ['stage' => ShipmentOrder::STAGE_HANDOVER]))
+            ->get(route('admin.orders.index', ['stage' => ShipmentOrder::STAGE_HANDOVER]))
             ->assertOk();
 
         $this->assertSame(1, $response->viewData('orders')->total());
@@ -148,7 +148,7 @@ class WaybillStatusTest extends TestCase
         $this->makeDocument($checked, quantity: 2, scanned: 2);
 
         $response = $this->actingAs($this->admin)
-            ->get(route('admin.imports.status', ['stage' => ShipmentOrder::STAGE_HANDOVER, 'search' => 'SPXID222']))
+            ->get(route('admin.orders.index', ['stage' => ShipmentOrder::STAGE_HANDOVER, 'search' => 'SPXID222']))
             ->assertOk();
 
         $this->assertSame(1, $response->viewData('orders')->total());
@@ -163,7 +163,7 @@ class WaybillStatusTest extends TestCase
         ]);
         $order->items()->create(['sku' => 'SKU-ASING', 'quantity' => 1, 'product_id' => null]);
 
-        $this->actingAs($this->admin)->get(route('admin.imports.status'))
+        $this->actingAs($this->admin)->get(route('admin.orders.index'))
             ->assertOk()
             ->assertSee('SKU belum lengkap di master barang');
     }
@@ -176,9 +176,9 @@ class WaybillStatusTest extends TestCase
 
         $this->assertSame(1, $response->viewData('waybills')[ShipmentOrder::STAGE_AWAITING_QC]);
 
-        $response->assertSee('Status Resi')
+        $response->assertSee('Pesanan')
             ->assertSee('Belum QC')
-            ->assertSee(route('admin.imports.status'));
+            ->assertSee(route('admin.orders.index'));
     }
 
     public function test_the_page_needs_the_import_permission(): void
@@ -188,7 +188,7 @@ class WaybillStatusTest extends TestCase
 
         $user = User::factory()->create(['role_id' => $role->id]);
 
-        $this->actingAs($user)->get(route('admin.imports.status'))->assertForbidden();
+        $this->actingAs($user)->get(route('admin.orders.index'))->assertForbidden();
     }
 
     /* --------------------------------------------------- helpers --------- */

@@ -143,12 +143,12 @@ class DailyWaybillReportTest extends TestCase
         ]))
             ->assertOk()
             ->assertSee('Laporan Resi per Hari')
-            ->assertSee(route('admin.imports.status', [
+            ->assertSee(route('admin.orders.index', [
                 'from' => '2026-09-04',
                 'to' => '2026-09-04',
                 'courier' => 'SPX',
             ]))
-            ->assertSee(route('admin.imports.status', [
+            ->assertSee(route('admin.orders.index', [
                 'from' => '2026-09-04',
                 'to' => '2026-09-04',
                 'courier' => 'SPX',

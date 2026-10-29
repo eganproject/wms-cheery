@@ -273,7 +273,7 @@ class CancelledOrderTest extends TestCase
             'cancellation_reason' => 'Pembeli minta batal.',
             'stage' => ShipmentOrder::STAGE_AWAITING_QC,
             'courier' => 'SPX',
-        ])->assertRedirect(route('admin.imports.status', [
+        ])->assertRedirect(route('admin.orders.index', [
             'stage' => ShipmentOrder::STAGE_AWAITING_QC,
             'courier' => 'SPX',
         ]));
@@ -288,7 +288,7 @@ class CancelledOrderTest extends TestCase
 
         $viewer = User::factory()->create(['role_id' => $role->id]);
 
-        $this->actingAs($viewer)->get(route('admin.imports.status'))->assertOk();
+        $this->actingAs($viewer)->get(route('admin.orders.index'))->assertOk();
 
         $this->actingAs($viewer)->post(route('admin.imports.orders.cancel', $order), [
             'cancellation_reason' => 'Coba-coba.',
@@ -338,7 +338,7 @@ class CancelledOrderTest extends TestCase
         $this->cancel($this->makeOrder());
 
         $this->actingAs($this->admin)
-            ->get(route('admin.imports.status', ['stage' => ShipmentOrder::STAGE_CANCELLED]))
+            ->get(route('admin.orders.index', ['stage' => ShipmentOrder::STAGE_CANCELLED]))
             ->assertOk()
             ->assertSee('SPXID111')
             ->assertSee('Dibatalkan');

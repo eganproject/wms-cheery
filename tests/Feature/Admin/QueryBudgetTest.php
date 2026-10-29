@@ -56,7 +56,7 @@ class QueryBudgetTest extends TestCase
             'stok opname' => ['admin.opnames.index', 15],
             'barang rusak' => ['admin.disposals.index', 17],
             'import resi' => ['admin.imports.index', 16],
-            'status resi' => ['admin.imports.status', 14],
+            'pesanan' => ['admin.orders.index', 18],
             'resi per hari' => ['admin.imports.daily', 16],
             'per ekspedisi' => ['admin.imports.couriers', 16],
             'persetujuan' => ['admin.approvals.index', 22],
@@ -91,7 +91,7 @@ class QueryBudgetTest extends TestCase
             'penyesuaian stok' => ['admin.adjustments.index', 'ADJ-A1'],
             'stok opname' => ['admin.opnames.index', 'OPN-A1'],
             'import resi' => ['admin.imports.index', 'TRK-A1'],
-            'status resi' => ['admin.imports.status', 'TRK-A1'],
+            'pesanan' => ['admin.orders.index', 'TRK-A1'],
         ];
     }
 
@@ -113,7 +113,7 @@ class QueryBudgetTest extends TestCase
         $routes = [
             'admin.products.index', 'admin.movements.index', 'admin.inbounds.index',
             'admin.outbounds.index', 'admin.outbounds.handover', 'admin.adjustments.index',
-            'admin.opnames.index', 'admin.disposals.index', 'admin.imports.status',
+            'admin.opnames.index', 'admin.disposals.index', 'admin.orders.index',
         ];
 
         $before = collect($routes)->mapWithKeys(fn ($route) => [$route => $this->measure($route)]);

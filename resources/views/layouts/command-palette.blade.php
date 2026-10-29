@@ -19,7 +19,7 @@
                 'label' => 'Lacak resi ":q"',
                 'group' => 'Cari',
                 'icon' => 'waybill',
-                'href' => route('admin.imports.status').'?range='.\App\Support\DateRange::ALL.'&search=',
+                'href' => route('admin.orders.index').'?range='.\App\Support\DateRange::ALL.'&search=',
             ] : null,
             $user->can('outbounds.view') ? [
                 'label' => 'Cari barang keluar ":q"',

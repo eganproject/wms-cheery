@@ -56,7 +56,7 @@ class OrderPageTest extends TestCase
         $start = strpos($html, 'data-order-tabs');
         $tabs = substr($html, $start, strpos($html, '</div>', $start) - $start);
 
-        foreach (ShipmentOrder::STAGES as $label) {
+        foreach (['Semua', 'Belum QC', 'Sudah QC', 'Dikirim'] as $label) {
             $this->assertStringContainsString($label, $tabs);
         }
 
@@ -111,5 +111,47 @@ class OrderPageTest extends TestCase
         $this->actingAs(User::factory()->create(['role_id' => $role->id]))
             ->get(route('admin.orders.index'))
             ->assertForbidden();
+    }
+
+    public function test_the_old_waybill_status_address_opens_orders(): void
+    {
+        $this->actingAs($this->admin)
+            ->get(route('admin.imports.status', ['stage' => ShipmentOrder::STAGE_HANDOVER, 'search' => 'RESI1']))
+            ->assertRedirect(route('admin.orders.index', ['stage' => ShipmentOrder::STAGE_HANDOVER, 'search' => 'RESI1']));
+
+        $this->actingAs($this->admin)->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertDontSee('Status Resi');
+    }
+
+    public function test_a_duplicated_waybill_is_flagged_on_its_row(): void
+    {
+        $this->order('RESIOLD', ['order_number' => 'ORD-SAME']);
+        $this->order('RESINEW', ['order_number' => 'ORD-SAME']);
+
+        $this->actingAs($this->admin)->get(route('admin.orders.index'))
+            ->assertOk()
+            ->assertSee('Resi Duplikat')
+            ->assertSee('Resi duplikat: ')
+            ->assertSee('>Duplikat</', false);
+    }
+
+    public function test_an_order_can_be_cancelled_from_its_row_and_comes_back_to_orders(): void
+    {
+        $order = $this->order('RESICANCEL');
+
+        $this->actingAs($this->admin)->get(route('admin.orders.index'))
+            ->assertOk()
+            ->assertSee(route('admin.imports.orders.cancel', $order));
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.imports.orders.cancel', $order), [
+                'cancellation_reason' => 'Dibatalkan pembeli',
+                'stage' => ShipmentOrder::STAGE_AWAITING_QC,
+                'marketplace' => 'Shopee',
+            ])
+            ->assertRedirect(route('admin.orders.index', ['stage' => ShipmentOrder::STAGE_AWAITING_QC, 'marketplace' => 'Shopee']));
+
+        $this->assertTrue($order->fresh()->isCancelled());
     }
 }

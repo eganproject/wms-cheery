@@ -43,12 +43,12 @@ class SummaryCardTest extends TestCase
         $this->makeOrder('SPXID333', Carbon::today()->subMonth());
 
         // Halaman terbuka pada hari berjalan: dua resi, bukan tiga.
-        $counts = $this->counts('admin.imports.status');
+        $counts = $this->counts('admin.orders.index');
 
         $this->assertSame(2, array_sum($counts));
         $this->assertSame(2, $counts[ShipmentOrder::STAGE_AWAITING_QC]);
 
-        $all = $this->counts('admin.imports.status', ['range' => DateRange::ALL]);
+        $all = $this->counts('admin.orders.index', ['range' => DateRange::ALL]);
 
         $this->assertSame(3, array_sum($all));
     }
@@ -58,8 +58,8 @@ class SummaryCardTest extends TestCase
         $this->makeOrder('SPXID111', Carbon::today(), 'SPX');
         $this->makeOrder('JNE111', Carbon::today(), 'JNE');
 
-        $this->assertSame(1, array_sum($this->counts('admin.imports.status', ['courier' => 'SPX'])));
-        $this->assertSame(2, array_sum($this->counts('admin.imports.status')));
+        $this->assertSame(1, array_sum($this->counts('admin.orders.index', ['courier' => 'SPX'])));
+        $this->assertSame(2, array_sum($this->counts('admin.orders.index')));
     }
 
     public function test_the_waybill_cards_follow_the_search(): void
@@ -67,7 +67,7 @@ class SummaryCardTest extends TestCase
         $this->makeOrder('SPXID111', Carbon::today());
         $this->makeOrder('JNE999', Carbon::today());
 
-        $this->assertSame(1, array_sum($this->counts('admin.imports.status', ['search' => 'SPXID'])));
+        $this->assertSame(1, array_sum($this->counts('admin.orders.index', ['search' => 'SPXID'])));
     }
 
     /**
@@ -80,8 +80,8 @@ class SummaryCardTest extends TestCase
         $this->makeOrder('SPXID222', Carbon::today());
 
         $this->assertSame(
-            $this->counts('admin.imports.status'),
-            $this->counts('admin.imports.status', ['stage' => ShipmentOrder::STAGE_SHIPPED]),
+            $this->counts('admin.orders.index'),
+            $this->counts('admin.orders.index', ['stage' => ShipmentOrder::STAGE_SHIPPED]),
         );
     }
 
