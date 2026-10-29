@@ -21,6 +21,18 @@ class Product extends Model
     /** Paket bundling: dijual sebagai satu SKU, tetapi tidak pernah ada di rak. */
     public const TYPE_BUNDLE = 'bundle';
 
+    /**
+     * Bawaan yang sama dengan kolomnya, supaya model yang baru dibuat sudah
+     * membawanya sebelum dibaca ulang — sinkronisasi API stok membacanya
+     * tepat setelah disimpan, dan tanpa ini barang baru terkirim "inactive".
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'is_active' => true,
+        'min_stock' => 0,
+    ];
+
     protected $fillable = [
         'sku',
         'barcode',

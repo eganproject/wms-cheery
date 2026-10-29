@@ -51,8 +51,13 @@ class StockApiSyncService
             keputusan tersendiri, bukan efek samping fitur ini.
         */
         if ($product->isBundle()) {
+            // Barang biasa yang diubah menjadi paket: SKU-nya tidak boleh
+            // tertinggal di pusat sebagai stok aktif dengan angka lama.
+            static::retire($product->id);
+
             return;
         }
+
         $data = [
             'product_id' => $product->id,
             'sku' => $product->sku,
@@ -66,24 +71,39 @@ class StockApiSyncService
             'source_updated_at' => $changedAt ?? $product->updated_at ?? now(),
         ];
 
-        $record = StockApiSyncRecord::query()
-            ->where(fn ($query) => $query
-                ->where('product_id', $product->id)
-                ->orWhere('sku', $product->sku))
-            ->first();
+        /*
+            Satu catatan per SKU, karena pusat membaca menurut SKU.
+
+            Bila SKU barangnya diganti, catatan SKU lama tidak ikut berganti
+            nama: pusat akan kehilangan SKU lama tanpa pernah tahu ia sudah
+            tidak ada, dan angka lamanya tertinggal di sana. Catatan lama
+            ditandai dihapus, lalu SKU baru mendapat catatannya sendiri —
+            atau memakai ulang catatan SKU itu bila dulu pernah ada.
+        */
+        $sku = static::normalize($product->sku);
+
+        $records = StockApiSyncRecord::query()
+            ->where('product_id', $product->id)
+            ->orWhere('sku', $product->sku)
+            ->get();
+
+        $record = $records->first(fn (StockApiSyncRecord $record) => static::normalize($record->sku) === $sku);
+
+        static::retire($product->id, except: $record?->id);
 
         $record
             ? $record->fill($data)->save()
             : StockApiSyncRecord::create($data);
     }
 
-    public static function markDeleted(Product $product): void
+    /**
+     * Tandai dihapus seluruh catatan milik barang ini, kecuali satu.
+     */
+    protected static function retire(int $productId, ?int $except = null): void
     {
-        if (! static::ready()) {
-            return;
-        }
         StockApiSyncRecord::query()
-            ->where('product_id', $product->id)
+            ->where('product_id', $productId)
+            ->when($except, fn ($query) => $query->whereKeyNot($except))
             ->each(fn (StockApiSyncRecord $record) => $record->update([
                 'product_id' => null,
                 'qty' => 0,
@@ -91,5 +111,18 @@ class StockApiSyncService
                 'status' => 'deleted',
                 'source_updated_at' => now(),
             ]));
+    }
+
+    protected static function normalize(?string $sku): string
+    {
+        return mb_strtoupper(trim((string) $sku));
+    }
+
+    public static function markDeleted(Product $product): void
+    {
+        if (! static::ready()) {
+            return;
+        }
+        static::retire($product->id);
     }
 }
