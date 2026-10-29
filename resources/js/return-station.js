@@ -221,6 +221,15 @@ export default function returnStation(config) {
 
             this.manualEntry = false;
             this.adopt(payload);
+
+            // Resi yang belum pernah dikirim lewat sistem tetap boleh
+            // diterima, tetapi petugas perlu tahu sebelum memeriksanya.
+            if (payload.warning) {
+                this.report('warning', payload.warning, code, 'resi');
+
+                return;
+            }
+
             // Sependek pesan di stasiun packing: nomor dokumennya sudah
             // tampil di kartu identitas paket.
             this.report('success', `Paket dibuka · ${payload.items.length} baris`, code, 'resi');

@@ -409,9 +409,12 @@ class MarketplaceIntakeTest extends TestCase
 
         $this->actingAs($this->admin)
             ->postJson(route('admin.outbounds.marketplace.store'), ['code' => 'SPXID111'])
-            ->assertOk();
+            ->assertOk()
+            ->assertJsonPath('progress.scanned', 1);
 
         $this->assertSame(1, Outbound::where('tracking_number', 'SPXID111')->count());
+        // Hitungan dilanjutkan, bukan diulang dari nol.
+        $this->assertSame(1, $outbound->refresh()->totalScanned());
     }
 
     public function test_scanning_the_same_waybill_twice_reuses_the_draft(): void

@@ -76,6 +76,28 @@ class ReturnReceipt extends Model
         return $this->status === self::STATUS_DRAFT;
     }
 
+    public function shipmentOrder(): BelongsTo
+    {
+        return $this->belongsTo(ShipmentOrder::class);
+    }
+
+    /**
+     * Peringatan bila resi retur ini belum pernah dikirim lewat sistem.
+     *
+     * Bisa saja wajar — pesanan dari sebelum gudang memakai sistem ini — jadi
+     * tidak ditolak. Tetapi stok bertambah saat diterima, sehingga petugas
+     * perlu memastikan barangnya memang pernah keluar.
+     */
+    public static function neverShippedWarning(?ShipmentOrder $order): ?string
+    {
+        if (! $order || $order->stage() === ShipmentOrder::STAGE_SHIPPED) {
+            return null;
+        }
+
+        return 'Resi ini belum pernah dikirim dari sistem (tahap: '.$order->stageLabel().'). '
+            .'Pastikan barangnya memang pernah keluar, mis. pesanan dari sebelum memakai sistem ini. Stok akan bertambah saat retur diterima.';
+    }
+
     public function isPosted(): bool
     {
         return $this->status === self::STATUS_POSTED;

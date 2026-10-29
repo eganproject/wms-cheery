@@ -182,9 +182,10 @@ class StockService
     /**
      * Terapkan penyesuaian stok: saldo disamakan dengan hasil hitung fisik.
      *
-     * Selisih dihitung ulang terhadap saldo saat dokumen disetujui — bukan
-     * saat disusun — agar hasil akhirnya benar-benar sama dengan angka yang
-     * dihitung petugas. Selisih yang dibukukan disimpan pada barisnya.
+     * Selisih dihitung terhadap saldo saat baris disusun (saat barang
+     * dihitung), lalu dibukukan pada saldo saat disetujui. Barang yang
+     * bergerak di antara keduanya tetap tercatat. Selisih yang dibukukan
+     * disimpan pada barisnya.
      */
     public function postAdjustment(StockAdjustment $adjustment): void
     {
@@ -204,7 +205,10 @@ class StockService
             foreach ($adjustment->items as $item) {
                 $product = Product::lockForUpdate()->findOrFail($item->product_id);
 
-                $difference = $item->actual_quantity - $product->stock;
+                // Selisih terhadap saldo saat barisnya disusun (system_quantity),
+                // bukan saldo saat disetujui: barang yang keluar-masuk di antara
+                // keduanya memang terjadi dan tidak boleh ikut terhapus.
+                $difference = $item->actual_quantity - $item->system_quantity;
 
                 if ($difference === 0) {
                     $item->update(['applied_difference' => 0]);
@@ -286,9 +290,9 @@ class StockService
      *
      * Hanya baris yang benar-benar dihitung yang dibukukan; baris yang belum
      * disentuh petugas dibiarkan apa adanya, karena tidak dihitung bukan
-     * berarti nol. Sama seperti penyesuaian, selisihnya dihitung ulang
-     * terhadap saldo saat disetujui supaya hasil akhirnya persis sama dengan
-     * angka yang dihitung di rak.
+     * berarti nol. Selisihnya dihitung terhadap saldo pada saat rak
+     * dihitung (saldo sekarang dikurangi pergerakan sesudah hitungan), jadi
+     * paket yang terkirim sambil menunggu persetujuan tidak ikut terhapus.
      */
     public function postOpname(StockOpname $opname): void
     {
@@ -312,7 +316,12 @@ class StockService
 
                 $product = Product::lockForUpdate()->findOrFail($item->product_id);
 
-                $difference = $item->counted_quantity - $product->stock;
+                // Selisih terhadap saldo pada saat rak dihitung, bukan saat
+                // disetujui. Paket yang terkirim (atau barang yang masuk)
+                // sesudah hitungan tetap tercatat; tanpa ini stoknya kembali
+                // ke angka hitungan seolah paket itu tidak pernah keluar.
+                $atCount = $product->stock - $this->netMovementSince($product->id, $item->counted_at);
+                $difference = $item->counted_quantity - $atCount;
 
                 if ($difference !== 0) {
                     $this->move(
@@ -352,6 +361,23 @@ class StockService
                 'posted_at' => now(),
             ])->save();
         });
+    }
+
+    /**
+     * Pergerakan bersih saldo layak jual sesudah suatu waktu (masuk dikurangi keluar).
+     */
+    protected function netMovementSince(int $productId, ?\DateTimeInterface $since): int
+    {
+        if ($since === null) {
+            return 0;
+        }
+
+        return (int) StockMovement::query()
+            ->where('product_id', $productId)
+            ->where('bucket', StockMovement::BUCKET_GOOD)
+            ->where('created_at', '>', $since)
+            ->selectRaw("COALESCE(SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END), 0) as net")
+            ->value('net');
     }
 
     /**

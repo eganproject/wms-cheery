@@ -81,7 +81,9 @@ class ReturnMarketplaceController extends Controller implements HasMiddleware
 
         $return = $this->documentFor($order);
 
-        return response()->json(['found' => true] + $this->payload($return, $order->order_number));
+        return response()->json(['found' => true] + $this->payload($return, $order->order_number) + [
+            'warning' => ReturnReceipt::neverShippedWarning($order->load('outbound')),
+        ]);
     }
 
     /**

@@ -197,9 +197,19 @@ class OutboundMarketplaceController extends Controller implements HasMiddleware
                 'resi_verified_at' => now(),
             ])->save();
 
+            // Scan ulang resi yang baru setengah discan melanjutkan hitungan
+            // terakhir, bukan mengulang dari nol. Barisnya tetap ditulis ulang
+            // dari data import (pesanannya bisa berubah), tetapi unit yang
+            // sudah discan dibawa — tidak pernah melebihi jumlah pesanan.
+            $scanned = $existing
+                ? $existing->items->groupBy('product_id')->map(fn ($items) => (int) $items->sum('scanned_quantity'))
+                : collect();
+
             $outbound->items()->delete();
             $outbound->bundles()->delete();
-            $outbound->items()->createMany($lines->items);
+            $outbound->items()->createMany(array_map(fn (array $line) => array_merge($line, [
+                'scanned_quantity' => min($scanned[$line['product_id']] ?? 0, (int) $line['quantity']),
+            ]), $lines->items));
             $outbound->bundles()->createMany($lines->bundles);
 
             return $outbound->load('items.product', 'bundles.bundle');

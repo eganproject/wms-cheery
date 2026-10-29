@@ -15,6 +15,14 @@
         </x-slot>
     </x-ui.page-header>
 
+    {{-- Periode: angka aktivitas (masuk, terkirim, resi, ekspedisi) mengikuti
+         rentang ini. Posisi stok selalu keadaan saat ini. --}}
+    <form method="GET" action="{{ route('admin.dashboard') }}"
+          class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+        <x-ui.date-filter label="Periode aktivitas" />
+        <x-ui.button type="submit" variant="secondary" icon="filter" class="sm:flex-none">Terapkan</x-ui.button>
+    </form>
+
     {{-- Pesanan menunggu --}}
     @if ($stats['outbound_pending'] > 0)
         @can('outbounds.view')
@@ -48,12 +56,14 @@
         <x-ui.stat-card label="Stok Menipis" info="Barang yang stoknya sudah di bawah atau sama dengan batas minimum." :value="$stats['low_stock']" icon="warning"
                         hint="Perlu segera direstok"
                         :href="auth()->user()->can('reports.view') ? route('admin.reports.restock') : null" />
-        <x-ui.stat-card label="Masuk Bulan Ini" info="Dokumen barang masuk yang sudah disetujui bulan ini." :value="$stats['inbound_month']" icon="inbound"
-                        hint="Dokumen diposting"
-                        :href="auth()->user()->can('inbounds.view') ? route('admin.inbounds.index') : null" />
-        <x-ui.stat-card label="Keluar Bulan Ini" info="Dokumen barang keluar yang sudah disetujui bulan ini." :value="$stats['outbound_month']" icon="outbound"
-                        hint="Dokumen dikirim"
-                        :href="auth()->user()->can('outbounds.view') ? route('admin.outbounds.index') : null" />
+        <x-ui.stat-card label="Unit Masuk" :info="'Unit layak jual yang diterima lewat barang masuk yang disetujui, '.$periodLabel.'.'"
+                        :value="number_format($stats['inbound_units'], 0, ',', '.')" icon="inbound"
+                        :hint="$stats['inbound_docs'].' dokumen · '.$periodLabel"
+                        :href="auth()->user()->can('inbounds.view') ? route('admin.inbounds.index', $range->toQuery()) : null" />
+        <x-ui.stat-card label="Unit Terkirim" :info="'Unit yang keluar lewat barang keluar yang disetujui, '.$periodLabel.'. Paket yang batal setelah serah terima tidak dihitung.'"
+                        :value="number_format($stats['outbound_units'], 0, ',', '.')" icon="outbound"
+                        :hint="$stats['outbound_docs'].' dokumen · '.$periodLabel"
+                        :href="auth()->user()->can('outbounds.view') ? route('admin.outbounds.index', $range->toQuery()) : null" />
     </div>
 
     {{-- Pintasan --}}
@@ -121,7 +131,7 @@
         </x-ui.card>
 
         {{-- Status resi: tahapan alur gudang, dihitung dari dokumennya --}}
-        <x-ui.card title="Pesanan" subtitle="Posisi resi hasil import di alur gudang">
+        <x-ui.card title="Pesanan" :subtitle="'Resi yang diunggah '.$periodLabel.', posisinya di alur gudang'">
             @php
                 $stages = [
                     \App\Models\ShipmentOrder::STAGE_AWAITING_QC => ['label' => 'Belum QC', 'icon' => 'clock',
@@ -158,7 +168,15 @@
             </div>
 
             @can('imports.view')
-                <a href="{{ route('admin.orders.index') }}"
+                @if ($backlog > 0)
+                    <a href="{{ route('admin.orders.index', ['stage' => \App\Models\ShipmentOrder::STAGE_AWAITING_QC, 'range' => \App\Support\DateRange::ALL]) }}"
+                       class="mt-4 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 transition hover:bg-amber-100">
+                        <x-icon name="warning" class="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span>{{ number_format($backlog, 0, ',', '.') }} resi dari sebelum periode ini masih belum QC.</span>
+                    </a>
+                @endif
+
+                <a href="{{ route('admin.orders.index', $range->toQuery()) }}"
                    class="mt-4 flex items-center justify-between rounded-lg bg-control px-3 py-2 text-sm font-medium text-ink-800 transition hover:bg-ink-200">
                     Lihat pesanan
                     <x-icon name="arrow-right" class="h-4 w-4" />
@@ -170,7 +188,7 @@
 
     <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         {{-- Pesanan per ekspedisi --}}
-        <x-ui.card title="Pesanan per Ekspedisi" subtitle="Dari data resi hasil import">
+        <x-ui.card title="Pesanan per Ekspedisi" :subtitle="'Resi yang diunggah '.$periodLabel">
             @php $courierTotal = max($couriers->sum('total'), 1); @endphp
 
             <div class="space-y-4">
