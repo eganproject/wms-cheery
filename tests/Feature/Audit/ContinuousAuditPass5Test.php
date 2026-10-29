@@ -53,6 +53,13 @@ class ContinuousAuditPass5Test extends TestCase
         $this->assertSame(1, Outbound::atStage(Outbound::STAGE_CANCELLED)->count());
         $this->actingAs($admin)->get(route('admin.outbounds.index'))->assertOk()->assertSee('Batal setelah dikirim');
 
+        // Paket yang dibawa pulang dari kurir tidak boleh diterima lagi
+        // sebagai retur: stoknya sudah kembali saat pembatalan.
+        $this->actingAs($admin)->postJson(route('admin.returns.marketplace.store'), ['code' => 'SPXBTL1'])
+            ->assertOk()
+            ->assertJsonPath('warning', fn (string $warning) => str_contains($warning, 'bertambah dua kali'));
+        \App\Models\ReturnReceipt::query()->delete();
+
         // Pembatalan dicabut: paketnya kembali ke antrean untuk dikirim ulang.
         $this->actingAs($admin)->delete(route('admin.imports.orders.restore', $order));
         $this->assertSame(1, Outbound::awaitingHandover()->count());

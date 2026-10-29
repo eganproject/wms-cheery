@@ -94,6 +94,14 @@ class ReturnReceipt extends Model
             return null;
         }
 
+        // Dibatalkan setelah serah terima: stoknya sudah dikembalikan saat
+        // pengiriman dibatalkan. Menerima retur lagi berarti stok bertambah
+        // dua kali untuk paket yang sama.
+        if ($order->isCancelled() && $order->outbound?->wasReversed()) {
+            return 'Pengiriman resi ini sudah dibatalkan dan stoknya sudah dikembalikan ke rak. '
+                .'Jangan terima sebagai retur, karena stok akan bertambah dua kali. Hapus draft retur ini.';
+        }
+
         return 'Resi ini belum pernah dikirim dari sistem (tahap: '.$order->stageLabel().'). '
             .'Pastikan barangnya memang pernah keluar, mis. pesanan dari sebelum memakai sistem ini. Stok akan bertambah saat retur diterima.';
     }
