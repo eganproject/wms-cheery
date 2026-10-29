@@ -52,7 +52,7 @@ class OutboundController extends Controller implements HasMiddleware
             $number = 0;
 
             foreach ($this->filtered($request)
-                ->with('user', 'approver', 'shipmentOrder:id,marketplace,order_number')
+                ->with('user', 'approver', 'shipmentOrder:id,marketplace,order_number,cancelled_at')
                 ->withCount('items')
                 ->withSum('items', 'quantity')
                 ->withSum('items', 'scanned_quantity')
@@ -79,7 +79,7 @@ class OutboundController extends Controller implements HasMiddleware
         };
 
         $items = function () use ($request) {
-            foreach ($this->filtered($request)->with('items.product', 'shipmentOrder:id,marketplace')
+            foreach ($this->filtered($request)->with('items.product', 'shipmentOrder:id,marketplace,cancelled_at')
                 ->withSum('items', 'quantity')
                 ->withSum('items', 'scanned_quantity')
                 ->lazy(500) as $outbound) {
@@ -163,7 +163,7 @@ class OutboundController extends Controller implements HasMiddleware
     public function index(Request $request): View
     {
         $outbounds = $this->filtered($request)
-            ->with('user', 'shipmentOrder:id,marketplace')
+            ->with('user', 'shipmentOrder:id,marketplace,cancelled_at')
             ->withCount('items')
             ->withSum('items', 'quantity')
             // Progres scan dinilai dari jumlahnya, jadi baris barang tidak

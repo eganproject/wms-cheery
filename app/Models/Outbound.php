@@ -38,6 +38,13 @@ class Outbound extends Model
     public const STAGE_HANDOVER = 'serah_terima';
 
     /**
+     * Sempat diserahkan ke kurir, lalu pesanannya batal pada hari yang sama:
+     * stoknya sudah dikembalikan, dokumennya disimpan sebagai jejak kartu
+     * stok. Bukan pekerjaan yang menunggu siapa pun.
+     */
+    public const STAGE_CANCELLED = 'batal';
+
+    /**
      * Nilai tahap lama yang mungkin masih tersimpan di bookmark atau tautan.
      * Tahap tidak pernah disimpan di database, jadi cukup diterjemahkan di sini.
      */
@@ -187,6 +194,12 @@ class Outbound extends Model
         return $this->resi_verified_at ?? $this->created_at;
     }
 
+    /** Dikirim, lalu dibatalkan; stoknya sudah kembali. */
+    public function isCancelledAfterHandover(): bool
+    {
+        return $this->wasReversed() && (bool) $this->shipmentOrder?->isCancelled();
+    }
+
     public function isMarketplace(): bool
     {
         return $this->type === self::TYPE_MARKETPLACE;
@@ -301,6 +314,7 @@ class Outbound extends Model
             $this->isPosted() => self::STATUS_POSTED,
             $this->isPending() => self::STATUS_PENDING,
             $this->isRejected() => self::STATUS_REJECTED,
+            $this->isCancelledAfterHandover() => self::STAGE_CANCELLED,
             ! $this->isMarketplace() => self::STATUS_DRAFT,
             ! $this->isResiVerified() => self::STAGE_NEED_RESI,
             $this->totalQuantity() < 1 => self::STAGE_NEED_ITEMS,
@@ -325,6 +339,7 @@ class Outbound extends Model
             self::STATUS_PENDING => ['label' => 'Menunggu persetujuan', 'variant' => 'warning', 'icon' => 'clock'],
             self::STATUS_REJECTED => ['label' => 'Ditolak', 'variant' => 'danger', 'icon' => 'x-circle'],
             self::STATUS_POSTED => ['label' => 'Terkirim', 'variant' => 'success', 'icon' => 'check-circle'],
+            self::STAGE_CANCELLED => ['label' => 'Batal setelah dikirim', 'variant' => 'danger', 'icon' => 'x-circle'],
         ];
     }
 
@@ -365,6 +380,9 @@ class Outbound extends Model
                 ->whereNotNull('resi_verified_at')
                 ->whereHas('items'),
             self::STAGE_HANDOVER => $query->awaitingHandover(),
+            self::STAGE_CANCELLED => $query->where('status', self::STATUS_DRAFT)
+                ->whereNotNull('reversed_at')
+                ->whereHas('shipmentOrder', fn (Builder $order) => $order->whereNotNull('cancelled_at')),
             self::STATUS_PENDING, self::STATUS_REJECTED, self::STATUS_POSTED => $query->where('status', $stage),
             default => $query,
         };
@@ -388,6 +406,12 @@ class Outbound extends Model
     {
         return $query->where('type', self::TYPE_MARKETPLACE)
             ->where('status', self::STATUS_DRAFT)
+            // Paket yang batal setelah dikirim sudah selesai urusannya: stoknya
+            // kembali dan dokumennya tidak bisa dihapus. Tanpa ini ia menetap
+            // di antrean selamanya dengan perintah "hapus dokumen ini".
+            ->where(fn (Builder $query) => $query
+                ->whereNull('reversed_at')
+                ->orWhereDoesntHave('shipmentOrder', fn (Builder $order) => $order->whereNotNull('cancelled_at')))
             ->whereNotNull('resi_verified_at')
             ->whereHas('items')
             ->whereDoesntHave('items', fn (Builder $items) => $items->whereColumn('scanned_quantity', '<', 'quantity'));
