@@ -24,9 +24,9 @@
 
     <title>{{ $documentTitle }}</title>
 
-    {{-- SVG tetap tajam di layar rapat; favicon.ico dibiarkan sebagai cadangan
-         untuk peramban lama yang belum mengenalnya. --}}
-    <link rel="icon" href="{{ asset('logo.svg') }}" type="image/svg+xml">
+    <link rel="icon" href="{{ asset('favicon-32x32.png') }}" type="image/png" sizes="32x32">
+    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
+    <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
 
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])

@@ -7,9 +7,9 @@
 
     <title>{{ $title ? $title.' — '.config('app.name', 'WMS') : config('app.name', 'WMS') }}</title>
 
-    {{-- SVG tetap tajam di layar rapat; favicon.ico dibiarkan sebagai cadangan
-         untuk peramban lama yang belum mengenalnya. --}}
-    <link rel="icon" href="{{ asset('logo.svg') }}" type="image/svg+xml">
+    <link rel="icon" href="{{ asset('favicon-32x32.png') }}" type="image/png" sizes="32x32">
+    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
+    <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
 
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -19,9 +19,7 @@
 <div class="flex min-h-full flex-col items-center justify-center px-4 py-10">
     <div class="w-full max-w-[400px] animate-fade-in">
         <div class="mb-6 flex flex-col items-center text-center">
-            <span class="inline-flex h-12 w-16 items-center justify-center rounded-lg bg-white shadow-xs">
-                <x-application-logo class="h-5 w-11" />
-            </span>
+            <x-application-logo variant="full" class="h-28 w-auto" />
             @if ($heading)
                 <h1 class="mt-5 text-xl font-semibold text-ink-950">{{ $heading }}</h1>
             @endif
@@ -35,7 +33,7 @@
         </div>
 
         <p class="mt-6 text-center text-xs text-ink-400">
-            {{ config('app.name', 'WMS Otosby') }} &middot; Warehouse Management System &middot; &copy; {{ date('Y') }}
+            {{ config('app.name', 'CheeryChic') }} &middot; Warehouse Management System &middot; &copy; {{ date('Y') }}
         </p>
     </div>
 </div>

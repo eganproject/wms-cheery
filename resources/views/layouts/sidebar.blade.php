@@ -1,8 +1,7 @@
 {{-- Kepala laci menu — hanya di ponsel; di layar lebar logo sudah ada di navbar. --}}
 <div class="flex h-navbar shrink-0 items-center justify-between border-b border-ink-100 px-4 lg:hidden">
     <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-2">
-        <x-application-logo class="h-6 w-auto" />
-        <span class="text-sm font-semibold text-ink-950">{{ config('app.name', 'WMS') }}</span>
+        <x-application-logo class="h-8 w-auto" />
     </a>
     <button type="button" @click="sidebarOpen = false" class="btn btn-ghost btn-icon -mr-1" title="Tutup menu">
         <x-icon name="close" class="h-[18px] w-[18px]" />

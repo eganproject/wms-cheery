@@ -28,25 +28,27 @@ class BrandingTest extends TestCase
         $response->assertDontSee('password</span>', false);
     }
 
-    public function test_the_login_page_carries_the_company_mark(): void
+    public function test_the_login_page_carries_the_cheerychic_logo(): void
     {
         $this->get(route('login'))
             ->assertOk()
-            // Titik jingga di antara kedua hurufnya.
-            ->assertSee('#F5A623', false)
-            ->assertSee('#1B2A6B', false);
+            ->assertSee('images/cheerychic-logo.png', false);
+
+        $this->assertFileExists(public_path('images/cheerychic-logo.png'));
     }
 
     /**
-     * Favicon disebut terang-terangan, bukan mengandalkan tebakan peramban atas
-     * favicon.ico bawaan Laravel yang masih tertinggal di public.
+     * Favicon disebut terang-terangan dan berkasnya memakai logo CheeryChic.
      */
     public function test_the_favicon_is_declared_and_present(): void
     {
         $this->get(route('login'))
             ->assertOk()
-            ->assertSee('logo.svg', false);
+            ->assertSee('favicon-32x32.png', false)
+            ->assertSee('apple-touch-icon.png', false);
 
-        $this->assertFileExists(public_path('logo.svg'));
+        $this->assertFileExists(public_path('favicon-32x32.png'));
+        $this->assertFileExists(public_path('apple-touch-icon.png'));
+        $this->assertGreaterThan(0, filesize(public_path('favicon.ico')));
     }
 }

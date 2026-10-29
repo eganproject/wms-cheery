@@ -11,7 +11,7 @@
         </button>
 
         <a href="{{ route('admin.dashboard') }}" class="flex shrink-0 items-center gap-2 rounded-md py-1 pr-1" title="Beranda">
-            <x-application-logo class="h-6 w-auto" />
+            <x-application-logo class="h-8 w-auto" />
             <span class="sr-only">{{ config('app.name', 'WMS') }}</span>
         </a>
 
