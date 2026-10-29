@@ -198,8 +198,8 @@
                             <th>Resi</th>
                             <th>Pesanan</th>
                             <th>Ekspedisi</th>
-                            <th class="text-right">Isi</th>
-                            <th>Tahap</th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1">Isi <x-ui.hint text="Total unit dan jumlah SKU di resi ini." /></span></th>
+                            <th><span class="inline-flex items-center gap-1">Tahap <x-ui.hint text="Posisi resi di gudang: Belum QC, Siap Dikirim, Dikirim, atau Dibatalkan. Dihitung otomatis dari dokumen gudang." /></span></th>
                             <th class="text-right">Aksi</th>
                         </tr>
                     </thead>

@@ -65,12 +65,12 @@
                         <x-text-input type="text" :value="$code" class="font-mono" disabled />
                     </x-ui.field>
 
-                    <x-ui.field label="Tanggal" for="date" :error="$errors->get('date')" required>
+                    <x-ui.field label="Tanggal" info="Tanggal barang keluar dari gudang. Mutasi stok dicatat pada tanggal ini." for="date" :error="$errors->get('date')" required>
                         <x-text-input id="date" name="date" type="date"
                                       :value="old('date', $outbound?->date?->format('Y-m-d') ?? now()->format('Y-m-d'))" required />
                     </x-ui.field>
 
-                    <x-ui.field label="Penerima" for="recipient" :error="$errors->get('recipient')" required
+                    <x-ui.field label="Penerima" info="Nama pembeli, toko, atau pihak yang menerima barang." for="recipient" :error="$errors->get('recipient')" required
                                 class="sm:col-span-2">
                         <x-text-input id="recipient" name="recipient" type="text" :value="old('recipient', $outbound?->recipient)"
                                       required placeholder="Nama pembeli, toko, atau cabang tujuan" />
@@ -79,7 +79,7 @@
                     {{-- Field khusus marketplace --}}
                     <template x-if="type === 'marketplace'">
                         <div class="grid grid-cols-1 gap-5 sm:col-span-2 sm:grid-cols-2">
-                            <x-ui.field label="Marketplace" for="marketplace" :error="$errors->get('marketplace')" required>
+                            <x-ui.field label="Marketplace" info="Asal pesanan. Pilih Manual bila barang keluar bukan dari pesanan online." for="marketplace" :error="$errors->get('marketplace')" required>
                                 <x-ui.select id="marketplace" name="marketplace">
                                     <option value="">Pilih marketplace…</option>
                                     @foreach ($marketplaces as $marketplace)
@@ -90,7 +90,7 @@
                                 </x-ui.select>
                             </x-ui.field>
 
-                            <x-ui.field label="Nomor Resi" for="tracking_number" :error="$errors->get('tracking_number')"
+                            <x-ui.field label="Nomor Resi" info="Nomor resi pengiriman. Bila diisi, resi ini bisa discan dan dicocokkan dengan data import Ginee." for="tracking_number" :error="$errors->get('tracking_number')"
                                         hint="Dicari otomatis ke data import Ginee." required class="sm:col-span-2">
                                 <x-text-input id="tracking_number" name="tracking_number" type="text"
                                               x-model="tracking"

@@ -149,10 +149,10 @@
                             <thead>
                                 <tr>
                                     <th>Barang</th>
-                                    <th class="text-right">Per paket</th>
+                                    <th class="text-right"><span class="inline-flex items-center gap-1">Per paket <x-ui.hint text="Jumlah barang ini dalam satu paket bundel." /></span></th>
                                     <th class="text-right">Stok</th>
-                                    <th class="text-right">Dijanjikan</th>
-                                    <th class="text-right">Cukup untuk</th>
+                                    <th class="text-right"><span class="inline-flex items-center gap-1">Dijanjikan <x-ui.hint text="Unit yang sudah terikat pesanan tapi belum dikirim." /></span></th>
+                                    <th class="text-right"><span class="inline-flex items-center gap-1">Cukup untuk <x-ui.hint text="Berapa paket bundel yang bisa dibuat dari stok komponen ini." /></span></th>
                                 </tr>
                             </thead>
                             <tbody>

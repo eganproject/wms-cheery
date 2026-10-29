@@ -185,6 +185,36 @@ class StockReportTest extends TestCase
         $this->assertSame(8, $this->summary()['damaged']);
     }
 
+    /**
+     * Saldo rusak pada laporan periode lampau adalah saldo rusak saat itu,
+     * bukan saldo hari ini.
+     */
+    public function test_a_past_period_reports_the_damaged_balance_as_it_was_then(): void
+    {
+        $this->product->forceFill(['damaged_stock' => 5])->save();
+
+        $before = StockMovement::create([
+            'product_id' => $this->product->id, 'type' => 'in', 'bucket' => StockMovement::BUCKET_DAMAGED,
+            'quantity' => 2, 'balance_after' => 2, 'description' => 'Retur rusak',
+        ]);
+        $after = StockMovement::create([
+            'product_id' => $this->product->id, 'type' => 'in', 'bucket' => StockMovement::BUCKET_DAMAGED,
+            'quantity' => 3, 'balance_after' => 5, 'description' => 'Retur rusak',
+        ]);
+
+        DB::table('stock_movements')->where('id', $before->id)->update(['created_at' => Carbon::now()->subDays(50)]);
+        DB::table('stock_movements')->where('id', $after->id)->update(['created_at' => Carbon::now()->subDays(5)]);
+
+        // Periode 60–30 hari lalu: baru 2 unit yang rusak.
+        $past = $this->filters(from: 60, to: 30);
+
+        $this->assertSame(2, $this->reportRow($past)->damaged);
+        $this->assertSame(2, $this->summary($past)['damaged']);
+
+        // Periode berjalan: seluruhnya.
+        $this->assertSame(5, $this->reportRow()->damaged);
+    }
+
     /* --------------------------------------------------- sudut pandang --- */
 
     public function test_the_idle_view_lists_only_goods_that_never_left(): void

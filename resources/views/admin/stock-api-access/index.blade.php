@@ -13,11 +13,11 @@
             </div>
 
             <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto] md:items-end">
-                <x-ui.field label="Alamat IP" for="ip_address" :error="$errors->get('ip_address')" required>
+                <x-ui.field label="Alamat IP" info="Alamat IP server yang boleh membaca API stok, mis. server toko online Anda." for="ip_address" :error="$errors->get('ip_address')" required>
                     <x-text-input id="ip_address" name="ip_address" :value="old('ip_address')"
                                   placeholder="203.0.113.10" required />
                 </x-ui.field>
-                <x-ui.field label="Keterangan" for="label" :error="$errors->get('label')">
+                <x-ui.field label="Keterangan" info="Catatan untuk mengingat IP ini milik siapa." for="label" :error="$errors->get('label')">
                     <x-text-input id="label" name="label" :value="old('label')"
                                   placeholder="Server pusat Surabaya" />
                 </x-ui.field>
@@ -57,7 +57,7 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th>Alamat IP</th>
+                            <th><span class="inline-flex items-center gap-1">Alamat IP <x-ui.hint text="Hanya alamat IP di daftar ini yang boleh membaca API stok." /></span></th>
                             <th>Keterangan</th>
                             <th>Status</th>
                             <th class="text-right">Aksi</th>

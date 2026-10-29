@@ -32,8 +32,8 @@
                     <thead>
                         <tr>
                             <th>Barang</th>
-                            <th class="text-right">Sisa Rusak</th>
-                            <th class="text-right">Ditangani</th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1">Sisa Rusak <x-ui.hint text="Unit rusak yang belum ditangani." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1">Ditangani <x-ui.hint text="Unit yang ditangani lewat dokumen ini (dimusnahkan, dikembalikan, dll)." /></span></th>
                         </tr>
                     </thead>
                     <tbody>

@@ -11,11 +11,11 @@
     @include('admin.imports.partials.tabs', ['batchCount' => $summary['batches']])
 
     <div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <x-ui.stat-card label="Resi Terdata" :value="number_format($summary['orders'], 0, ',', '.')" icon="document" accent
+        <x-ui.stat-card label="Resi Terdata" info="Jumlah resi hasil import sesuai filter. Resi ini dipakai saat scan di QC Kemas dan Retur." :value="number_format($summary['orders'], 0, ',', '.')" icon="document" accent
                         hint="Siap dipakai saat scan" />
         <x-ui.stat-card label="Baris Barang" :value="number_format($summary['items'], 0, ',', '.')" icon="box"
                         hint="Total baris SKU" />
-        <x-ui.stat-card label="SKU Belum Cocok" :value="$summary['unmatched']" icon="warning"
+        <x-ui.stat-card label="SKU Belum Cocok" info="Baris barang yang SKU-nya belum ada di master barang, sehingga tidak bisa ditarik otomatis saat scan." :value="$summary['unmatched']" icon="warning"
                         hint="Belum ada di master barang" />
         <x-ui.stat-card label="Berkas Import" :value="$summary['batches']" icon="clock" hint="Lihat tab Riwayat Import"
                         :href="route('admin.imports.batches')" />
@@ -121,8 +121,8 @@
                 <table class="min-w-full text-sm">
                     <thead class="bg-ink-50 text-left text-[13px] text-ink-500">
                         <tr>
-                            <th class="h-8 px-4 py-0 font-normal">Barang</th>
-                            <th class="h-8 px-3 py-0 font-normal">Pengiriman</th>
+                            <th class="h-8 px-4 py-0 font-normal"><span class="inline-flex items-center gap-1">Barang <x-ui.hint text="SKU dari berkas import. SKU berwarna merah belum terdaftar di master barang." /></span></th>
+                            <th class="h-8 px-3 py-0 font-normal"><span class="inline-flex items-center gap-1">Pengiriman <x-ui.hint text="Ekspedisi, metode kirim, pembeli, dan catatan pembeli dari berkas Ginee." /></span></th>
                             <th class="h-8 px-4 py-0 text-right font-normal">Jumlah</th>
                         </tr>
                     </thead>

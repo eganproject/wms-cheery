@@ -72,13 +72,13 @@ class DateFilterTest extends TestCase
         $recent = $this->makeDocument($kind, Carbon::parse('2026-08-05'), 'BARU');
 
         $this->actingAs($this->admin)
-            ->get(route($route, ['from' => '2026-08-01', 'to' => '2026-08-31']))
+            ->get($this->page($route, ['from' => '2026-08-01', 'to' => '2026-08-31']))
             ->assertOk()
             ->assertSee($recent)
             ->assertDontSee($old);
 
         // Rentang penuh harus diminta terang-terangan.
-        $this->actingAs($this->admin)->get(route($route, ['range' => DateRange::ALL]))
+        $this->actingAs($this->admin)->get($this->page($route, ['range' => DateRange::ALL]))
             ->assertOk()
             ->assertSee($recent)
             ->assertSee($old);
@@ -96,7 +96,7 @@ class DateFilterTest extends TestCase
         $today = $this->makeDocument($kind, Carbon::today(), 'HARIINI');
         $old = $this->makeDocument($kind, Carbon::today()->subMonth(), 'LAMA');
 
-        $this->actingAs($this->admin)->get(route($route))
+        $this->actingAs($this->admin)->get($this->page($route))
             ->assertOk()
             ->assertSee($today)
             ->assertDontSee($old);
@@ -111,11 +111,11 @@ class DateFilterTest extends TestCase
     {
         $old = $this->makeDocument($kind, Carbon::today()->subMonth(), 'LAMA');
 
-        $this->actingAs($this->admin)->get(route($route, ['from' => '', 'to' => '']))
+        $this->actingAs($this->admin)->get($this->page($route, ['from' => '', 'to' => '']))
             ->assertOk()
             ->assertDontSee($old);
 
-        $this->actingAs($this->admin)->get(route($route, ['range' => DateRange::ALL]))
+        $this->actingAs($this->admin)->get($this->page($route, ['range' => DateRange::ALL]))
             ->assertOk()
             ->assertSee($old);
     }
@@ -131,7 +131,7 @@ class DateFilterTest extends TestCase
         $last = $this->makeDocument($kind, Carbon::parse('2026-08-31'), 'AKHIR');
 
         $this->actingAs($this->admin)
-            ->get(route($route, ['from' => '2026-08-01', 'to' => '2026-08-31']))
+            ->get($this->page($route, ['from' => '2026-08-01', 'to' => '2026-08-31']))
             ->assertOk()
             ->assertSee($first)
             ->assertSee($last);
@@ -144,10 +144,10 @@ class DateFilterTest extends TestCase
         $old = $this->makeDocument($kind, Carbon::parse('2026-07-01'), 'LAMA');
         $recent = $this->makeDocument($kind, Carbon::parse('2026-08-05'), 'BARU');
 
-        $this->actingAs($this->admin)->get(route($route, ['from' => '2026-08-01']))
+        $this->actingAs($this->admin)->get($this->page($route, ['from' => '2026-08-01']))
             ->assertOk()->assertSee($recent)->assertDontSee($old);
 
-        $this->actingAs($this->admin)->get(route($route, ['to' => '2026-07-31']))
+        $this->actingAs($this->admin)->get($this->page($route, ['to' => '2026-07-31']))
             ->assertOk()->assertSee($old)->assertDontSee($recent);
     }
 
@@ -162,7 +162,7 @@ class DateFilterTest extends TestCase
 
         // Diabaikan berarti jatuh ke bawaannya, bukan menjatuhkan halaman.
         $this->actingAs($this->admin)
-            ->get(route($route, ['from' => 'kemarin', 'to' => '31-08-2026']))
+            ->get($this->page($route, ['from' => 'kemarin', 'to' => '31-08-2026']))
             ->assertOk()
             ->assertSee($today);
     }
@@ -177,7 +177,7 @@ class DateFilterTest extends TestCase
     #[\PHPUnit\Framework\Attributes\DataProvider('pages')]
     public function test_the_page_offers_one_field_that_still_sends_both_bounds(string $kind, string $route): void
     {
-        $html = $this->actingAs($this->admin)->get(route($route))
+        $html = $this->actingAs($this->admin)->get($this->page($route))
             ->assertOk()
             ->assertSee('data-date-range', false)
             ->assertSee('Hari ini')
@@ -346,7 +346,7 @@ class DateFilterTest extends TestCase
 
         foreach (['admin.imports.index', 'admin.imports.status'] as $route) {
             $html = $this->actingAs($this->admin)
-                ->get(route($route, ['range' => DateRange::ALL]))
+                ->get($this->page($route, ['range' => DateRange::ALL]))
                 ->assertOk()
                 ->getContent();
 
@@ -464,5 +464,20 @@ class DateFilterTest extends TestCase
         }
 
         return $order;
+    }
+
+    /**
+     * Alamat daftar yang diuji. Riwayat pengeluaran barang rusak berada di
+     * tab tersendiri, bukan tab bawaan halamannya.
+     *
+     * @param  array<string, mixed>  $parameters
+     */
+    protected function page(string $route, array $parameters = []): string
+    {
+        if ($route === 'admin.disposals.index') {
+            $parameters = ['tab' => 'riwayat'] + $parameters;
+        }
+
+        return route($route, $parameters);
     }
 }

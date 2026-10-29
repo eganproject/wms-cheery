@@ -22,7 +22,7 @@
                                       x-on:input="if (! slugLocked) $refs.slug.value = $event.target.value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')" />
                     </x-ui.field>
 
-                    <x-ui.field label="Slug" for="slug" :error="$errors->get('slug')"
+                    <x-ui.field label="Slug" info="Kode unik role tanpa spasi, dipakai sistem. Biasanya cukup dibiarkan terisi otomatis dari nama." for="slug" :error="$errors->get('slug')"
                                 hint="Dipakai sebagai identitas unik role di sistem." required>
                         <x-text-input id="slug" name="slug" type="text" :value="old('slug', $role?->slug)"
                                       x-ref="slug" x-on:input="slugLocked = true"

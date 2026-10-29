@@ -65,20 +65,20 @@
     @endphp
 
     <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <x-ui.stat-card label="Progres Hitung" :value="$counted.'/'.$total" icon="check-circle" accent
+        <x-ui.stat-card label="Progres Hitung" info="Barang yang sudah dihitung dibanding seluruh barang di sesi ini." :value="$counted.'/'.$total" icon="check-circle" accent
                         :hint="$opname->progressPercentage().'% SKU sudah dihitung'" />
         <x-ui.stat-card label="Belum Dihitung" :value="$total - $counted" icon="clock"
                         hint="Barisnya tidak akan mengubah stok" />
 
         @if ($reveal)
-            <x-ui.stat-card label="Lebih" :value="'+'.number_format($summary['surplus'], 0, ',', '.')"
+            <x-ui.stat-card label="Lebih" info="Total unit yang ternyata lebih banyak dari catatan sistem." :value="'+'.number_format($summary['surplus'], 0, ',', '.')"
                             icon="trending-up" :hint="$variance.' SKU berselisih'" />
-            <x-ui.stat-card label="Kurang" :value="'-'.number_format($summary['shortage'], 0, ',', '.')"
+            <x-ui.stat-card label="Kurang" info="Total unit yang ternyata lebih sedikit dari catatan sistem." :value="'-'.number_format($summary['shortage'], 0, ',', '.')"
                             icon="warning" hint="Unit yang hilang dari catatan" />
         @else
             <x-ui.stat-card label="Petugas" :value="$contributors->count()" icon="users"
                             hint="Mengerjakan sesi ini" />
-            <x-ui.stat-card label="Selisih" value="—" icon="lock"
+            <x-ui.stat-card label="Selisih" info="Selisih baru terlihat setelah sesi ditutup, supaya penghitung tidak terpengaruh angka sistem." value="—" icon="lock"
                             hint="Terbuka setelah hasil diajukan" />
         @endif
     </div>
@@ -296,9 +296,9 @@
                             <thead>
                                 <tr>
                                     <th>Barang</th>
-                                    <th class="text-right">Tercatat</th>
-                                    <th class="text-right">Hitung</th>
-                                    <th class="text-right">Selisih</th>
+                                    <th class="text-right"><span class="inline-flex items-center gap-1">Tercatat <x-ui.hint text="Stok menurut sistem saat sesi dibuka." /></span></th>
+                                    <th class="text-right"><span class="inline-flex items-center gap-1">Hitung <x-ui.hint text="Hasil hitung fisik di rak." /></span></th>
+                                    <th class="text-right"><span class="inline-flex items-center gap-1">Selisih <x-ui.hint text="Hitung dikurangi tercatat. Minus berarti barang kurang dari catatan." /></span></th>
                                     <th>Dihitung Oleh</th>
                                 </tr>
                             </thead>

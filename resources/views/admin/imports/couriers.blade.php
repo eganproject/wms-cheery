@@ -37,9 +37,9 @@
                         icon="chart" accent hint="Yang punya resi pada rentang ini" />
         <x-ui.stat-card label="Total Resi" :value="number_format($totals['orders'], 0, ',', '.')"
                         icon="document" :hint="number_format($totals['units'], 0, ',', '.').' unit dipesan'" />
-        <x-ui.stat-card label="Belum QC" :value="number_format($totals['awaiting'], 0, ',', '.')"
+        <x-ui.stat-card label="Belum QC" info="Resi yang resi atau barangnya belum tuntas discan di QC Kemas." :value="number_format($totals['awaiting'], 0, ',', '.')"
                         icon="clock" hint="Belum tuntas discan di QC Kemas" />
-        <x-ui.stat-card label="Sudah Dikirim" :value="number_format($totals['shipped'], 0, ',', '.')"
+        <x-ui.stat-card label="Sudah Dikirim" info="Resi yang dokumen keluarnya sudah disetujui." :value="number_format($totals['shipped'], 0, ',', '.')"
                         icon="logout" :hint="number_format($totals['checked'], 0, ',', '.').' siap, menunggu diproses'" />
     </div>
 
@@ -77,14 +77,14 @@
                     <thead>
                         <tr>
                             <th>Ekspedisi</th>
-                            <th class="px-4 text-right">Resi</th>
-                            <th class="px-4 text-right">Unit</th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Resi <x-ui.hint text="Jumlah resi hasil import untuk ekspedisi ini pada rentang tanggal terpilih." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Unit <x-ui.hint text="Total unit barang di semua resi tersebut." /></span></th>
                             @foreach ($stages as $meta)
                                 <th class="px-4 text-right">
                                     {{ $meta['label'] }}
                                 </th>
                             @endforeach
-                            <th>Kesiapan</th>
+                            <th><span class="inline-flex items-center gap-1">Kesiapan <x-ui.hint text="Bagian resi yang sudah tidak menunggu packing: lolos QC, sudah dikirim, atau dibatalkan." /></span></th>
                         </tr>
                     </thead>
                     <tbody>

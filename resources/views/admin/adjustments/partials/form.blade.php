@@ -18,12 +18,12 @@
                     <x-text-input type="text" :value="$code" class="font-mono" disabled />
                 </x-ui.field>
 
-                <x-ui.field label="Tanggal Hitung" for="date" :error="$errors->get('date')" required>
+                <x-ui.field label="Tanggal Hitung" info="Tanggal stok dihitung fisik. Selisih dicatat pada tanggal ini." for="date" :error="$errors->get('date')" required>
                     <x-text-input id="date" name="date" type="date"
                                   :value="old('date', $adjustment?->date?->format('Y-m-d') ?? now()->format('Y-m-d'))" required />
                 </x-ui.field>
 
-                <x-ui.field label="Alasan Penyesuaian" for="reason" :error="$errors->get('reason')" required
+                <x-ui.field label="Alasan Penyesuaian" info="Penyebab stok perlu dikoreksi, mis. salah hitung atau barang hilang." for="reason" :error="$errors->get('reason')" required
                             class="sm:col-span-2">
                     <x-ui.select id="reason" name="reason">
                         <option value="">Pilih alasan…</option>

@@ -19,7 +19,7 @@
                                       required autofocus placeholder="Contoh: Budi Santoso" />
                     </x-ui.field>
 
-                    <x-ui.field label="Email" for="email" :error="$errors->get('email')" required>
+                    <x-ui.field label="Email" info="Dipakai untuk masuk ke aplikasi. Harus unik untuk tiap pengguna." for="email" :error="$errors->get('email')" required>
                         <div class="relative">
                             <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
                                 <x-icon name="mail" class="h-4 w-4" />

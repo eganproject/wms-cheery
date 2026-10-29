@@ -17,12 +17,12 @@
                     <x-text-input type="text" :value="$code" class="font-mono" disabled />
                 </x-ui.field>
 
-                <x-ui.field label="Tanggal" for="date" :error="$errors->get('date')" required>
+                <x-ui.field label="Tanggal" info="Tanggal barang diterima di gudang. Stok bertambah pada tanggal ini setelah disetujui." for="date" :error="$errors->get('date')" required>
                     <x-text-input id="date" name="date" type="date"
                                   :value="old('date', $inbound?->date?->format('Y-m-d') ?? now()->format('Y-m-d'))" required />
                 </x-ui.field>
 
-                <x-ui.field label="Pemasok" for="supplier_id" :error="$errors->get('supplier_id')">
+                <x-ui.field label="Pemasok" info="Pemasok asal barang. Boleh dikosongkan untuk penerimaan non-pembelian." for="supplier_id" :error="$errors->get('supplier_id')">
                     <x-ui.select id="supplier_id" name="supplier_id" data-placeholder="Pilih pemasok…">
                         <option value="">Pilih pemasok…</option>
                         @foreach ($suppliers as $supplier)
@@ -39,7 +39,7 @@
                     @endcan
                 </x-ui.field>
 
-                <x-ui.field label="Nomor Referensi" for="reference" :error="$errors->get('reference')"
+                <x-ui.field label="Nomor Referensi" info="Nomor surat jalan atau faktur dari pemasok, supaya dokumen mudah dicocokkan." for="reference" :error="$errors->get('reference')"
                             hint="Nomor surat jalan / faktur pemasok.">
                     <x-text-input id="reference" name="reference" type="text" :value="old('reference', $inbound?->reference)"
                                   class="font-mono" placeholder="SJ-00123" />

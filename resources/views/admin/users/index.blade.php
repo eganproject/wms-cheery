@@ -63,9 +63,9 @@
                     <thead>
                         <tr>
                             <th scope="col">Pengguna</th>
-                            <th scope="col">Role</th>
+                            <th scope="col"><span class="inline-flex items-center gap-1">Role <x-ui.hint text="Peran yang menentukan menu dan aksi apa saja yang boleh dibuka pengguna." /></span></th>
                             <th scope="col">Kontak</th>
-                            <th scope="col">Status</th>
+                            <th scope="col"><span class="inline-flex items-center gap-1">Status <x-ui.hint text="Nonaktif = pengguna tidak bisa masuk ke aplikasi." /></span></th>
                             <th scope="col">Terakhir Masuk</th>
                             <th scope="col" class="text-right">Aksi</th>
                         </tr>

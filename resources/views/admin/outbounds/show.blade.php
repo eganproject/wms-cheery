@@ -156,7 +156,7 @@
                             <tr>
                                 <th>Barang</th>
                                 @if ($outbound->isMarketplace())
-                                    <th class="text-center">Discan</th>
+                                    <th class="text-center"><span class="inline-flex items-center gap-1">Discan <x-ui.hint text="Unit yang sudah discan di QC Kemas dibanding jumlah yang harus dikirim." /></span></th>
                                 @endif
                                 <th class="text-right">Jumlah</th>
                             </tr>

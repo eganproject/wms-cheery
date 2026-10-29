@@ -6,8 +6,10 @@
 --}}
 @php
     $tabs = [
-        ['label' => 'Data Resi', 'icon' => 'document', 'href' => route('admin.imports.index'), 'active' => request()->routeIs('admin.imports.index'), 'count' => null],
-        ['label' => 'Riwayat Import', 'icon' => 'clock', 'href' => route('admin.imports.batches'), 'active' => request()->routeIs('admin.imports.batches'), 'count' => $batchCount ?? null],
+        ['label' => 'Data Resi', 'icon' => 'document', 'href' => route('admin.imports.index'), 'active' => request()->routeIs('admin.imports.index'), 'count' => null,
+            'hint' => 'Setiap resi hasil import beserta barang, ekspedisi, dan kecocokan SKU-nya dengan master barang.'],
+        ['label' => 'Riwayat Import', 'icon' => 'clock', 'href' => route('admin.imports.batches'), 'active' => request()->routeIs('admin.imports.batches'), 'count' => $batchCount ?? null,
+            'hint' => 'Daftar berkas Ginee yang pernah diunggah. Menghapus satu berkas ikut menghapus seluruh resinya.'],
     ];
 @endphp
 
@@ -15,6 +17,7 @@
      class="scrollbar-none mb-5 flex gap-1 overflow-x-auto border-b border-ink-200 text-sm">
     @foreach ($tabs as $tab)
         <a href="{{ $tab['href'] }}" @if ($tab['active']) aria-current="page" @endif
+           data-hint-title="{{ $tab['label'] }}" data-hint="{{ $tab['hint'] }}"
            @class([
                '-mb-px inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2',
                'border-brand-500 font-medium text-ink-950' => $tab['active'],

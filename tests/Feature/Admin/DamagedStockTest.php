@@ -175,6 +175,38 @@ class DamagedStockTest extends TestCase
             ->assertSee('4 pcs rusak');
     }
 
+    public function test_the_disposal_history_has_its_own_tab(): void
+    {
+        $this->receiveReturn(good: 0, damaged: 3);
+
+        $disposal = DamagedDisposal::create([
+            'code' => 'RSK-TEST-0001', 'date' => now(), 'bucket' => StockMovement::BUCKET_DAMAGED,
+            'action' => DamagedDisposal::ACTION_DISCARD, 'status' => DamagedDisposal::STATUS_DRAFT,
+        ]);
+        $disposal->items()->create(['product_id' => $this->product->id, 'quantity' => 1]);
+
+        // Tab saldo (bawaan) tidak memuat dokumen pengeluaran.
+        $this->actingAs($this->admin)->get(route('admin.disposals.index'))
+            ->assertOk()
+            ->assertSee('Riwayat Pengeluaran')
+            ->assertSee('FLT-OLI-STD')
+            ->assertDontSee('RSK-TEST-0001');
+
+        // Tab riwayat memuat dokumennya, tanpa daftar saldo.
+        $response = $this->actingAs($this->admin)->get(route('admin.disposals.index', ['tab' => 'riwayat']))
+            ->assertOk()
+            ->assertSee('RSK-TEST-0001')
+            ->assertSee('Dibuang / dimusnahkan');
+
+        $this->assertNull($response->viewData('damaged'));
+
+        // Saringan saldo asal.
+        $this->actingAs($this->admin)
+            ->get(route('admin.disposals.index', ['tab' => 'riwayat', 'bucket' => 'good']))
+            ->assertOk()
+            ->assertDontSee('RSK-TEST-0001');
+    }
+
     public function test_the_movement_page_can_show_the_damaged_ledger_only(): void
     {
         $this->receiveReturn(good: 3, damaged: 2);

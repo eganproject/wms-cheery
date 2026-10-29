@@ -38,20 +38,20 @@
 
     {{-- Kartu angka --}}
     <div class="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5 max-xl:[&>*:last-child:nth-child(odd)]:col-span-2">
-        <x-ui.stat-card label="Total Unit Stok" :value="number_format($stats['stock_units'], 0, ',', '.')" icon="box" accent
+        <x-ui.stat-card label="Total Unit Stok" info="Jumlah seluruh unit layak jual di gudang saat ini, dari semua barang aktif." :value="number_format($stats['stock_units'], 0, ',', '.')" icon="box" accent
                         :hint="$stats['products'].' jenis barang'"
                         :href="auth()->user()->can('products.view') ? route('admin.products.index') : null" />
         @can('disposals.view')
-            <x-ui.stat-card label="Barang Rusak" :value="number_format($stats['damaged_units'], 0, ',', '.')" icon="damaged"
+            <x-ui.stat-card label="Barang Rusak" info="Unit rusak yang masih tercatat dan belum ditangani (dimusnahkan atau dikembalikan)." :value="number_format($stats['damaged_units'], 0, ',', '.')" icon="damaged"
                             hint="Unit menunggu ditangani" :href="route('admin.disposals.index')" />
         @endcan
-        <x-ui.stat-card label="Stok Menipis" :value="$stats['low_stock']" icon="warning"
+        <x-ui.stat-card label="Stok Menipis" info="Barang yang stoknya sudah di bawah atau sama dengan batas minimum." :value="$stats['low_stock']" icon="warning"
                         hint="Perlu segera direstok"
                         :href="auth()->user()->can('reports.view') ? route('admin.reports.restock') : null" />
-        <x-ui.stat-card label="Masuk Bulan Ini" :value="$stats['inbound_month']" icon="inbound"
+        <x-ui.stat-card label="Masuk Bulan Ini" info="Dokumen barang masuk yang sudah disetujui bulan ini." :value="$stats['inbound_month']" icon="inbound"
                         hint="Dokumen diposting"
                         :href="auth()->user()->can('inbounds.view') ? route('admin.inbounds.index') : null" />
-        <x-ui.stat-card label="Keluar Bulan Ini" :value="$stats['outbound_month']" icon="outbound"
+        <x-ui.stat-card label="Keluar Bulan Ini" info="Dokumen barang keluar yang sudah disetujui bulan ini." :value="$stats['outbound_month']" icon="outbound"
                         hint="Dokumen dikirim"
                         :href="auth()->user()->can('outbounds.view') ? route('admin.outbounds.index') : null" />
     </div>

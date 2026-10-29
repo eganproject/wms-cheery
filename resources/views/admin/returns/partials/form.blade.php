@@ -48,17 +48,17 @@
                         <x-text-input type="text" :value="$code" class="font-mono" disabled />
                     </x-ui.field>
 
-                    <x-ui.field label="Tanggal Terima" for="date" :error="$errors->get('date')" required>
+                    <x-ui.field label="Tanggal Terima" info="Tanggal paket retur tiba di gudang." for="date" :error="$errors->get('date')" required>
                         <x-text-input id="date" name="date" type="date"
                                       :value="old('date', $return?->date?->format('Y-m-d') ?? now()->format('Y-m-d'))" required />
                     </x-ui.field>
 
-                    <x-ui.field label="Pengirim" for="sender" :error="$errors->get('sender')" required>
+                    <x-ui.field label="Pengirim" info="Nama pembeli atau pihak yang mengembalikan barang." for="sender" :error="$errors->get('sender')" required>
                         <x-text-input id="sender" name="sender" type="text" :value="old('sender', $return?->sender)"
                                       required placeholder="Nama pembeli atau pelanggan" />
                     </x-ui.field>
 
-                    <x-ui.field label="Nomor Pesanan" for="reference" :error="$errors->get('reference')"
+                    <x-ui.field label="Nomor Pesanan" info="Nomor pesanan marketplace asal barang, bila ada." for="reference" :error="$errors->get('reference')"
                                 hint="Nomor pesanan atau dokumen pengiriman asal.">
                         <x-text-input id="reference" name="reference" type="text" :value="old('reference', $return?->reference)"
                                       class="font-mono" placeholder="OUT-202608-0001" />
@@ -82,7 +82,7 @@
                         </div>
                     </template>
 
-                    <x-ui.field label="Alasan Retur" for="reason" :error="$errors->get('reason')">
+                    <x-ui.field label="Alasan Retur" info="Alasan barang dikembalikan. Membantu melihat pola retur di kemudian hari." for="reason" :error="$errors->get('reason')">
                         <x-ui.select id="reason" name="reason">
                             <option value="">Pilih alasan…</option>
                             @foreach ($reasons as $reason)

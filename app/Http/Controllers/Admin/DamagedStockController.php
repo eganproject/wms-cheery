@@ -46,34 +46,73 @@ class DamagedStockController extends Controller implements HasMiddleware
         ];
     }
 
+    /**
+     * Dua tab dalam satu menu: saldo barang rusak saat ini, dan riwayat
+     * dokumen pengeluaran. Hanya tab yang dibuka yang datanya diambil.
+     */
     public function index(Request $request): View
     {
-        $damaged = Product::query()
-            ->where('damaged_stock', '>', 0)
-            ->search($request->string('search')->trim()->value())
-            ->orderByDesc('damaged_stock')
-            ->paginate(10, ['*'], 'stok')
-            ->withQueryString();
+        $tab = $this->tabFrom($request);
+        $search = $request->string('search')->trim()->value();
 
-        $disposals = DamagedDisposal::query()
-            ->with('user')
-            ->withCount('items')
-            ->withSum('items', 'quantity')
-            ->dateBetween(DateRange::fromRequest($request))
-            ->latest('date')
-            ->latest('id')
-            ->paginate(10, ['*'], 'dokumen')
-            ->withQueryString();
+        $damaged = null;
+        $disposals = null;
+
+        if ($tab === 'saldo') {
+            $damaged = Product::query()
+                ->where('damaged_stock', '>', 0)
+                ->search($search)
+                ->orderByDesc('damaged_stock')
+                ->paginate(15, ['*'], 'stok')
+                ->withQueryString();
+        } else {
+            $bucket = $request->string('bucket')->value();
+            $action = $request->string('action')->value();
+
+            $disposals = DamagedDisposal::query()
+                ->with('user')
+                ->withCount('items')
+                ->withSum('items', 'quantity')
+                ->search($search)
+                ->when(in_array($bucket, [StockMovement::BUCKET_GOOD, StockMovement::BUCKET_DAMAGED], true),
+                    fn ($query) => $query->where('bucket', $bucket))
+                ->when(array_key_exists($action, DamagedDisposal::actions()),
+                    fn ($query) => $query->where('action', $action))
+                ->dateBetween(DateRange::fromRequest($request))
+                ->latest('date')
+                ->latest('id')
+                ->paginate(15, ['*'], 'dokumen')
+                ->withQueryString();
+        }
+
+        $skus = Product::where('damaged_stock', '>', 0)->count();
 
         return view('admin.disposals.index', [
+            'tab' => $tab,
             'damaged' => $damaged,
             'disposals' => $disposals,
             'summary' => [
                 'units' => (int) Product::sum('damaged_stock'),
-                'skus' => Product::where('damaged_stock', '>', 0)->count(),
+                'skus' => $skus,
                 'pending' => DamagedDisposal::pending()->count(),
+                'documents' => DamagedDisposal::count(),
             ],
         ]);
+    }
+
+    /**
+     * Tab yang dibuka. Tautan lama yang membawa rentang tanggal selalu
+     * dimaksudkan untuk riwayat, jadi langsung dibawa ke sana.
+     */
+    protected function tabFrom(Request $request): string
+    {
+        $tab = $request->string('tab')->value();
+
+        if (in_array($tab, ['saldo', 'riwayat'], true)) {
+            return $tab;
+        }
+
+        return $request->hasAny(['from', 'to', 'bucket', 'action']) ? 'riwayat' : 'saldo';
     }
 
     public function create(Request $request): View
