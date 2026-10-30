@@ -260,7 +260,7 @@ class OutboundHandoverController extends Controller implements HasMiddleware
             // berada di antrean, jadi tidak cukup menjaganya di stasiun packing.
             $outbound->shipmentOrder?->isCancelled() => "Pesanan dibatalkan pembeli · kembalikan barang, hapus {$outbound->code}",
             $outbound->isPending() => "Menunggu persetujuan · {$outbound->code}",
-            $outbound->isRejected() => "Ditolak penyetuju · {$outbound->code}",
+            $outbound->isRejected() => "Ditolak penyetuju · buka {$outbound->code} dari Pesanan untuk ajukan ulang",
             ! $outbound->isMarketplace() => "Bukan paket marketplace · proses dari dokumen {$outbound->code}",
             ! $outbound->isResiVerified() => 'Belum discan di QC Kemas',
             ! $outbound->isFullyScanned() => 'Belum selesai QC · sisa '

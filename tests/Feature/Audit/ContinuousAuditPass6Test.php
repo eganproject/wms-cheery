@@ -56,4 +56,28 @@ class ContinuousAuditPass6Test extends TestCase
 
         $this->assertSame('active', StockApiSyncRecord::where('product_id', $product->id)->value('status'));
     }
+
+    public function test_a_rejected_package_says_so_on_the_order_list(): void
+    {
+        $this->seed(\Database\Seeders\RolePermissionSeeder::class);
+        $admin = \App\Models\User::where('email', 'admin@cheery.test')->firstOrFail();
+        $product = Product::create(['sku' => 'FLT-OLI-STD', 'name' => 'Filter Oli', 'unit' => 'pcs']);
+
+        $order = \App\Models\ShipmentImport::create(['filename' => 't.xlsx', 'source' => 'tiktok'])->orders()->create([
+            'tracking_number' => 'SPXTOLAK', 'order_number' => 'INV9', 'marketplace' => 'TikTok Shop',
+        ]);
+        $order->items()->create(['sku' => 'FLT-OLI-STD', 'product_id' => $product->id, 'quantity' => 1]);
+
+        $outbound = \App\Models\Outbound::create([
+            'code' => \App\Models\Outbound::nextCode(), 'date' => now(), 'type' => \App\Models\Outbound::TYPE_MARKETPLACE,
+            'recipient' => 'B', 'tracking_number' => 'SPXTOLAK', 'shipment_order_id' => $order->id,
+            'status' => \App\Models\Outbound::STATUS_REJECTED, 'resi_verified_at' => now(),
+            'rejected_at' => now(), 'rejection_reason' => 'Alamat salah',
+        ]);
+        $outbound->items()->create(['product_id' => $product->id, 'quantity' => 1, 'scanned_quantity' => 1]);
+
+        $this->actingAs($admin)->get(route('admin.orders.index', ['range' => 'semua']))
+            ->assertOk()
+            ->assertSee('ditolak penyetuju: Alamat salah', false);
+    }
 }

@@ -265,6 +265,15 @@ class ShipmentOrder extends Model
             return "Barang {$this->scannedUnits()}/{$this->orderedUnits()} unit discan";
         }
 
+        // Ditolak penyetuju: antrean Serah Terima tidak memuatnya, jadi tanpa
+        // keterangan ini paketnya tampak menunggu padahal tidak ada yang akan
+        // memprosesnya.
+        if ($outbound->isRejected()) {
+            return 'QC selesai, ditolak penyetuju'
+                .(filled($outbound->rejection_reason) ? ": {$outbound->rejection_reason}" : '')
+                ." · buka {$outbound->code} untuk ajukan ulang atau hapus";
+        }
+
         return $outbound->isPending()
             ? 'QC selesai, menunggu persetujuan'
             : 'QC selesai, menunggu diproses';
