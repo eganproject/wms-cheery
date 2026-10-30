@@ -205,6 +205,14 @@ class Outbound extends Model
         return $this->type === self::TYPE_MARKETPLACE;
     }
 
+    /**
+     * Nama jenis dokumen untuk pesan dan judul halaman.
+     */
+    public function documentLabel(): string
+    {
+        return $this->isMarketplace() ? 'Pengiriman pesanan' : 'Penjualan manual';
+    }
+
     public function isResiVerified(): bool
     {
         return $this->resi_verified_at !== null;
@@ -341,6 +349,19 @@ class Outbound extends Model
             self::STATUS_POSTED => ['label' => 'Terkirim', 'variant' => 'success', 'icon' => 'check-circle'],
             self::STAGE_CANCELLED => ['label' => 'Batal setelah dikirim', 'variant' => 'danger', 'icon' => 'x-circle'],
         ];
+    }
+
+    /**
+     * Tahap yang bisa dialami penjualan manual. Scan resi, serah terima, dan
+     * batal setelah dikirim hanya terjadi pada pesanan marketplace.
+     *
+     * @return array<string, array{label: string, variant: string, icon: string}>
+     */
+    public static function manualStages(): array
+    {
+        return array_intersect_key(self::stages(), array_flip([
+            self::STATUS_DRAFT, self::STATUS_PENDING, self::STATUS_REJECTED, self::STATUS_POSTED,
+        ]));
     }
 
     public function stageLabel(): string

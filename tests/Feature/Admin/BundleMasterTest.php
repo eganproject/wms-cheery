@@ -421,7 +421,7 @@ class BundleMasterTest extends TestCase
 
         // Kunci asingnya RESTRICT. Tanpa pemeriksaan yang bisa dibaca, ini
         // berakhir sebagai galat basis data alih-alih kalimat yang berguna.
-        $this->assertContains('barang keluar (sebagai paket)', $bundle->blockingDocuments());
+        $this->assertContains('penjualan (sebagai paket)', $bundle->blockingDocuments());
 
         $this->actingAs($this->admin)
             ->delete(route('admin.products.destroy', $bundle))

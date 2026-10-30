@@ -1,6 +1,6 @@
-<x-app-layout title="Barang Keluar">
-    <x-ui.page-header title="Barang Keluar" icon="logout"
-                      subtitle="Dokumen pengiriman barang, termasuk pesanan marketplace.">
+<x-app-layout title="Penjualan Manual">
+    <x-ui.page-header title="Penjualan Manual" icon="logout"
+                      subtitle="Penjualan di luar marketplace. Pesanan marketplace dibuka dari menu Pesanan.">
         <x-slot name="actions">
             <x-ui.button :href="route('admin.outbounds.export', request()->query())"
                          variant="secondary" icon="document" data-no-ajax
@@ -25,27 +25,14 @@
         </div>
 
         <div class="grid grid-cols-2 gap-3 sm:flex sm:items-center">
-            <x-ui.select name="type" class="sm:w-44">
-                <option value="">Semua jenis</option>
-                <option value="regular" @selected(request('type') === 'regular')>Reguler</option>
-                <option value="marketplace" @selected(request('type') === 'marketplace')>Marketplace</option>
-            </x-ui.select>
-
-            <x-ui.select name="marketplace" class="sm:w-40">
-                <option value="">Semua toko</option>
-                @foreach ($marketplaces as $marketplace)
-                    <option value="{{ $marketplace }}" @selected(request('marketplace') === $marketplace)>{{ $marketplace }}</option>
-                @endforeach
-            </x-ui.select>
-
             {{-- Pilihannya persis sama dengan badge di kolom Status, satu lawan
                  satu. Sebelumnya hanya ada Draft dan Terkirim, sehingga paket
                  yang menunggu persetujuan atau ditolak tidak bisa dicari sama
                  sekali, dan "Draft" ikut memuat paket yang sebenarnya sudah
                  menunggu serah terima. --}}
-            <x-ui.select name="status" class="col-span-2 sm:col-span-1 sm:w-48">
+            <x-ui.select name="status" class="col-span-2 sm:w-48">
                 <option value="">Semua status</option>
-                @foreach (App\Models\Outbound::stages() as $value => $stage)
+                @foreach (App\Models\Outbound::manualStages() as $value => $stage)
                     <option value="{{ $value }}" @selected(request('status') === $value)>{{ $stage['label'] }}</option>
                 @endforeach
             </x-ui.select>
@@ -58,7 +45,7 @@
 
             <div class="flex items-center gap-2">
                 <x-ui.button type="submit" variant="secondary" icon="filter" class="flex-1 sm:flex-none">Terapkan</x-ui.button>
-                @if (request()->hasAny(['search', 'status', 'type', 'marketplace', 'from', 'to']))
+                @if (request()->hasAny(['search', 'status', 'from', 'to']))
                     <x-ui.button :href="route('admin.outbounds.index')" variant="ghost" size="icon" title="Reset filter">
                         <x-icon name="refresh" class="h-4 w-4" />
                     </x-ui.button>
@@ -70,7 +57,7 @@
     <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($outbounds->isEmpty())
             <x-ui.empty-state icon="logout" title="Belum ada dokumen"
-                              description="Buat dokumen barang keluar untuk mencatat pengiriman.">
+                              description="Buat dokumen penjualan manual untuk mencatat barang yang terjual di luar marketplace.">
                 @can('outbounds.create')
                     <x-slot name="action">
                         <x-ui.button :href="route('admin.outbounds.create')" icon="plus">Buat Dokumen</x-ui.button>
@@ -84,7 +71,6 @@
                         <tr>
                             <th>Dokumen</th>
                             <th>Penerima</th>
-                            <th><span class="inline-flex items-center gap-1">Jenis <x-ui.hint text="Marketplace = paket pesanan online yang discan di QC Kemas. Manual = pengeluaran lain yang diinput langsung." /></span></th>
                             <th class="text-right"><span class="inline-flex items-center gap-1">Total Unit <x-ui.hint text="Jumlah seluruh unit barang di dokumen ini." /></span></th>
                             <th><span class="inline-flex items-center gap-1">Status <x-ui.hint text="Draft masih bisa diubah. Menunggu = perlu persetujuan. Disetujui = stok sudah berkurang." /></span></th>
                             <th class="text-right">Aksi</th>
@@ -103,13 +89,6 @@
                                         <p class="font-mono text-[11px] text-ink-400">{{ $outbound->tracking_number }}</p>
                                     @endif
                                 </td>
-                                <td>
-                                    @if ($outbound->isMarketplace())
-                                        <x-ui.badge variant="dark" icon="sparkles">{{ $outbound->marketplace }}</x-ui.badge>
-                                    @else
-                                        <x-ui.badge variant="outline">Reguler</x-ui.badge>
-                                    @endif
-                                </td>
                                 <td class="text-right text-sm font-semibold text-ink-950">
                                     {{ number_format((int) $outbound->items_sum_quantity, 0, ',', '.') }}
                                 </td>
@@ -121,14 +100,6 @@
                                 </td>
                                 <td>
                                     <div class="flex items-center justify-end gap-1">
-                                        @if ($outbound->isEditable() && $outbound->isMarketplace())
-                                            @can('outbounds.scan')
-                                                <a href="{{ route('admin.outbounds.scan', $outbound) }}" title="Verifikasi scan"
-                                                   class="btn btn-primary">
-                                                    <x-icon name="search" class="h-3.5 w-3.5" /> Scan
-                                                </a>
-                                            @endcan
-                                        @endif
                                         <a href="{{ route('admin.outbounds.show', $outbound) }}" title="Detail"
                                            class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-950">
                                             <x-icon name="eye" class="h-4 w-4" />
@@ -175,18 +146,10 @@
                         </div>
 
                         <div class="mt-2 flex flex-wrap items-center gap-1.5">
-                            @if ($outbound->isMarketplace())
-                                <x-ui.badge variant="dark" icon="sparkles">{{ $outbound->marketplace }}</x-ui.badge>
-                            @endif
                             <x-ui.badge variant="outline">{{ (int) $outbound->items_sum_quantity }} unit</x-ui.badge>
                         </div>
 
                         <div class="mt-3 flex items-center justify-end gap-1 border-t border-ink-50 pt-3">
-                            @if ($outbound->isEditable() && $outbound->isMarketplace())
-                                @can('outbounds.scan')
-                                    <x-ui.button :href="route('admin.outbounds.scan', $outbound)" size="sm" icon="search">Scan</x-ui.button>
-                                @endcan
-                            @endif
                             <x-ui.button :href="route('admin.outbounds.show', $outbound)" variant="secondary" size="sm" icon="eye">Detail</x-ui.button>
                         </div>
                     </div>

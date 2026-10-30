@@ -46,7 +46,7 @@
         <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
             <x-ui.empty-state icon="check-circle" :title="'Tidak ada stok '.$balanceLabel"
                               :description="$fromGood
-                                  ? 'Belum ada barang dengan saldo layak jual. Catat barang masuk terlebih dahulu.'
+                                  ? 'Belum ada barang dengan saldo layak jual. Catat penerimaan barang terlebih dahulu.'
                                   : 'Belum ada unit rusak yang tercatat. Barang rusak masuk dari penerimaan retur, atau dari pemindahan stok layak jual di sini.'">
                 <x-slot name="action">
                     <x-ui.button :href="route('admin.disposals.index')" variant="secondary">Kembali</x-ui.button>

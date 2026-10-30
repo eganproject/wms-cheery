@@ -15,7 +15,7 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use Tests\TestCase;
 
 /**
- * Export Excel di halaman daftar (Packing List, Pesanan, Barang Keluar, dan
+ * Export Excel di halaman daftar (Packing List, Pesanan, Penjualan Manual, dan
  * lainnya) serta PDF Packing List. Isinya harus mengikuti saringan layar.
  */
 class ListExportTest extends TestCase
@@ -145,9 +145,17 @@ class ListExportTest extends TestCase
         ]);
         $outbound->items()->create(['product_id' => $this->tas->id, 'quantity' => 2, 'scanned_quantity' => 2]);
 
+        $manual = Outbound::create([
+            'code' => Outbound::nextCode(), 'date' => now(), 'type' => Outbound::TYPE_REGULAR,
+            'recipient' => 'Toko', 'status' => Outbound::STATUS_DRAFT,
+        ]);
+        $manual->items()->create(['product_id' => $this->tas->id, 'quantity' => 3]);
+
+        // Export Penjualan Manual hanya memuat dokumen reguler.
         $rows = $this->rowsAfter($this->sheet($this->actingAs($this->admin)->get(route('admin.outbounds.export'))), 'No');
-        $this->assertSame($outbound->code, $rows[0][2]);
-        $this->assertEquals(2, $rows[0][10]);
+        $this->assertSame($manual->code, $rows[0][2]);
+        $this->assertEquals(3, $rows[0][6]);
+        $this->assertNotContains($outbound->code, array_column($rows, 2));
 
         $rows = $this->rowsAfter($this->sheet($this->actingAs($this->admin)->get(route('admin.outbounds.handover.export'))), 'No');
         $this->assertSame('R1', $rows[0][1]);

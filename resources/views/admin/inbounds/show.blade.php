@@ -1,4 +1,4 @@
-<x-app-layout title="Detail Barang Masuk">
+<x-app-layout title="Detail Penerimaan Barang">
     <x-ui.page-header :title="$inbound->code" :status="$inbound->statusLabel()" :status-variant="$inbound->statusVariant()" :subtitle="$inbound->date->translatedFormat('d F Y').' · '.($inbound->supplier?->name ?: 'Tanpa pemasok')"
                       :back="route('admin.inbounds.index')">
         <x-slot name="actions">

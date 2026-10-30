@@ -213,27 +213,36 @@ class MarketplaceScanTest extends TestCase
 
     /* ------------------------------------------ pembuatan dokumen -------- */
 
-    public function test_marketplace_order_requires_a_waybill_but_not_a_marketplace_name(): void
+    /**
+     * Form Penjualan Manual tidak lagi membuat dokumen marketplace: dokumen
+     * pesanan marketplace hanya lahir dari QC Kemas.
+     */
+    public function test_the_manual_sales_form_always_creates_a_regular_document(): void
     {
         $this->actingAs($this->admin)->post(route('admin.outbounds.store'), [
             'date' => now()->format('Y-m-d'),
             'type' => Outbound::TYPE_MARKETPLACE,
             'recipient' => 'Siti Rahma',
-            'items' => [['product_id' => $this->product->id, 'quantity' => 1]],
-        ])->assertSessionHasErrors(['tracking_number'])
-            ->assertSessionDoesntHaveErrors(['marketplace']);
-    }
-
-    public function test_creating_a_marketplace_order_redirects_to_the_scan_page(): void
-    {
-        $this->actingAs($this->admin)->post(route('admin.outbounds.store'), [
-            'date' => now()->format('Y-m-d'),
-            'type' => Outbound::TYPE_MARKETPLACE,
-            'recipient' => 'Siti Rahma',
-            'marketplace' => 'Tokopedia',
             'tracking_number' => 'JX9988776655',
             'items' => [['product_id' => $this->product->id, 'quantity' => 1]],
-        ])->assertRedirect(route('admin.outbounds.scan', Outbound::latest('id')->first()));
+        ])->assertSessionHasNoErrors();
+
+        $created = Outbound::latest('id')->first();
+        $this->assertSame(Outbound::TYPE_REGULAR, $created->type);
+        $this->assertNull($created->tracking_number);
+    }
+
+    public function test_editing_a_marketplace_document_keeps_it_marketplace(): void
+    {
+        $this->actingAs($this->admin)->put(route('admin.outbounds.update', $this->outbound), [
+            'date' => now()->format('Y-m-d'),
+            'type' => Outbound::TYPE_REGULAR,
+            'recipient' => 'Siti Rahma',
+            'tracking_number' => $this->outbound->tracking_number,
+            'items' => [['product_id' => $this->product->id, 'quantity' => 1]],
+        ])->assertRedirect(route('admin.outbounds.scan', $this->outbound));
+
+        $this->assertSame(Outbound::TYPE_MARKETPLACE, $this->outbound->refresh()->type);
     }
 
     public function test_scan_page_is_not_available_for_regular_shipments(): void

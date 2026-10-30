@@ -19,7 +19,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Export daftar barang masuk ke Excel.
+ * Export daftar penerimaan barang ke Excel.
  *
  * Empat lembar untuk empat kebutuhan: "Ringkasan" untuk yang ingin tahu
  * angkanya sekilas (total, per status, per pemasok, per tanggal), "Rekap
@@ -114,7 +114,7 @@ class InboundExportService
         $spreadsheet = new Spreadsheet;
         $spreadsheet->getProperties()
             ->setCreator(config('app.name'))
-            ->setTitle('Laporan Barang Masuk');
+            ->setTitle('Laporan Penerimaan Barang');
         $spreadsheet->getDefaultStyle()->getFont()->setName('Calibri')->setSize(10);
 
         $summary = $spreadsheet->getActiveSheet();
@@ -125,8 +125,8 @@ class InboundExportService
 
         $periodLabel = $this->periodLabel($filters['range']);
 
-        $this->writeTableHeading($documents, 'DAFTAR DOKUMEN BARANG MASUK', $periodLabel, $this->documentColumns);
-        $this->writeTableHeading($details, 'DETAIL BARANG MASUK PER DOKUMEN', $periodLabel, $this->detailColumns);
+        $this->writeTableHeading($documents, 'DAFTAR DOKUMEN PENERIMAAN BARANG', $periodLabel, $this->documentColumns);
+        $this->writeTableHeading($details, 'DETAIL PENERIMAAN BARANG PER DOKUMEN', $periodLabel, $this->detailColumns);
 
         // Satu kali baca dari database: kedua lembar tabel ditulis dan seluruh
         // rekap dikumpulkan sambil jalan, bukan lewat query terpisah.
@@ -256,7 +256,7 @@ class InboundExportService
      */
     protected function writeSummary(Worksheet $sheet, array $filters, string $periodLabel, array $stats): void
     {
-        $sheet->setCellValue('A1', 'LAPORAN BARANG MASUK');
+        $sheet->setCellValue('A1', 'LAPORAN PENERIMAAN BARANG');
         $sheet->setCellValue('A2', config('app.name').' · Periode: '.$periodLabel);
         $sheet->setCellValue('A3', 'Diunduh '.now()->translatedFormat('d F Y H:i').
             (auth()->user() ? ' oleh '.auth()->user()->name : ''));
@@ -294,7 +294,7 @@ class InboundExportService
         ]);
 
         if ($stats['documents'] === 0) {
-            $sheet->setCellValue([1, $row + 1], 'Tidak ada dokumen barang masuk yang cocok dengan filter ini.');
+            $sheet->setCellValue([1, $row + 1], 'Tidak ada dokumen penerimaan barang yang cocok dengan filter ini.');
             $sheet->getStyle([1, $row + 1])->getFont()->setItalic(true)->getColor()->setRGB('6D6D6D');
         } else {
             $row = $this->writeBreakdown($sheet, $row + 1, 'Rekap per Status', 'Status', $stats['statuses'], $stats);
@@ -437,7 +437,7 @@ class InboundExportService
      */
     protected function writeProducts(Worksheet $sheet, string $periodLabel, array $products): void
     {
-        $this->writeTableHeading($sheet, 'REKAP BARANG MASUK PER BARANG', $periodLabel, $this->productColumns);
+        $this->writeTableHeading($sheet, 'REKAP PENERIMAAN PER BARANG', $periodLabel, $this->productColumns);
 
         // Barang yang paling banyak datang di atas: itu yang biasanya dicari.
         uasort($products, fn ($a, $b) => [$b['received'], $a['name']] <=> [$a['received'], $b['name']]);

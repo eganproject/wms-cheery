@@ -243,7 +243,7 @@
                                 <span>
                                     <span class="font-semibold">Stok tidak mencukupi:</span>
                                     <span class="font-mono" x-text="shortages.map((line) => line.sku).join(', ')"></span>.
-                                    Barang ini tidak bisa discan sampai stoknya dicatat lewat barang masuk.
+                                    Barang ini tidak bisa discan sampai stoknya dicatat lewat Penerimaan Barang.
                                 </span>
                             </p>
                         </div>
@@ -443,14 +443,12 @@
             </div>
         @endif
 
-        <p class="mt-5 text-center text-xs text-ink-500">
-            <a href="{{ route('admin.outbounds.index') }}" class="text-ink-700 underline-offset-4 hover:underline">
-                Daftar barang keluar
-            </a>
-            &middot;
-            <a href="{{ route('admin.outbounds.create', ['type' => 'marketplace']) }}" class="text-ink-700 underline-offset-4 hover:underline">
-                Buat dokumen manual
-            </a>
-        </p>
+        @can('imports.view')
+            <p class="mt-5 text-center text-xs text-ink-500">
+                <a href="{{ route('admin.orders.index') }}" class="text-ink-700 underline-offset-4 hover:underline">
+                    Daftar pesanan
+                </a>
+            </p>
+        @endcan
     </div>
 </x-app-layout>

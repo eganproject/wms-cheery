@@ -275,7 +275,7 @@ class OutboundScanService
         // Sependek mungkin tanpa kehilangan yang bisa ditindak: barang mana,
         // dan apa yang kurang. Operator membacanya sambil memegang paket.
         if ($product->stock < 1) {
-            return "Stok {$product->sku} kosong — catat barang masuk dulu";
+            return "Stok {$product->sku} kosong — catat Penerimaan Barang dulu";
         }
 
         return "Stok {$product->sku} kurang · butuh {$needed}, ada {$product->stock} {$product->unit}";

@@ -145,7 +145,7 @@ class MarketplaceIntakeTest extends TestCase
             ->assertStatus(422)
             ->assertJsonPath(
                 'errors.code.0',
-                'Stok FLT-OLI-STD kosong — catat barang masuk dulu',
+                'Stok FLT-OLI-STD kosong — catat Penerimaan Barang dulu',
             );
 
         $this->assertDatabaseCount('outbounds', 0);
@@ -189,7 +189,7 @@ class MarketplaceIntakeTest extends TestCase
             ->assertStatus(422)
             ->assertJsonPath(
                 'errors.code.0',
-                'Stok FLT-OLI-STD kosong — catat barang masuk dulu',
+                'Stok FLT-OLI-STD kosong — catat Penerimaan Barang dulu',
             );
 
         $this->assertSame(0, $outbound->refresh()->totalScanned());

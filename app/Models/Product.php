@@ -385,8 +385,8 @@ class Product extends Model
     public function blockingDocuments(): array
     {
         $tables = [
-            'inbound_items' => 'barang masuk',
-            'outbound_items' => 'barang keluar',
+            'inbound_items' => 'penerimaan barang',
+            'outbound_items' => 'penjualan',
             'return_receipt_items' => 'penerimaan retur',
             'stock_adjustment_items' => 'penyesuaian stok',
             'stock_opname_items' => 'stok opname',
@@ -426,7 +426,7 @@ class Product extends Model
             di atas, hanya untuk tabel yang lebih baru.
         */
         if ($this->isBundle() && DB::table('outbound_bundles')->where('bundle_id', $this->id)->exists()) {
-            $blocking[] = 'barang keluar (sebagai paket)';
+            $blocking[] = 'penjualan (sebagai paket)';
         }
 
         return $blocking;

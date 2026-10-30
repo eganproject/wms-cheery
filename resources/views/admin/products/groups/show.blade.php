@@ -134,7 +134,7 @@
             </x-ui.card>
 
             @can('products.create')
-                <x-ui.card title="Tambah Varian Baru" subtitle="Setiap baris menjadi SKU baru dengan stok nol. Stoknya diisi lewat Barang Masuk.">
+                <x-ui.card title="Tambah Varian Baru" subtitle="Setiap baris menjadi SKU baru dengan stok nol. Stoknya diisi lewat Penerimaan Barang.">
                     <form method="POST" enctype="multipart/form-data" action="{{ route('admin.products.groups.variants.store', $group) }}"
                           x-data="variantBuilder({{ Js::from([
                               'option1Name' => $group->option1_name,

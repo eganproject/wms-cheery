@@ -51,7 +51,7 @@ class ContinuousAuditPass5Test extends TestCase
 
         $this->assertSame(Outbound::STAGE_CANCELLED, $outbound->refresh()->stage());
         $this->assertSame(1, Outbound::atStage(Outbound::STAGE_CANCELLED)->count());
-        $this->actingAs($admin)->get(route('admin.outbounds.index'))->assertOk()->assertSee('Batal setelah dikirim');
+        $this->assertSame('Batal setelah dikirim', $outbound->stageLabel());
 
         // Paket yang dibawa pulang dari kurir tidak boleh diterima lagi
         // sebagai retur: stoknya sudah kembali saat pembatalan.

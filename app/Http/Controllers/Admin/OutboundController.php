@@ -43,7 +43,7 @@ class OutboundController extends Controller implements HasMiddleware
     }
 
     /**
-     * Excel dokumen barang keluar sesuai saringan yang aktif: satu lembar per
+     * Excel dokumen penjualan manual sesuai saringan yang aktif: satu lembar per
      * dokumen, satu lembar per barang.
      */
     public function export(Request $request): StreamedResponse
@@ -52,7 +52,7 @@ class OutboundController extends Controller implements HasMiddleware
             $number = 0;
 
             foreach ($this->filtered($request)
-                ->with('user', 'approver', 'shipmentOrder:id,marketplace,order_number,cancelled_at')
+                ->with('user', 'approver')
                 ->withCount('items')
                 ->withSum('items', 'quantity')
                 ->withSum('items', 'scanned_quantity')
@@ -61,11 +61,7 @@ class OutboundController extends Controller implements HasMiddleware
                     ++$number,
                     $outbound->date,
                     $outbound->code,
-                    $outbound->isMarketplace() ? 'Marketplace' : 'Reguler',
                     $outbound->recipient,
-                    $outbound->tracking_number,
-                    $outbound->shipmentOrder?->order_number,
-                    $outbound->marketplace,
                     $outbound->stageLabel(),
                     $outbound->items_count,
                     $outbound->totalQuantity(),
@@ -79,7 +75,7 @@ class OutboundController extends Controller implements HasMiddleware
         };
 
         $items = function () use ($request) {
-            foreach ($this->filtered($request)->with('items.product', 'shipmentOrder:id,marketplace,cancelled_at')
+            foreach ($this->filtered($request)->with('items.product')
                 ->withSum('items', 'quantity')
                 ->withSum('items', 'scanned_quantity')
                 ->lazy(500) as $outbound) {
@@ -87,10 +83,7 @@ class OutboundController extends Controller implements HasMiddleware
                     yield [
                         $outbound->date,
                         $outbound->code,
-                        $outbound->isMarketplace() ? 'Marketplace' : 'Reguler',
                         $outbound->recipient,
-                        $outbound->tracking_number,
-                        $outbound->marketplace,
                         $outbound->stageLabel(),
                         $item->product?->sku,
                         $item->product?->name,
@@ -102,23 +95,17 @@ class OutboundController extends Controller implements HasMiddleware
             }
         };
 
-        return TableExport::make('Barang Keluar')
+        return TableExport::make('Penjualan Manual')
             ->note(collect([
                 'Tanggal: '.DateRange::fromRequest($request)->label(),
                 $request->filled('status') ? 'Tahap: '.(Outbound::stages()[$request->string('status')->value()]['label'] ?? $request->string('status')) : null,
-                $request->filled('type') ? 'Jenis: '.($request->input('type') === Outbound::TYPE_MARKETPLACE ? 'Marketplace' : 'Reguler') : null,
-                $request->filled('marketplace') ? 'Marketplace: '.$request->string('marketplace') : null,
                 $request->filled('search') ? 'Cari: '.$request->string('search')->trim() : null,
             ])->filter()->implode(' · '))
             ->sheet('Dokumen', [
                 ['No', 'number'],
                 ['Tanggal', 'date'],
                 ['No. Dokumen', 'text'],
-                ['Jenis', 'text'],
                 ['Penerima', 'text'],
-                ['No. Resi', 'text'],
-                ['No. Pesanan', 'text'],
-                ['Marketplace', 'text'],
                 ['Tahap', 'text'],
                 ['Jumlah Baris', 'number'],
                 ['Total Qty', 'sum'],
@@ -131,10 +118,7 @@ class OutboundController extends Controller implements HasMiddleware
             ->sheet('Detail Barang', [
                 ['Tanggal', 'date'],
                 ['No. Dokumen', 'text'],
-                ['Jenis', 'text'],
                 ['Penerima', 'text'],
-                ['No. Resi', 'text'],
-                ['Marketplace', 'text'],
                 ['Tahap', 'text'],
                 ['SKU', 'text'],
                 ['Nama Barang', 'text'],
@@ -142,19 +126,21 @@ class OutboundController extends Controller implements HasMiddleware
                 ['Discan', 'sum'],
                 ['Catatan', 'text'],
             ], $items())
-            ->download('barang-keluar-'.now()->format('Y-m-d-Hi').'.xlsx');
+            ->download('penjualan-manual-'.now()->format('Y-m-d-Hi').'.xlsx');
     }
 
     /**
      * Saringan yang sama untuk tabel di layar dan berkas export.
+     *
+     * Hanya penjualan manual (reguler). Dokumen pesanan marketplace dibuat
+     * otomatis oleh QC Kemas dan dibuka dari halaman Pesanan.
      */
     protected function filtered(Request $request): \Illuminate\Database\Eloquent\Builder
     {
         return Outbound::query()
+            ->where('type', Outbound::TYPE_REGULAR)
             ->search($request->string('search')->trim()->value())
             ->when($request->filled('status'), fn ($query) => $query->atStage($request->string('status')->value()))
-            ->when($request->filled('type'), fn ($query) => $query->where('type', $request->string('type')))
-            ->fromMarketplace($request->string('marketplace')->value())
             ->dateBetween(DateRange::fromRequest($request))
             ->latest('date')
             ->latest('id');
@@ -163,7 +149,7 @@ class OutboundController extends Controller implements HasMiddleware
     public function index(Request $request): View
     {
         $outbounds = $this->filtered($request)
-            ->with('user', 'shipmentOrder:id,marketplace,cancelled_at')
+            ->with('user')
             ->withCount('items')
             ->withSum('items', 'quantity')
             // Progres scan dinilai dari jumlahnya, jadi baris barang tidak
@@ -174,22 +160,18 @@ class OutboundController extends Controller implements HasMiddleware
 
         return view('admin.outbounds.index', [
             'outbounds' => $outbounds,
-            // Marketplace barang keluar dibaca dari data import yang tertaut,
-            // jadi pilihannya juga dari sana — bukan daftar tetap yang
-            // sebagian besar isinya tidak pernah cocok dengan apa pun.
-            'marketplaces' => \App\Models\ShipmentOrder::filterOptions('marketplace'),
         ]);
     }
 
-    public function create(Request $request): View
+    public function create(): View
     {
+        // Form ini hanya untuk penjualan manual. Dokumen pesanan marketplace
+        // dibuat oleh QC Kemas dari data resi.
         return view('admin.outbounds.create', [
             'outbound' => null,
             'code' => Outbound::nextCode(),
             'products' => $this->products(),
-            'defaultType' => $request->input('type') === Outbound::TYPE_MARKETPLACE
-                ? Outbound::TYPE_MARKETPLACE
-                : Outbound::TYPE_REGULAR,
+            'defaultType' => Outbound::TYPE_REGULAR,
         ]);
     }
 
@@ -350,8 +332,8 @@ class OutboundController extends Controller implements HasMiddleware
         }
 
         return back()->with('success', $selfApprove
-            ? "Barang keluar {$outbound->code} disetujui. Stok telah berkurang."
-            : "Barang keluar {$outbound->code} diajukan dan menunggu persetujuan.");
+            ? "{$outbound->documentLabel()} {$outbound->code} disetujui. Stok telah berkurang."
+            : "{$outbound->documentLabel()} {$outbound->code} diajukan dan menunggu persetujuan.");
     }
 
     /**
@@ -367,7 +349,7 @@ class OutboundController extends Controller implements HasMiddleware
             return back()->with('error', collect($exception->errors())->flatten()->implode(' '));
         }
 
-        return back()->with('success', "Barang keluar {$outbound->code} disetujui. Stok telah berkurang.");
+        return back()->with('success', "{$outbound->documentLabel()} {$outbound->code} disetujui. Stok telah berkurang.");
     }
 
     /**
@@ -405,8 +387,8 @@ class OutboundController extends Controller implements HasMiddleware
         }
 
         return redirect()
-            ->route('admin.outbounds.index')
-            ->with('success', 'Dokumen barang keluar berhasil dihapus.');
+            ->route($outbound->isMarketplace() ? 'admin.orders.index' : 'admin.outbounds.index')
+            ->with('success', "Dokumen {$outbound->code} berhasil dihapus.");
     }
 
     /**

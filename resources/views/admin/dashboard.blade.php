@@ -7,10 +7,10 @@
                       subtitle="Halo, {{ str(auth()->user()->name)->before(' ') }}. Ringkasan kondisi gudang dan aktivitas terakhir.">
         <x-slot name="actions">
             @can('inbounds.create')
-                <x-ui.button :href="route('admin.inbounds.create')" variant="secondary" icon="inbound">Barang Masuk</x-ui.button>
+                <x-ui.button :href="route('admin.inbounds.create')" variant="secondary" icon="inbound">Penerimaan Barang</x-ui.button>
             @endcan
             @can('outbounds.create')
-                <x-ui.button :href="route('admin.outbounds.create')" icon="outbound">Barang Keluar</x-ui.button>
+                <x-ui.button :href="route('admin.outbounds.create')" icon="outbound">Penjualan Manual</x-ui.button>
             @endcan
         </x-slot>
     </x-ui.page-header>
@@ -23,21 +23,29 @@
         <x-ui.button type="submit" variant="secondary" icon="filter" class="sm:flex-none">Terapkan</x-ui.button>
     </form>
 
-    {{-- Pesanan menunggu --}}
+    {{-- Dokumen menunggu: penjualan manual di daftarnya sendiri, pesanan
+         marketplace di QC Kemas. --}}
     @if ($stats['outbound_pending'] > 0)
         @can('outbounds.view')
             <a href="{{ route('admin.outbounds.index', ['status' => 'draft']) }}"
                class="mb-4 flex items-center gap-3 rounded-lg bg-orange-100 px-4 py-3 text-orange-900 transition hover:bg-orange-200">
                 <x-icon name="clock" class="h-4 w-4 shrink-0 text-orange-600" />
                 <div class="min-w-0 flex-1">
-                    <p class="text-sm font-semibold">{{ $stats['outbound_pending'] }} pengiriman menunggu diproses</p>
-                    <p class="mt-0.5 text-xs text-orange-800">
-                        @if ($stats['marketplace_pending'] > 0)
-                            {{ $stats['marketplace_pending'] }} di antaranya pesanan marketplace yang butuh verifikasi scan.
-                        @else
-                            Buka daftar barang keluar untuk menindaklanjuti.
-                        @endif
-                    </p>
+                    <p class="text-sm font-semibold">{{ $stats['outbound_pending'] }} penjualan manual masih draft</p>
+                    <p class="mt-0.5 text-xs text-orange-800">Buka Penjualan Manual untuk menindaklanjuti.</p>
+                </div>
+                <x-icon name="chevron-right" class="h-4 w-4 shrink-0" />
+            </a>
+        @endcan
+    @endif
+    @if ($stats['marketplace_pending'] > 0)
+        @can('outbounds.scan')
+            <a href="{{ route('admin.outbounds.marketplace') }}"
+               class="mb-4 flex items-center gap-3 rounded-lg bg-orange-100 px-4 py-3 text-orange-900 transition hover:bg-orange-200">
+                <x-icon name="clock" class="h-4 w-4 shrink-0 text-orange-600" />
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-semibold">{{ $stats['marketplace_pending'] }} pesanan marketplace belum selesai QC</p>
+                    <p class="mt-0.5 text-xs text-orange-800">Lanjutkan verifikasi scan di QC Kemas.</p>
                 </div>
                 <x-icon name="chevron-right" class="h-4 w-4 shrink-0" />
             </a>
@@ -56,14 +64,14 @@
         <x-ui.stat-card label="Stok Menipis" info="Barang yang stoknya sudah di bawah atau sama dengan batas minimum." :value="$stats['low_stock']" icon="warning"
                         hint="Perlu segera direstok"
                         :href="auth()->user()->can('reports.view') ? route('admin.reports.restock') : null" />
-        <x-ui.stat-card label="Unit Masuk" :info="'Unit layak jual yang diterima lewat barang masuk yang disetujui, '.$periodLabel.'.'"
+        <x-ui.stat-card label="Unit Masuk" :info="'Unit layak jual yang diterima lewat Penerimaan Barang yang disetujui, '.$periodLabel.'.'"
                         :value="number_format($stats['inbound_units'], 0, ',', '.')" icon="inbound"
                         :hint="$stats['inbound_docs'].' dokumen · '.$periodLabel"
                         :href="auth()->user()->can('inbounds.view') ? route('admin.inbounds.index', $range->toQuery()) : null" />
-        <x-ui.stat-card label="Unit Terkirim" :info="'Unit yang keluar lewat barang keluar yang disetujui, '.$periodLabel.'. Paket yang batal setelah serah terima tidak dihitung.'"
+        <x-ui.stat-card label="Unit Terkirim" :info="'Unit yang keluar lewat pesanan marketplace dan penjualan manual yang disetujui, '.$periodLabel.'. Paket yang batal setelah serah terima tidak dihitung.'"
                         :value="number_format($stats['outbound_units'], 0, ',', '.')" icon="outbound"
                         :hint="$stats['outbound_docs'].' dokumen · '.$periodLabel"
-                        :href="auth()->user()->can('outbounds.view') ? route('admin.outbounds.index', $range->toQuery()) : null" />
+                        :href="auth()->user()->can('movements.view') ? route('admin.movements.index', ['source' => 'outbound'] + $range->toQuery()) : null" />
     </div>
 
     {{-- Pintasan --}}
@@ -126,7 +134,7 @@
                 </div>
             @empty
                 <x-ui.empty-state icon="refresh" title="Belum ada pergerakan stok"
-                                  description="Buat dokumen barang masuk untuk mulai mengisi stok gudang." />
+                                  description="Buat dokumen Penerimaan Barang untuk mulai mengisi stok gudang." />
             @endforelse
         </x-ui.card>
 

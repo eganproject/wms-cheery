@@ -11,7 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Status paket marketplace pada daftar barang keluar.
+ * Tahap dokumen pengiriman, dan daftar Penjualan Manual.
  *
  * Kolom status di basis data hanya mengenal draft, diajukan, ditolak, dan
  * diposting. Bagi paket marketplace itu terlalu kasar: satu kata "draft"
@@ -93,9 +93,27 @@ class OutboundStageTest extends TestCase
 
     /* ---------------------------------------------------- halaman -------- */
 
+    /**
+     * Penjualan Manual hanya memuat dokumen reguler. Paket marketplace dibuka
+     * dari Pesanan, tidak ikut di daftar ini maupun export-nya.
+     */
+    public function test_the_manual_sales_list_leaves_marketplace_packages_out(): void
+    {
+        $package = $this->package(scanned: 2);
+        $regular = $this->regular();
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.outbounds.index'))
+            ->assertOk()
+            ->assertSee('Penjualan Manual')
+            ->assertSee($regular->code)
+            ->assertDontSee($package->code);
+    }
+
     public function test_the_list_shows_the_stage_on_both_layouts(): void
     {
-        $this->package(scanned: 2);
+        $regular = $this->regular();
+        $regular->forceFill(['status' => Outbound::STATUS_REJECTED])->save();
 
         $html = $this->actingAs($this->admin)
             ->get(route('admin.outbounds.index'))
@@ -103,47 +121,66 @@ class OutboundStageTest extends TestCase
             ->getContent();
 
         // Tiga kali: badge di tabel, badge di kartu ponsel, dan satu pilihan di
-        // saringan. Yang penting dua yang pertama — dokumen yang sama tidak
-        // boleh bercerita berbeda hanya karena layarnya lebih sempit. Dulu
-        // kartu ponsel mengabaikan tahap pemindaian dan menulis "Draft".
-        $this->assertSame(3, substr_count($html, 'Menunggu serah terima'));
+        // saringan.
+        $this->assertSame(3, substr_count($html, 'Ditolak'));
     }
 
     /* ---------------------------------------------------- saringan ------- */
 
-    public function test_the_filter_offers_one_option_per_badge(): void
+    public function test_the_filter_offers_only_manual_sales_stages(): void
     {
         $html = $this->actingAs($this->admin)
             ->get(route('admin.outbounds.index'))
             ->assertOk()
             ->getContent();
 
-        foreach (['Perlu scan resi', 'Scan barang', 'Menunggu serah terima', 'Menunggu persetujuan', 'Ditolak', 'Terkirim'] as $label) {
+        foreach (['Draft', 'Menunggu persetujuan', 'Ditolak', 'Terkirim'] as $label) {
             $this->assertStringContainsString($label, $html, "Saringan kehilangan pilihan {$label}.");
+        }
+
+        foreach (['Perlu scan resi', 'Menunggu serah terima', 'Batal setelah dikirim'] as $label) {
+            $this->assertStringNotContainsString($label, $html, "Tahap marketplace {$label} tidak relevan untuk penjualan manual.");
         }
     }
 
-    public function test_the_ready_filter_returns_only_packed_orders(): void
+    public function test_the_draft_filter_returns_manual_drafts(): void
     {
-        $ready = $this->package(scanned: 2);
-        $this->package(scanned: 1);
-
-        $this->actingAs($this->admin)
-            ->get(route('admin.outbounds.index', ['status' => Outbound::STAGE_HANDOVER]))
-            ->assertOk()
-            ->assertSee($ready->code)
-            ->assertDontSee('OUT-'.now()->format('Ym').'-0002');
-    }
-
-    /** "Draft" kini berarti persis apa yang tertulis di badge, bukan lebih. */
-    public function test_the_draft_filter_no_longer_hides_packed_orders_inside_it(): void
-    {
+        $regular = $this->regular();
         $packed = $this->package(scanned: 2);
 
         $this->actingAs($this->admin)
             ->get(route('admin.outbounds.index', ['status' => Outbound::STATUS_DRAFT]))
             ->assertOk()
+            ->assertSee($regular->code)
             ->assertDontSee($packed->code);
+    }
+
+    /** Detail paket marketplace berada di bawah Pesanan, bukan Penjualan Manual. */
+    public function test_a_marketplace_package_is_shown_under_orders(): void
+    {
+        $package = $this->package(scanned: 2);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.outbounds.show', $package))
+            ->assertOk()
+            ->assertSee('Pengiriman Pesanan')
+            ->assertSee(route('admin.orders.index'));
+
+        $regular = $this->regular();
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.outbounds.show', $regular))
+            ->assertOk()
+            ->assertSee('Detail Penjualan Manual');
+    }
+
+    protected function regular(): Outbound
+    {
+        return Outbound::create([
+            'code' => Outbound::nextCode(), 'date' => now(),
+            'type' => Outbound::TYPE_REGULAR, 'recipient' => 'Toko Sebelah',
+            'status' => Outbound::STATUS_DRAFT,
+        ]);
     }
 
     /* ---------------------------------------------------- helpers -------- */

@@ -42,11 +42,11 @@
             </dl>
         </x-ui.card>
 
-        <x-ui.card class="lg:col-span-2" title="Riwayat Barang Masuk"
+        <x-ui.card class="lg:col-span-2" title="Riwayat Penerimaan Barang"
                    subtitle="Dokumen penerimaan dari pemasok ini" padding="p-0">
             @if ($inbounds->isEmpty())
                 <x-ui.empty-state icon="login" title="Belum ada dokumen"
-                                  description="Dokumen barang masuk dari pemasok ini akan muncul di sini." />
+                                  description="Dokumen penerimaan barang dari pemasok ini akan muncul di sini." />
             @else
                 <div class="divide-y divide-ink-50">
                     @foreach ($inbounds as $inbound)

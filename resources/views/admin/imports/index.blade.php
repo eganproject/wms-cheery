@@ -1,6 +1,6 @@
 <x-app-layout title="Import Resi">
     <x-ui.page-header title="Import Resi" icon="document"
-                      subtitle="Data resi hasil eksport TikTok Shop yang dipakai saat scan barang keluar dan retur.">
+                      subtitle="Data resi hasil eksport TikTok Shop yang dipakai saat QC Kemas dan retur.">
         <x-slot name="actions">
             @can('imports.create')
                 <x-ui.button :href="route('admin.imports.create')" icon="plus">Import Excel</x-ui.button>

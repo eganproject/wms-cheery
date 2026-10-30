@@ -1,7 +1,7 @@
-<x-app-layout title="Detail Barang Keluar">
+<x-app-layout :title="$outbound->isMarketplace() ? 'Pengiriman Pesanan' : 'Detail Penjualan Manual'">
     <x-ui.page-header :title="$outbound->code" :status="$outbound->statusLabel()" :status-variant="$outbound->statusVariant()"
                       :subtitle="$outbound->date->translatedFormat('d F Y').' · '.$outbound->recipient"
-                      :back="route('admin.outbounds.index')">
+                      :back="$outbound->isMarketplace() ? route('admin.orders.index') : route('admin.outbounds.index')">
         <x-slot name="actions">
             @if ($outbound->isEditable())
                 @if ($outbound->isMarketplace() && ! $outbound->isReadyToPost())

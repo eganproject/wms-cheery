@@ -1,5 +1,5 @@
-<x-app-layout title="Buat Barang Keluar">
-    <x-ui.page-header title="Buat Barang Keluar" subtitle="Catat pengiriman barang reguler atau pesanan marketplace."
+<x-app-layout title="Buat Penjualan Manual">
+    <x-ui.page-header title="Buat Penjualan Manual" subtitle="Catat penjualan di luar marketplace yang barangnya keluar dari gudang."
                       :back="route('admin.outbounds.index')" />
 
     @include('admin.outbounds.partials.form', [

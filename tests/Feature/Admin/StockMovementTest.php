@@ -124,7 +124,7 @@ class StockMovementTest extends TestCase
             ->assertOk();
 
         $this->assertSame(1, $response->viewData('movements')->total());
-        $this->assertSame('Barang Keluar', $response->viewData('movements')->first()->sourceLabel());
+        $this->assertSame('Penjualan', $response->viewData('movements')->first()->sourceLabel());
     }
 
     public function test_searching_matches_the_product_and_the_description(): void
@@ -171,7 +171,7 @@ class StockMovementTest extends TestCase
 
         $movement = StockMovement::firstOrFail();
 
-        $this->assertSame('Barang Masuk', $movement->sourceLabel());
+        $this->assertSame('Penerimaan Barang', $movement->sourceLabel());
         $this->assertSame(route('admin.inbounds.show', $inbound), $movement->sourceUrl());
 
         $this->actingAs($this->admin)->get(route('admin.movements.index'))

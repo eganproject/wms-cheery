@@ -106,7 +106,7 @@
             </x-ui.card>
             @endif
 
-            <x-ui.card title="Identitas Barang" subtitle="SKU dan barcode dipakai saat proses scan barang keluar.">
+            <x-ui.card title="Identitas Barang" subtitle="SKU dan barcode dipakai saat proses scan QC Kemas.">
                 <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     @if ($variantGroup)
                         <x-ui.field label="Nama Barang" class="sm:col-span-2" hint="Dibentuk otomatis dari nama produk induk dan atribut varian.">
@@ -294,7 +294,7 @@
                             </p>
                             <p class="mt-2 flex items-start gap-1.5 text-[11px] text-ink-500">
                                 <x-icon name="info" class="mt-px h-3.5 w-3.5 shrink-0 text-ink-300" />
-                                Stok hanya berubah lewat dokumen barang masuk dan barang keluar.
+                                Stok hanya berubah lewat dokumen stok seperti penerimaan barang, pesanan marketplace, dan penjualan manual.
                             </p>
                         </div>
                     @endif

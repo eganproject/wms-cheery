@@ -11,7 +11,7 @@ class StoreInboundRequest extends FormRequest
 
     protected function bundleLineAction(): string
     {
-        return 'barang masuk';
+        return 'penerimaan barang';
     }
 
     public function authorize(): bool

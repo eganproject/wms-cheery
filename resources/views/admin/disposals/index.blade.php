@@ -78,7 +78,7 @@
         <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
             @if ($damaged->isEmpty())
                 <x-ui.empty-state icon="check-circle" title="Tidak ada barang rusak"
-                                  description="Barang rusak masuk ke sini otomatis dari barang masuk, penerimaan retur, dan stok opname." />
+                                  description="Barang rusak masuk ke sini otomatis dari penerimaan barang, penerimaan retur, dan stok opname." />
             @else
                 <div class="overflow-x-auto">
                     <table class="erp-table">

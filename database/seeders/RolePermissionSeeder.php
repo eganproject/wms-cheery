@@ -67,23 +67,23 @@ class RolePermissionSeeder extends Seeder
         'Persetujuan' => [
             'approvals.view' => 'Melihat kotak masuk persetujuan',
         ],
-        'Barang Masuk' => [
-            'inbounds.view' => 'Melihat barang masuk',
-            'inbounds.create' => 'Membuat barang masuk',
-            'inbounds.update' => 'Mengubah barang masuk',
-            'inbounds.delete' => 'Menghapus barang masuk',
-            'inbounds.post' => 'Mengajukan & membatalkan barang masuk',
-            'inbounds.approve' => 'Menyetujui barang masuk',
-            'inbounds.export' => 'Export barang masuk & ringkasannya ke Excel',
+        'Penerimaan Barang' => [
+            'inbounds.view' => 'Melihat penerimaan barang',
+            'inbounds.create' => 'Membuat penerimaan barang',
+            'inbounds.update' => 'Mengubah penerimaan barang',
+            'inbounds.delete' => 'Menghapus penerimaan barang',
+            'inbounds.post' => 'Mengajukan & membatalkan penerimaan barang',
+            'inbounds.approve' => 'Menyetujui penerimaan barang',
+            'inbounds.export' => 'Export penerimaan barang & ringkasannya ke Excel',
         ],
-        'Barang Keluar' => [
-            'outbounds.view' => 'Melihat barang keluar',
-            'outbounds.create' => 'Membuat barang keluar',
-            'outbounds.update' => 'Mengubah barang keluar',
-            'outbounds.delete' => 'Menghapus barang keluar',
+        'Penjualan (Manual & Marketplace)' => [
+            'outbounds.view' => 'Melihat penjualan manual & pengiriman pesanan',
+            'outbounds.create' => 'Membuat penjualan manual',
+            'outbounds.update' => 'Mengubah penjualan manual & pengiriman pesanan',
+            'outbounds.delete' => 'Menghapus penjualan manual & pengiriman pesanan',
             'outbounds.scan' => 'Verifikasi scan resi & barang',
-            'outbounds.post' => 'Mengajukan & membatalkan barang keluar',
-            'outbounds.approve' => 'Menyetujui barang keluar',
+            'outbounds.post' => 'Mengajukan & membatalkan penjualan',
+            'outbounds.approve' => 'Menyetujui penjualan',
         ],
         'Penerimaan Retur' => [
             'returns.view' => 'Melihat penerimaan retur',

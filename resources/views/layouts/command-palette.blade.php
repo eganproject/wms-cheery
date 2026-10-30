@@ -22,7 +22,7 @@
                 'href' => route('admin.orders.index').'?range='.\App\Support\DateRange::ALL.'&search=',
             ] : null,
             $user->can('outbounds.view') ? [
-                'label' => 'Cari barang keluar ":q"',
+                'label' => 'Cari penjualan manual ":q"',
                 'group' => 'Cari',
                 'icon' => 'outbound',
                 'href' => route('admin.outbounds.index').'?range='.\App\Support\DateRange::ALL.'&search=',

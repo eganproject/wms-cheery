@@ -51,7 +51,7 @@ class StoreOutboundRequest extends FormRequest
             'items.*.note' => ['nullable', 'string', 'max:255'],
 
             // Paket bundling dipesan sebagai barisnya sendiri, lalu dipecah
-            // menjadi barang saat disimpan. Barang keluar adalah satu-satunya
+            // menjadi barang saat disimpan. Dokumen pengiriman adalah satu-satunya
             // dokumen tempat paket boleh muncul.
             'bundles' => ['nullable', 'array'],
             'bundles.*.bundle_id' => ['required', 'integer', 'distinct', 'exists:products,id'],
@@ -112,10 +112,16 @@ class StoreOutboundRequest extends FormRequest
             ->values()
             ->all();
 
-        $payload = ['items' => $items, 'bundles' => $bundles];
+        // Jenis dokumen tidak dipilih di form. Dokumen baru selalu penjualan
+        // manual; dokumen pesanan marketplace hanya dibuat QC Kemas, dan saat
+        // diubah jenisnya tetap seperti semula.
+        $existing = $this->route('outbound');
+        $type = $existing instanceof Outbound ? $existing->type : Outbound::TYPE_REGULAR;
+
+        $payload = ['items' => $items, 'bundles' => $bundles, 'type' => $type];
 
         // Data marketplace tidak relevan untuk pengiriman reguler.
-        if ($this->input('type') !== Outbound::TYPE_MARKETPLACE) {
+        if ($type !== Outbound::TYPE_MARKETPLACE) {
             $payload['tracking_number'] = null;
         } else {
             $payload['tracking_number'] = trim((string) $this->input('tracking_number')) ?: null;

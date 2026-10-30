@@ -1,6 +1,6 @@
 <x-app-layout title="Pemasok">
     <x-ui.page-header title="Pemasok" icon="users"
-                      subtitle="Master data pemasok yang dipakai pada dokumen barang masuk.">
+                      subtitle="Master data pemasok yang dipakai pada dokumen penerimaan barang.">
         <x-slot name="actions">
             @can('suppliers.create')
                 <x-ui.button :href="route('admin.suppliers.create')" icon="plus">Tambah Pemasok</x-ui.button>
@@ -38,7 +38,7 @@
     <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($suppliers->isEmpty())
             <x-ui.empty-state icon="users" title="Belum ada pemasok"
-                              description="Tambahkan pemasok agar bisa dipilih saat membuat dokumen barang masuk.">
+                              description="Tambahkan pemasok agar bisa dipilih saat membuat dokumen penerimaan barang.">
                 @can('suppliers.create')
                     <x-slot name="action">
                         <x-ui.button :href="route('admin.suppliers.create')" icon="plus">Tambah Pemasok</x-ui.button>
@@ -52,7 +52,7 @@
                         <tr>
                             <th>Pemasok</th>
                             <th>Kontak</th>
-                            <th class="text-right"><span class="inline-flex items-center gap-1">Dokumen <x-ui.hint text="Jumlah dokumen barang masuk dari pemasok ini." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1">Dokumen <x-ui.hint text="Jumlah dokumen penerimaan barang dari pemasok ini." /></span></th>
                             <th>Status</th>
                             <th class="text-right">Aksi</th>
                         </tr>

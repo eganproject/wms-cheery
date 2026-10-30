@@ -56,7 +56,7 @@ class InboundController extends Controller implements HasMiddleware
     }
 
     /**
-     * Unduh daftar barang masuk beserta ringkasannya sebagai Excel.
+     * Unduh daftar penerimaan barang beserta ringkasannya sebagai Excel.
      */
     public function export(Request $request, InboundExportService $exporter): StreamedResponse
     {
@@ -67,7 +67,7 @@ class InboundController extends Controller implements HasMiddleware
                 'status' => $request->string('status')->value() ?: null,
                 'range' => DateRange::fromRequest($request),
             ],
-            'barang-masuk-'.now()->format('Y-m-d-Hi').'.xlsx',
+            'penerimaan-barang-'.now()->format('Y-m-d-Hi').'.xlsx',
         );
     }
 
@@ -210,8 +210,8 @@ class InboundController extends Controller implements HasMiddleware
         }
 
         return back()->with('success', $selfApprove
-            ? "Barang masuk {$inbound->code} disetujui. Stok telah bertambah."
-            : "Barang masuk {$inbound->code} diajukan dan menunggu persetujuan.");
+            ? "Penerimaan barang {$inbound->code} disetujui. Stok telah bertambah."
+            : "Penerimaan barang {$inbound->code} diajukan dan menunggu persetujuan.");
     }
 
     /**
@@ -227,7 +227,7 @@ class InboundController extends Controller implements HasMiddleware
             return back()->with('error', collect($exception->errors())->flatten()->implode(' '));
         }
 
-        return back()->with('success', "Barang masuk {$inbound->code} disetujui. Stok telah bertambah.");
+        return back()->with('success', "Penerimaan barang {$inbound->code} disetujui. Stok telah bertambah.");
     }
 
     /**
@@ -260,7 +260,7 @@ class InboundController extends Controller implements HasMiddleware
 
         return redirect()
             ->route('admin.inbounds.index')
-            ->with('success', 'Dokumen barang masuk berhasil dihapus.');
+            ->with('success', 'Dokumen penerimaan barang berhasil dihapus.');
     }
 
     /**

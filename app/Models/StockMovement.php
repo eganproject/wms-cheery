@@ -25,8 +25,8 @@ class StockMovement extends Model
      * @var array<string, array{model: class-string, label: string, route: ?string}>
      */
     public const SOURCES = [
-        'inbound' => ['model' => Inbound::class, 'label' => 'Barang Masuk', 'route' => 'admin.inbounds.show'],
-        'outbound' => ['model' => Outbound::class, 'label' => 'Barang Keluar', 'route' => 'admin.outbounds.show'],
+        'inbound' => ['model' => Inbound::class, 'label' => 'Penerimaan Barang', 'route' => 'admin.inbounds.show'],
+        'outbound' => ['model' => Outbound::class, 'label' => 'Penjualan', 'route' => 'admin.outbounds.show'],
         'return' => ['model' => ReturnReceipt::class, 'label' => 'Penerimaan Retur', 'route' => 'admin.returns.show'],
         'adjustment' => ['model' => StockAdjustment::class, 'label' => 'Penyesuaian Stok', 'route' => 'admin.adjustments.show'],
         'import' => ['model' => ProductImport::class, 'label' => 'Import Barang', 'route' => null],

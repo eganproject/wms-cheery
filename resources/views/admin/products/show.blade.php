@@ -245,7 +245,7 @@
                        subtitle="Setiap pergerakan stok beserta saldo setelahnya." padding="p-0">
                 @if ($movements->isEmpty())
                     <x-ui.empty-state icon="refresh" title="Belum ada pergerakan"
-                                      description="Stok akan tercatat di sini setelah dokumen barang masuk atau keluar diproses." />
+                                      description="Stok akan tercatat di sini setelah dokumen penerimaan atau penjualan diproses." />
                 @else
                     <div class="overflow-x-auto">
                         <table class="erp-table">

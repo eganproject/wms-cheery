@@ -1,7 +1,7 @@
 @php
     $outbound = $outbound ?? null;
     $isEdit = (bool) $outbound;
-    $type = old('type', $defaultType);
+    $type = $outbound?->type ?? $defaultType;
 
     /*
         Paket punya barisnya sendiri, terpisah dari baris barang.
@@ -31,32 +31,10 @@
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div class="space-y-6 lg:col-span-2">
-            {{-- Jenis pengiriman --}}
-            <x-ui.card title="Jenis Pengiriman" subtitle="Pesanan marketplace wajib melewati verifikasi scan sebelum dikirim.">
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    @foreach ([
-                        ['value' => 'regular', 'icon' => 'box', 'label' => 'Reguler', 'desc' => 'Pengiriman langsung ke pelanggan atau cabang.'],
-                        ['value' => 'marketplace', 'icon' => 'sparkles', 'label' => 'Marketplace', 'desc' => 'Wajib scan resi lalu scan barang.'],
-                    ] as $option)
-                        <label class="relative flex cursor-pointer items-start gap-3 rounded-lg border p-3.5 transition"
-                               :class="type === '{{ $option['value'] }}' ? 'border-ink-950 bg-white ring-1 ring-ink-950' : 'border-ink-200 hover:border-ink-300 hover:bg-ink-50'">
-                            <input type="radio" name="type" value="{{ $option['value'] }}" x-model="type" class="sr-only">
-                            <span class="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition"
-                                  :class="type === '{{ $option['value'] }}' ? 'bg-ink-950 text-white' : 'bg-control text-ink-700'">
-                                <x-icon :name="$option['icon']" class="h-4 w-4" />
-                            </span>
-                            <span class="min-w-0">
-                                <span class="block text-sm font-semibold">{{ $option['label'] }}</span>
-                                <span class="block text-xs" :class="type === '{{ $option['value'] }}' ? 'text-ink-500' : 'text-ink-500'">
-                                    {{ $option['desc'] }}
-                                </span>
-                            </span>
-                        </label>
-                    @endforeach
-                </div>
-
-                <x-input-error :messages="$errors->get('type')" class="mt-3" />
-            </x-ui.card>
+            {{-- Jenis dokumen tidak dipilih di sini: dokumen baru selalu
+                 penjualan manual, dan dokumen pesanan marketplace (dibuat QC
+                 Kemas) tetap marketplace. Server memaksakan hal yang sama. --}}
+            <input type="hidden" name="type" value="{{ $type }}">
 
             {{-- Informasi dokumen --}}
             <x-ui.card title="Informasi Dokumen">
@@ -65,7 +43,7 @@
                         <x-text-input type="text" :value="$code" class="font-mono" disabled />
                     </x-ui.field>
 
-                    <x-ui.field label="Tanggal" info="Tanggal barang keluar dari gudang. Mutasi stok dicatat pada tanggal ini." for="date" :error="$errors->get('date')" required>
+                    <x-ui.field label="Tanggal" info="Tanggal barang dikirim dari gudang. Mutasi stok dicatat pada tanggal ini." for="date" :error="$errors->get('date')" required>
                         <x-text-input id="date" name="date" type="date"
                                       :value="old('date', $outbound?->date?->format('Y-m-d') ?? now()->format('Y-m-d'))" required />
                     </x-ui.field>
@@ -131,7 +109,7 @@
                     </div>
                 </template>
 
-                <x-ui.button :href="route('admin.outbounds.index')" variant="ghost" class="w-full">Batal</x-ui.button>
+                <x-ui.button :href="$isEdit ? route('admin.outbounds.show', $outbound) : route('admin.outbounds.index')" variant="ghost" class="w-full">Batal</x-ui.button>
             </div>
         </x-ui.card>
     </div>

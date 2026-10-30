@@ -1,5 +1,5 @@
-<x-app-layout title="Barang Masuk">
-    <x-ui.page-header title="Barang Masuk" icon="login"
+<x-app-layout title="Penerimaan Barang">
+    <x-ui.page-header title="Penerimaan Barang" icon="login"
                       subtitle="Dokumen penerimaan barang dari pemasok ke gudang.">
         <x-slot name="actions">
             @can('inbounds.export')
@@ -37,7 +37,7 @@
         {{-- Rentang tanggal berbaris sendiri: kolomnya membawa pintasan periode
              di bawahnya, dan itu tidak muat disisipkan di antara dropdown. --}}
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <x-ui.date-filter label="Tanggal barang masuk" />
+            <x-ui.date-filter label="Tanggal penerimaan" />
 
             <div class="flex items-center gap-2">
                 <x-ui.button type="submit" variant="secondary" icon="filter" class="flex-1 sm:flex-none">Terapkan</x-ui.button>
@@ -53,7 +53,7 @@
     <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($inbounds->isEmpty())
             <x-ui.empty-state icon="login" title="Belum ada dokumen"
-                              description="Buat dokumen barang masuk untuk menambah stok gudang.">
+                              description="Buat dokumen penerimaan barang untuk menambah stok gudang.">
                 @can('inbounds.create')
                     <x-slot name="action">
                         <x-ui.button :href="route('admin.inbounds.create')" icon="plus">Buat Dokumen</x-ui.button>

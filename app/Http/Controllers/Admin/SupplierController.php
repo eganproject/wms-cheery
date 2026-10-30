@@ -79,7 +79,7 @@ class SupplierController extends Controller implements HasMiddleware
     public function destroy(Supplier $supplier): RedirectResponse
     {
         if ($supplier->inbounds()->exists()) {
-            return back()->with('error', 'Pemasok sudah dipakai pada dokumen barang masuk. Nonaktifkan saja bila tidak dipakai lagi.');
+            return back()->with('error', 'Pemasok sudah dipakai pada dokumen penerimaan barang. Nonaktifkan saja bila tidak dipakai lagi.');
         }
 
         $supplier->delete();

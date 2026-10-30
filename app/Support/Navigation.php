@@ -49,6 +49,9 @@ class Navigation
                 'items' => [
                     ['label' => 'Pesanan', 'icon' => 'shopping-cart', 'route' => 'admin.orders.index',
                         'match' => 'admin.orders.index', 'can' => 'imports.view',
+                        // Dokumen pengiriman pesanan marketplace dibuka dari
+                        // Pesanan, jadi detailnya juga berada di bawah menu ini.
+                        'also' => fn () => static::viewingMarketplaceOutbound(),
                         'keywords' => 'pesanan order marketplace shopee tiktok resi status resi lacak duplikat kembar batal proses'],
                     ['label' => 'Packing List', 'icon' => 'list', 'route' => 'admin.orders.packing',
                         'match' => 'admin.orders.packing', 'can' => 'imports.view',
@@ -75,15 +78,16 @@ class Navigation
                 'label' => 'Transaksi Stok',
                 'icon' => 'layers',
                 'items' => [
-                    ['label' => 'Barang Masuk', 'icon' => 'inbound', 'route' => 'admin.inbounds.index',
+                    ['label' => 'Penerimaan Barang', 'icon' => 'inbound', 'route' => 'admin.inbounds.index',
                         'match' => 'admin.inbounds.*', 'can' => 'inbounds.view',
                         'create' => ['route' => 'admin.inbounds.create', 'can' => 'inbounds.create'],
-                        'keywords' => 'penerimaan pemasok inbound purchase receipt'],
-                    ['label' => 'Barang Keluar', 'icon' => 'outbound', 'route' => 'admin.outbounds.index',
+                        'keywords' => 'barang masuk penerimaan pemasok inbound purchase receipt'],
+                    ['label' => 'Penjualan Manual', 'icon' => 'outbound', 'route' => 'admin.outbounds.index',
                         'match' => ['admin.outbounds.index', 'admin.outbounds.show', 'admin.outbounds.create', 'admin.outbounds.edit'],
+                        'except' => fn () => static::viewingMarketplaceOutbound(),
                         'can' => 'outbounds.view',
                         'create' => ['route' => 'admin.outbounds.create', 'can' => 'outbounds.create'],
-                        'keywords' => 'pengiriman outbound delivery note'],
+                        'keywords' => 'barang keluar penjualan manual reguler pengiriman outbound delivery note'],
                     ['label' => 'Penerimaan Retur', 'icon' => 'return', 'route' => 'admin.returns.index',
                         'match' => ['admin.returns.index', 'admin.returns.show', 'admin.returns.create', 'admin.returns.edit'],
                         'can' => 'returns.view',
@@ -192,7 +196,8 @@ class Navigation
                             'icon' => $item['icon'],
                             'route' => $item['route'],
                             'href' => route($item['route']),
-                            'active' => request()->routeIs($item['match']),
+                            'active' => (request()->routeIs($item['match']) && ! (isset($item['except']) && ($item['except'])()))
+                                || (isset($item['also']) && ($item['also'])()),
                             'badge' => isset($item['badge']) ? ($item['badge'])() : null,
                             'keywords' => $item['keywords'] ?? '',
                             'create' => isset($item['create']) && $user?->can($item['create']['can'])
@@ -218,6 +223,23 @@ class Navigation
         $attributes->set('navigation.sections', $sections);
 
         return $sections;
+    }
+
+    /**
+     * Sedang membuka detail atau form dokumen pengiriman pesanan marketplace?
+     *
+     * Dokumen itu dibuat otomatis oleh QC Kemas dan dibuka dari Pesanan,
+     * bukan bagian dari Penjualan Manual.
+     */
+    protected static function viewingMarketplaceOutbound(): bool
+    {
+        if (! request()->routeIs('admin.outbounds.show', 'admin.outbounds.edit')) {
+            return false;
+        }
+
+        $outbound = request()->route('outbound');
+
+        return $outbound instanceof \App\Models\Outbound && $outbound->isMarketplace();
     }
 
     /**

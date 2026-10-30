@@ -1,4 +1,4 @@
-<x-app-layout title="Ubah Barang Keluar">
+<x-app-layout :title="$outbound->isMarketplace() ? 'Ubah Pengiriman Pesanan' : 'Ubah Penjualan Manual'">
     <x-ui.page-header :title="$outbound->code" subtitle="Perbarui dokumen pengiriman yang masih berstatus draft."
                       :back="route('admin.outbounds.show', $outbound)">
         <x-slot name="actions">

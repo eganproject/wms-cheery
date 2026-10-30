@@ -201,7 +201,7 @@ class InboundExportTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('admin.inbounds.export', $query));
 
         $response->assertOk();
-        $this->assertStringContainsString('barang-masuk-', $response->headers->get('content-disposition'));
+        $this->assertStringContainsString('penerimaan-barang-', $response->headers->get('content-disposition'));
 
         $path = tempnam(sys_get_temp_dir(), 'inbound').'.xlsx';
         file_put_contents($path, $response->streamedContent());

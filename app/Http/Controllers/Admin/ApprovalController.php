@@ -32,14 +32,14 @@ class ApprovalController extends Controller implements HasMiddleware
     public const TYPES = [
         'inbound' => [
             'model' => Inbound::class,
-            'label' => 'Barang Masuk',
+            'label' => 'Penerimaan Barang',
             'icon' => 'login',
             'permission' => 'inbounds.approve',
             'route' => 'admin.inbounds.show',
         ],
         'outbound' => [
             'model' => Outbound::class,
-            'label' => 'Barang Keluar',
+            'label' => 'Penjualan',
             'icon' => 'logout',
             'permission' => 'outbounds.approve',
             'route' => 'admin.outbounds.show',

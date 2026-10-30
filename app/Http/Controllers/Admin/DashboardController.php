@@ -51,7 +51,9 @@ class DashboardController extends Controller implements HasMiddleware
             // Draft milik pesanan batal bukan pengiriman yang menunggu:
             // termasuk dokumen yang batal setelah serah terima, yang kembali
             // ke draft dan disimpan selamanya sebagai jejak kartu stok.
-            'outbound_pending' => Outbound::where('status', Outbound::STATUS_DRAFT)->notCancelled()->count(),
+            'outbound_pending' => Outbound::where('status', Outbound::STATUS_DRAFT)
+                ->where('type', Outbound::TYPE_REGULAR)
+                ->count(),
             'marketplace_pending' => Outbound::where('status', Outbound::STATUS_DRAFT)
                 ->where('type', Outbound::TYPE_MARKETPLACE)
                 ->notCancelled()
