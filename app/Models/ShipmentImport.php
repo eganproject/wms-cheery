@@ -19,6 +19,7 @@ class ShipmentImport extends Model
         'item_count',
         'unmatched_sku_count',
         'failed_row_count',
+        'skipped_count',
         'detected_columns',
         'user_id',
     ];

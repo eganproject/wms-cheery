@@ -22,10 +22,10 @@
     </x-ui.page-header>
 
     <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <x-ui.stat-card label="Resi" :value="$import->order_count" icon="document" accent />
+        <x-ui.stat-card label="Resi Baru" :value="$import->order_count" icon="document" accent :hint="$import->skipped_count ? $import->skipped_count.' resi sudah ada, dilewati' : null" info="Resi yang baru masuk dari berkas ini. Resi yang sudah pernah diimport dilewati tanpa mengubah datanya, jadi berkas boleh bertumpuk dengan unggahan sebelumnya." />
         <x-ui.stat-card label="Baris Barang" :value="$import->item_count" icon="box" />
         <x-ui.stat-card label="SKU Belum Cocok" info="Baris barang di berkas ini yang SKU-nya belum ada di master barang." :value="$import->unmatched_sku_count" icon="warning" />
-        <x-ui.stat-card label="Gagal Diimport" info="Baris berkas yang tidak masuk ke sistem, misalnya resi kosong atau resi yang sudah pernah diimport. Unduh daftarnya untuk melihat alasannya." :value="$import->failed_row_count" icon="x-circle" :hint="'dari '.$import->row_count.' baris dibaca'" />
+        <x-ui.stat-card label="Gagal Diimport" info="Baris berkas yang tidak masuk ke sistem dan perlu dicek, misalnya Tracking ID kosong (belum Atur Pengiriman) atau satu resi untuk beberapa pesanan. Resi yang sudah ada tidak dihitung di sini. Unduh daftarnya untuk melihat alasannya." :value="$import->failed_row_count" icon="x-circle" :hint="'dari '.$import->row_count.' baris dibaca'" />
     </div>
 
     @if ($import->failed_row_count > 0)

@@ -148,7 +148,7 @@ class PackingListTest extends TestCase
         $this->outbound($this->order('R2', [['DOMPET', 1, $dompet]]), $dompet, 1, 1);
 
         $rows = $this->actingAs($this->admin)
-            ->get(route('admin.orders.packing', ['show' => 'sisa']))
+            ->get(route('admin.orders.packing', ['show' => 'sisa', 'jenis' => 'unggahan']))
             ->assertOk()
             ->viewData('rows');
 

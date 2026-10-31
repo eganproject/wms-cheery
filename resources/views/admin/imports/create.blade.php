@@ -53,7 +53,9 @@
                         ['Quantity', 'Kuantitas per baris SKU.', false],
                         ['Order ID', 'Ditampilkan sebagai referensi.', false],
                         ['Product Name, Variation', 'Cadangan bila SKU belum terdaftar.', false],
-                        ['Order Status, Shipping Provider Name, Delivery Option, Created Time, Buyer Message', 'Informasi pelengkap.', false],
+                        ['Normal or Pre-order, Created Time, Paid Time', 'Dasar batas kirim: waktu bayar + lama PO barangnya (atau aturan Normal).', false],
+                        ['Delivery Option', 'Instan / besok sampai ditandai prioritas.', false],
+                        ['Order Status, Shipping Provider Name, Buyer Message', 'Informasi pelengkap.', false],
                     ] as [$column, $desc, $required])
                         <li class="flex items-start gap-2.5">
                             <x-icon :name="$required ? 'check-circle' : 'circle'"
@@ -81,7 +83,7 @@
                     <li class="flex gap-2"><span class="font-semibold text-ink-950">2.</span> Baris keterangan kolom dari TikTok otomatis dilewati.</li>
                     <li class="flex gap-2"><span class="font-semibold text-ink-950">3.</span> Beberapa baris dengan nomor resi sama digabung menjadi satu pesanan.</li>
                     <li class="flex gap-2"><span class="font-semibold text-ink-950">4.</span> Setiap SKU dicocokkan ke master barang. SKU yang belum ada ditandai.</li>
-                    <li class="flex gap-2"><span class="font-semibold text-ink-950">5.</span> Resi yang sudah ada di sistem, resi yang dipakai beberapa pesanan, atau pesanan yang sudah punya resi lain dicegat dan tidak mengubah data lama.</li>
+                    <li class="flex gap-2"><span class="font-semibold text-ink-950">5.</span> Resi yang sudah ada di sistem dilewati tanpa mengubah datanya, jadi berkas boleh diunggah beberapa kali sehari meski bertumpuk. Resi yang dipakai beberapa pesanan, atau pesanan yang sudah punya resi lain, dicegat sebagai gagal.</li>
                     <li class="flex gap-2"><span class="font-semibold text-ink-950">6.</span> Baris yang gagal (mis. Tracking ID kosong karena belum Atur Pengiriman) bisa diunduh beserta alasannya dari halaman detail import.</li>
                     <li class="flex gap-2"><span class="font-semibold text-ink-950">7.</span> Saat scan resi, sistem mengambil daftar barang dari data ini.</li>
                 </ul>

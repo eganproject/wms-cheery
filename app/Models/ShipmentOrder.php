@@ -33,6 +33,8 @@ class ShipmentOrder extends Model
         'shipping_method',
         'buyer_note',
         'order_date',
+        'is_preorder',
+        'paid_at',
     ];
 
     protected function casts(): array
@@ -40,6 +42,13 @@ class ShipmentOrder extends Model
         return [
             'order_date' => 'datetime',
             'cancelled_at' => 'datetime',
+            'is_preorder' => 'boolean',
+            'paid_at' => 'datetime',
+            'computed_ship_by' => 'datetime',
+            'po_days' => 'integer',
+            'ship_by' => 'datetime',
+            'ship_by_set_at' => 'datetime',
+            'is_priority' => 'boolean',
         ];
     }
 
@@ -591,6 +600,134 @@ class ShipmentOrder extends Model
     public function scopeLatestFirst(Builder $query): Builder
     {
         return $query->orderByDesc('shipment_orders.created_at')->orderByDesc('shipment_orders.id');
+    }
+
+    /* ------------------------------------------- batas kirim & stok ---- */
+
+    /** Belum dikirim dan belum batal: masih harus dikerjakan gudang. */
+    public function scopeOpen(Builder $query): Builder
+    {
+        return $query
+            ->whereNull('shipment_orders.cancelled_at')
+            ->whereDoesntHave('outbounds', fn (Builder $outbound) => $outbound
+                ->where('status', Outbound::STATUS_POSTED));
+    }
+
+    /**
+     * Belum diproses sama sekali: belum dikirim, belum batal, dan belum ada
+     * yang discan di QC Kemas (resi maupun barangnya).
+     */
+    public function scopeNotStarted(Builder $query): Builder
+    {
+        return $query
+            ->open()
+            ->whereDoesntHave('outbounds', fn (Builder $outbound) => $outbound
+                ->where(fn (Builder $outbound) => $outbound
+                    ->whereNotNull('resi_verified_at')
+                    ->orWhereHas('items', fn (Builder $items) => $items->where('scanned_quantity', '>', 0))));
+    }
+
+    /**
+     * Saringan batas kirim di halaman Pesanan.
+     */
+    public function scopeDeadline(Builder $query, ?string $filter): Builder
+    {
+        $now = now();
+
+        return match ($filter) {
+            'overdue' => $query->open()->where('shipment_orders.ship_by', '<', $now),
+            'today' => $query->open()->where('shipment_orders.ship_by', '<=', $now->copy()->endOfDay()),
+            'tomorrow' => $query->open()->where('shipment_orders.ship_by', '<=', $now->copy()->addDay()->endOfDay()),
+            'week' => $query->open()->where('shipment_orders.ship_by', '<=', $now->copy()->addDays(7)->endOfDay()),
+            'missing' => $query->open()->whereNull('shipment_orders.ship_by'),
+            'priority' => $query->open()->where('shipment_orders.is_priority', true),
+            'mismatch' => $query->open()->differsFromTikTok(),
+            default => $query,
+        };
+    }
+
+    /**
+     * Dikunci menurut TikTok padahal hitungan sistem lebih lambat (atau
+     * belum ada): tanda setelan lama PO di sistem tidak sama dengan TikTok.
+     */
+    public function scopeDiffersFromTikTok(Builder $query): Builder
+    {
+        return $query
+            ->where('shipment_orders.ship_by_source', \App\Services\OrderPlanner::SOURCE_TIKTOK)
+            ->where(fn (Builder $query) => $query
+                ->whereNull('shipment_orders.computed_ship_by')
+                ->orWhereColumn('shipment_orders.computed_ship_by', '>', 'shipment_orders.ship_by'));
+    }
+
+    /**
+     * Kesiapan stok resi Belum QC: siap dikemas, menunggu stok, atau SKU
+     * tidak dikenal.
+     */
+    public function scopeStockStatus(Builder $query, ?string $status): Builder
+    {
+        if (! in_array($status, [\App\Services\OrderPlanner::READY, \App\Services\OrderPlanner::WAITING, \App\Services\OrderPlanner::UNKNOWN_SKU], true)) {
+            return $query;
+        }
+
+        return $query->awaitingQc()->where('shipment_orders.stock_status', $status);
+    }
+
+    /**
+     * Paling mendesak lebih dulu: prioritas, lalu batas kirim terdekat (yang
+     * belum punya batas di akhir), lalu waktu bayar terlama.
+     */
+    public function scopeMostUrgentFirst(Builder $query): Builder
+    {
+        return $query
+            ->orderByDesc('shipment_orders.is_priority')
+            ->orderByRaw('CASE WHEN shipment_orders.ship_by IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('shipment_orders.ship_by')
+            ->orderByRaw('COALESCE(shipment_orders.paid_at, shipment_orders.order_date, shipment_orders.created_at)')
+            ->orderBy('shipment_orders.id');
+    }
+
+    public function isOpen(): bool
+    {
+        return ! $this->isCancelled() && ! $this->outbound?->isPosted();
+    }
+
+    public function isShipByLocked(): bool
+    {
+        return in_array($this->ship_by_source, \App\Services\OrderPlanner::LOCKED_SOURCES, true);
+    }
+
+    public function differsFromTikTok(): bool
+    {
+        return $this->ship_by_source === \App\Services\OrderPlanner::SOURCE_TIKTOK
+            && ($this->computed_ship_by === null || ($this->ship_by && $this->computed_ship_by->gt($this->ship_by)));
+    }
+
+    /**
+     * Sisa waktu sampai batas kirim, dalam kalimat pendek, dan nadanya.
+     *
+     * @return array{0: string, 1: string}|null [teks, warna]
+     */
+    public function deadlineState(): ?array
+    {
+        if (! $this->ship_by) {
+            return null;
+        }
+
+        $now = now();
+
+        if ($this->ship_by->lt($now)) {
+            $days = (int) $this->ship_by->copy()->startOfDay()->diffInDays($now->copy()->startOfDay());
+
+            return [$days > 0 ? "Lewat {$days} hari" : 'Lewat batas', 'danger'];
+        }
+
+        if ($this->ship_by->isSameDay($now)) {
+            return ['Hari ini', 'danger'];
+        }
+
+        $days = (int) $now->copy()->startOfDay()->diffInDays($this->ship_by->copy()->startOfDay());
+
+        return $days === 1 ? ['Besok', 'warning'] : ["Sisa {$days} hari", $days <= 3 ? 'warning' : 'neutral'];
     }
 
     public function scopeSearch(Builder $query, ?string $term): Builder

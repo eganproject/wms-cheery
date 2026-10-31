@@ -56,7 +56,11 @@ class QueryBudgetTest extends TestCase
             'stok opname' => ['admin.opnames.index', 15],
             'barang rusak' => ['admin.disposals.index', 17],
             'import resi' => ['admin.imports.index', 16],
-            'pesanan' => ['admin.orders.index', 20], // +1: retur per resi (tanda diretur)
+            // +1 retur per resi; +1 sidik jari & +1 angka penanda pengiriman;
+            // ~10 hitung ulang batas kirim & stok (hanya saat datanya berubah,
+            // dan di sini cache selalu dikosongkan). Jumlahnya tetap, tidak
+            // tumbuh mengikuti banyaknya resi.
+            'pesanan' => ['admin.orders.index', 32],
             'resi per hari' => ['admin.imports.daily', 16],
             'per ekspedisi' => ['admin.imports.couriers', 16],
             'persetujuan' => ['admin.approvals.index', 22],

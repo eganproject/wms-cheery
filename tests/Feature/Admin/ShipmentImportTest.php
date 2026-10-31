@@ -89,7 +89,7 @@ class ShipmentImportTest extends TestCase
         $this->assertDatabaseCount('shipment_orders', 0);
     }
 
-    public function test_re_importing_the_same_waybill_is_intercepted_and_keeps_the_old_data(): void
+    public function test_re_importing_the_same_waybill_is_skipped_and_keeps_the_old_data(): void
     {
         $this->uploadCsv([
             ['Tracking ID', 'Seller SKU', 'Quantity'],
@@ -99,14 +99,17 @@ class ShipmentImportTest extends TestCase
         $this->uploadCsv([
             ['Tracking ID', 'Seller SKU', 'Quantity'],
             ['SPXID111', 'BSI-IRIDIUM', '5'],
-        ])->assertSessionHas('error');
+        ])->assertSessionHas('success');
 
         $this->assertDatabaseCount('shipment_orders', 1);
 
         $order = ShipmentOrder::where('tracking_number', 'SPXID111')->firstOrFail();
         $this->assertSame('FLT-OLI-STD', $order->items->first()->sku);
         $this->assertSame(2, $order->totalQuantity());
-        $this->assertDatabaseHas('shipment_import_failures', ['tracking_number' => 'SPXID111', 'sku' => 'BSI-IRIDIUM', 'row_number' => 2]);
+        // Berkas boleh bertumpuk dengan unggahan sebelumnya: resi yang sudah
+        // ada dilewati dan dihitung, bukan dicatat sebagai gagal.
+        $this->assertDatabaseCount('shipment_import_failures', 0);
+        $this->assertSame(1, \App\Models\ShipmentImport::latest('id')->first()->skipped_count);
     }
 
     public function test_import_pages_are_rendered(): void

@@ -304,14 +304,14 @@ class DateFilterTest extends TestCase
      */
     public function test_a_re_import_keeps_the_original_upload_date(): void
     {
-        // Resi yang sudah ada dicegat saat diimport ulang, jadi tanggalnya
+        // Resi yang sudah ada dilewati saat diimport ulang, jadi tanggalnya
         // tetap tanggal pertama kali masuk.
         $this->travelTo(Carbon::parse('2026-08-05 13:00'));
         $this->uploadCsv('SPXID111');
         $this->travelBack();
 
         $this->travelTo(Carbon::parse('2026-08-09 08:00'));
-        $this->uploadCsv('SPXID111', 'error');
+        $this->uploadCsv('SPXID111');
         $this->travelBack();
 
         $this->assertSame(1, ShipmentOrder::count(), 'Resi yang sama diperbarui, bukan digandakan.');

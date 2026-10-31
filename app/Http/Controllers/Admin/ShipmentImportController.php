@@ -129,7 +129,11 @@ class ShipmentImportController extends Controller implements HasMiddleware
             throw $exception;
         }
 
-        $message = "{$import->order_count} resi dan {$import->item_count} baris barang berhasil diimport.";
+        $message = "{$import->order_count} resi baru dan {$import->item_count} baris barang berhasil diimport.";
+
+        if ($import->skipped_count > 0) {
+            $message .= " {$import->skipped_count} resi sudah ada di sistem dan dilewati.";
+        }
 
         if ($import->unmatched_sku_count > 0) {
             $message .= " {$import->unmatched_sku_count} baris memiliki SKU yang belum terdaftar di master barang.";

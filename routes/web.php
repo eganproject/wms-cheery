@@ -30,6 +30,9 @@ use App\Http\Controllers\Admin\StockOpnameStationController;
 use App\Http\Controllers\Admin\StockReportController;
 use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\OrderPriorityController;
+use App\Http\Controllers\Admin\PoPeriodController;
+use App\Http\Controllers\Admin\ShipmentOrderDeadlineController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PackingListController;
 use App\Http\Controllers\ProfileController;
@@ -145,6 +148,14 @@ Route::middleware('auth')
 
         // Import resi dari TikTok Shop
         Route::get('orders/export', [OrderController::class, 'export'])->name('orders.export');
+        Route::get('orders/priority', [OrderPriorityController::class, 'create'])->name('orders.priority');
+        Route::post('orders/priority', [OrderPriorityController::class, 'store'])->name('orders.priority.store');
+        Route::put('orders/{order}/deadline', [ShipmentOrderDeadlineController::class, 'update'])->name('orders.deadline');
+        Route::delete('orders/{order}/deadline', [ShipmentOrderDeadlineController::class, 'destroy'])->name('orders.deadline.reset');
+        Route::get('po-periods', [PoPeriodController::class, 'index'])->name('po-periods.index');
+        Route::post('po-periods', [PoPeriodController::class, 'store'])->name('po-periods.store');
+        Route::put('po-periods/settings', [PoPeriodController::class, 'settings'])->name('po-periods.settings');
+        Route::delete('po-periods/{period}', [PoPeriodController::class, 'destroy'])->name('po-periods.destroy');
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
         Route::get('orders/packing-list/excel', [PackingListController::class, 'excel'])->name('orders.packing.excel');
         Route::get('orders/packing-list/pdf', [PackingListController::class, 'pdf'])->name('orders.packing.pdf');

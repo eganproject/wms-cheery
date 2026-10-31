@@ -29,6 +29,15 @@ class TikTokImportService
     public const MARKETPLACE = 'TikTok Shop';
 
     /**
+     * Nomor resi dan Order ID yang terbaca pada berkas terakhir yang
+     * diimport (termasuk yang dilewati karena sudah ada), untuk dipakai
+     * upload "Harus dikirim menurut TikTok".
+     *
+     * @var array{tracking: array<int, string>, orders: array<int, string>}
+     */
+    public array $lastSeen = ['tracking' => [], 'orders' => []];
+
+    /**
      * Judul kolom TikTok yang dibaca, dalam huruf kecil tanpa spasi.
      *
      * @var array<string, array<int, string>>
@@ -44,6 +53,8 @@ class TikTokImportService
         'courier' => ['shippingprovidername'],
         'shipping_method' => ['deliveryoption'],
         'order_date' => ['createdtime'],
+        'paid_at' => ['paidtime'],
+        'preorder' => ['normalorpreorder'],
         'buyer_note' => ['buyermessage'],
     ];
 
@@ -56,6 +67,10 @@ class TikTokImportService
      */
     public function import(UploadedFile $file): ShipmentImport
     {
+        // Import pertama berisi seluruh pesanan yang berjalan (puluhan ribu
+        // baris). Batas bawaan hosting yang rendah dinaikkan seperlunya.
+        $this->raiseLimits();
+
         $rows = $this->readRows($file);
 
         if ($rows->isEmpty()) {
@@ -85,9 +100,35 @@ class TikTokImportService
 
         [$orders, $failures] = $this->groupRows($rows, $header);
 
-        [$orders, $failures, $cancellations] = $this->rejectRedundantWaybills($orders, $failures);
+        $this->lastSeen = [
+            'tracking' => $orders->pluck('tracking_number')->filter()->values()->all(),
+            'orders' => $orders->pluck('order_number')->concat($failures->pluck('order_number'))->filter()->unique()->values()->all(),
+        ];
 
-        return $this->persist($file, $header, $rows->count(), $orders, $failures, $cancellations);
+        [$orders, $failures, $cancellations, $skipped] = $this->rejectRedundantWaybills($orders, $failures);
+
+        $import = $this->persist($file, $header, $rows->count(), $orders, $failures, $cancellations, $skipped);
+
+        // Batas kirim dan kesiapan stok resi baru langsung dihitung.
+        app(OrderPlanner::class)->refresh();
+
+        return $import;
+    }
+
+    protected function raiseLimits(): void
+    {
+        $limit = (string) ini_get('memory_limit');
+        $bytes = (int) $limit * match (strtolower(substr($limit, -1))) {
+            'g' => 1024 ** 3, 'm' => 1024 ** 2, 'k' => 1024, default => 1,
+        };
+
+        if ($limit !== '-1' && $bytes < 512 * 1024 ** 2) {
+            @ini_set('memory_limit', '512M');
+        }
+
+        if ((int) ini_get('max_execution_time') !== 0) {
+            @set_time_limit(300);
+        }
     }
 
     /* ------------------------------------------------------ membaca ------ */
@@ -152,10 +193,56 @@ class TikTokImportService
      */
     protected function readSpreadsheet(UploadedFile $file): Collection
     {
+        $path = $file->getRealPath();
+
+        // .xlsx dibaca mengalir dan hanya kolom yang dipakai: jauh lebih hemat
+        // memori dan waktu untuk berkas puluhan ribu baris. Bila gagal (berkas
+        // tidak lazim), jatuh ke PhpSpreadsheet di bawah.
+        if (strtolower($file->getClientOriginalExtension()) === 'xlsx' && class_exists(\ZipArchive::class) && class_exists(\XMLReader::class)) {
+            try {
+                $rows = (new XlsxStreamReader)->read($path, function (array $rows) {
+                    [$header] = $this->locateHeader(collect($rows));
+
+                    return $header === [] ? null : array_values($header);
+                });
+
+                if ($rows !== []) {
+                    return collect($rows);
+                }
+            } catch (\Throwable) {
+                // Coba pembaca biasa.
+            }
+        }
+
         try {
-            $reader = IOFactory::createReaderForFile($file->getRealPath());
+            // Tahap 1: beberapa baris awal saja, untuk menemukan judul kolom.
+            $reader = IOFactory::createReaderForFile($path);
             $reader->setReadDataOnly(true);
-            $sheet = $reader->load($file->getRealPath())->getActiveSheet();
+            $reader->setReadFilter(new SpreadsheetCellFilter(maxRow: 10));
+            $top = collect($reader->load($path)->getActiveSheet()->toArray(null, true, false, false))
+                ->mapWithKeys(fn (array $row, int $index) => [$index + 1 => array_map(fn ($value) => trim((string) $value), $row)]);
+        } catch (\Throwable $exception) {
+            throw ValidationException::withMessages([
+                'file' => 'Berkas tidak bisa dibaca. Pastikan formatnya .xlsx, .xls, atau .csv dari eksport TikTok Shop.',
+            ]);
+        }
+
+        [$header] = $this->locateHeader($top);
+
+        if ($header === []) {
+            return $top->filter(fn (array $row) => collect($row)->filter(fn ($v) => $v !== '')->isNotEmpty());
+        }
+
+        // Tahap 2: hanya kolom yang dipakai. Eksport TikTok berisi 60-an kolom
+        // dan puluhan ribu baris; membaca semuanya bisa menghabiskan memori
+        // server pada import pertama yang berisi seluruh pesanan berjalan.
+        $columns = array_values($header);
+
+        try {
+            $reader = IOFactory::createReaderForFile($path);
+            $reader->setReadDataOnly(true);
+            $reader->setReadFilter(new SpreadsheetCellFilter(columns: $columns));
+            $sheet = $reader->load($path)->getActiveSheet();
         } catch (\Throwable $exception) {
             throw ValidationException::withMessages([
                 'file' => 'Berkas tidak bisa dibaca. Pastikan formatnya .xlsx, .xls, atau .csv dari eksport TikTok Shop.',
@@ -163,9 +250,30 @@ class TikTokImportService
         }
 
         // Kunci koleksi = nomor baris di Excel, dipakai pada laporan baris gagal.
-        return collect($sheet->toArray(null, true, false, false))
-            ->mapWithKeys(fn (array $row, int $index) => [$index + 1 => array_map(fn ($value) => trim((string) $value), $row)])
-            ->filter(fn (array $row) => collect($row)->filter(fn ($v) => $v !== '')->isNotEmpty());
+        $rows = collect();
+        $last = $sheet->getHighestDataRow();
+
+        for ($line = 1; $line <= $last; $line++) {
+            $row = [];
+            $filled = false;
+
+            foreach ($columns as $index) {
+                $coordinate = [$index + 1, $line];
+                $value = $sheet->cellExists($coordinate)
+                    ? trim((string) $sheet->getCell($coordinate)->getCalculatedValue())
+                    : '';
+                $row[$index] = $value;
+                $filled = $filled || $value !== '';
+            }
+
+            if ($filled) {
+                $rows->put($line, $row);
+            }
+        }
+
+        $sheet->getParent()?->disconnectWorksheets();
+
+        return $rows;
     }
 
     /* ------------------------------------------------------ pemetaan ----- */
@@ -314,6 +422,8 @@ class TikTokImportService
                     'shipping_method' => $this->value($row, $header, 'shipping_method'),
                     'buyer_note' => $this->value($row, $header, 'buyer_note'),
                     'order_date' => $this->parseDate($this->value($row, $header, 'order_date')),
+                    'paid_at' => $this->parseDate($this->value($row, $header, 'paid_at')),
+                    'is_preorder' => $this->parsePreorder($this->value($row, $header, 'preorder')),
                     'items' => [],
                     'lines' => [],
                 ]);
@@ -355,7 +465,7 @@ class TikTokImportService
      *
      * @param  Collection<string, array<string, mixed>>  $orders
      * @param  Collection<int, array<string, mixed>>  $failures
-     * @return array{0: Collection<string, array<string, mixed>>, 1: Collection<int, array<string, mixed>>, 2: Collection<int, ShipmentOrder>}
+     * @return array{0: Collection<string, array<string, mixed>>, 1: Collection<int, array<string, mixed>>, 2: Collection<int, ShipmentOrder>, 3: Collection<int, array{order: ShipmentOrder, fill: array<string, mixed>}>}
      */
     protected function rejectRedundantWaybills(Collection $orders, Collection $failures): array
     {
@@ -389,14 +499,25 @@ class TikTokImportService
                 }
             });
 
-        // 3. Resi yang sudah pernah diimport.
+        // 3. Resi yang sudah pernah diimport: dilewati, bukan gagal. Berkas
+        // TikTok yang diunduh beberapa kali sehari hampir selalu bertumpuk
+        // dengan unggahan sebelumnya, dan resi itu memang sudah benar ada.
         $cancellations = collect();
+        $skipped = collect();
 
-        $existing = $orders->isEmpty() ? collect() : ShipmentOrder::query()
-            ->with('import')
-            ->whereIn(DB::raw("UPPER(REPLACE(tracking_number, ' ', ''))"), $orders->keys()->all())
-            ->get()
-            ->keyBy(fn (ShipmentOrder $order) => $this->key($order->tracking_number));
+        // Kunci resi selalu dikirim sebagai teks: resi yang hanya berisi angka
+        // menjadi kunci integer di PHP dan tidak cocok dengan kolom teks.
+        // Dibaca per potongan dan hanya kolom yang perlu, karena import
+        // pertama bisa berisi puluhan ribu resi.
+        $existing = collect();
+
+        foreach ($orders->keys()->map(fn ($key) => (string) $key)->chunk(1000) as $chunk) {
+            $existing = $existing->concat(ShipmentOrder::query()
+                ->whereIn(DB::raw("UPPER(REPLACE(tracking_number, ' ', ''))"), $chunk->values()->all())
+                ->get(['id', 'tracking_number', 'order_number', 'cancelled_at', 'is_preorder', 'paid_at']));
+        }
+
+        $existing = $existing->keyBy(fn (ShipmentOrder $order) => $this->key($order->tracking_number));
 
         foreach ($existing as $key => $old) {
             $order = $orders->get($key);
@@ -405,27 +526,36 @@ class TikTokImportService
                 continue;
             }
 
-            $detail = "Resi ini sudah diimport {$old->created_at?->translatedFormat('d M Y H:i')}"
-                .($old->import ? " dari berkas \"{$old->import->filename}\"" : '')
-                .($old->order_number ? " untuk Order ID {$old->order_number}" : '')
-                .'. Data lama tidak diubah.';
-
             if (ShipmentOrder::looksCancelled($order['order_status']) && ! $old->isCancelled()) {
                 $cancellations->push($old);
-                $detail .= ' Status batal dari berkas ini tetap dicatat pada resi lama.';
             }
 
-            $reject($key, ShipmentImportFailure::REASON_TRACKING_IN_SYSTEM, $detail);
+            // Data lama tidak diubah. Satu-satunya yang dilengkapi adalah
+            // kolom yang dulu belum dibaca (penanda PO, waktu bayar), supaya
+            // resi lama ikut punya batas kirim.
+            $fill = array_filter([
+                'is_preorder' => $old->is_preorder === null ? $order['is_preorder'] : null,
+                'paid_at' => $old->paid_at === null ? $order['paid_at'] : null,
+            ], fn ($value) => $value !== null);
+
+            $skipped->push(['order' => $old, 'fill' => $fill]);
+            $orders->forget($key);
         }
 
         // 4. Order ID yang sudah punya resi lain (dan belum dibatalkan).
         $numbers = $orders->pluck('order_number')->filter()->unique()->values();
 
-        $taken = $numbers->isEmpty() ? collect() : ShipmentOrder::query()
-            ->whereIn('order_number', $numbers->all())
-            ->whereNull('cancelled_at')
-            ->get(['order_number', 'tracking_number'])
-            ->groupBy('order_number');
+        $taken = collect();
+
+        foreach ($numbers->map(fn ($number) => (string) $number)->chunk(1000) as $chunk) {
+            $taken = $taken->concat(ShipmentOrder::query()
+                ->whereIn('order_number', $chunk->values()->all())
+                ->whereNull('cancelled_at')
+                ->toBase()
+                ->get(['order_number', 'tracking_number']));
+        }
+
+        $taken = $taken->groupBy('order_number');
 
         foreach ($orders as $key => $order) {
             $others = $taken->get($order['order_number'] ?? '');
@@ -436,7 +566,7 @@ class TikTokImportService
             }
         }
 
-        return [$orders, $failures->sortBy('row_number')->values(), $cancellations];
+        return [$orders, $failures->sortBy('row_number')->values(), $cancellations, $skipped];
     }
 
     protected function productName(?string $name, ?string $variation): ?string
@@ -444,6 +574,25 @@ class TikTokImportService
         $label = trim(implode(' - ', array_filter([$name, $variation])));
 
         return $label === '' ? null : Str::limit($label, 250, '');
+    }
+
+    /**
+     * Kolom "Normal or Pre-order": true untuk Pre-order, false untuk Normal,
+     * null bila kosong atau tidak dikenal.
+     */
+    protected function parsePreorder(?string $value): ?bool
+    {
+        $slug = $this->slug($value);
+
+        if ($slug === '') {
+            return null;
+        }
+
+        if (str_contains($slug, 'pre') || str_contains($slug, 'po')) {
+            return true;
+        }
+
+        return str_contains($slug, 'normal') || str_contains($slug, 'ready') ? false : null;
     }
 
     protected function parseDate(?string $value): ?string
@@ -483,12 +632,13 @@ class TikTokImportService
         Collection $orders,
         Collection $failures,
         Collection $cancellations,
+        Collection $skipped,
     ): ShipmentImport {
         // SKU adalah kunci pencocokan ke master barang.
         $products = Product::pluck('id', 'sku')
             ->mapWithKeys(fn ($id, $sku) => [strtoupper(trim($sku)) => $id]);
 
-        $import = DB::transaction(function () use ($file, $header, $rowCount, $orders, $failures, $cancellations, $products) {
+        $import = DB::transaction(function () use ($file, $header, $rowCount, $orders, $failures, $cancellations, $skipped, $products) {
             $import = ShipmentImport::create([
                 'filename' => $file->getClientOriginalName(),
                 'source' => 'tiktok',
@@ -563,7 +713,14 @@ class TikTokImportService
                     ->update(['status' => \App\Models\Outbound::STATUS_DRAFT, 'submitted_at' => null, 'submitted_by' => null]);
             }
 
+            foreach ($skipped as $entry) {
+                if ($entry['fill'] !== []) {
+                    $entry['order']->forceFill($entry['fill'])->save();
+                }
+            }
+
             $import->update([
+                'skipped_count' => $skipped->count(),
                 'order_count' => $orders->count(),
                 'item_count' => $itemCount,
                 'unmatched_sku_count' => $unmatched,

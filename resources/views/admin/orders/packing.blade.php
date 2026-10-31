@@ -21,7 +21,7 @@
 
 <x-app-layout title="Packing List">
     <x-ui.page-header title="Packing List"
-                      subtitle="Ringkasan SKU dari resi yang diimport: jumlah tiap SKU dari semua resi dijumlahkan, berikut sisanya yang belum lolos QC Kemas. Resi yang sudah dikirim atau dibatalkan tidak dihitung.">
+                      subtitle="Harian: resi yang stoknya siap, paling mendesak lebih dulu. Keseluruhan: semua resi yang belum mulai diproses. Jumlah tiap SKU dijumlahkan, berikut sisanya yang belum lolos QC Kemas.">
         <x-slot name="actions">
             {{-- Ikut saringan dan mode "Ringkas per" yang aktif. data-no-ajax: unduhan berkas tidak boleh lewat navigasi AJAX. --}}
             <x-ui.button :href="route('admin.orders.packing.excel', request()->query())"
@@ -39,6 +39,24 @@
             @endcan
         </x-slot>
     </x-ui.page-header>
+
+    {{-- Jenis packing list: bagian dari halaman ini sendiri, bukan menu lain. --}}
+    <div class="mb-4 flex flex-wrap items-center gap-1.5" data-packing-type>
+        @foreach (PackingListController::TYPES as $value => $label)
+            <a href="{{ route('admin.orders.packing', array_filter(['jenis' => $value, 'marketplace' => request('marketplace'), 'store' => request('store'), 'courier' => request('courier'), 'per' => request('per')])) }}"
+               data-hint-title="{{ $label }}"
+               data-hint="{{ match ($value) {
+                   PackingListController::DAILY => 'Resi Belum QC yang seluruh barangnya kebagian stok, diurutkan dari yang paling mendesak: prioritas (Instan, besok sampai, dikunci menurut TikTok), lalu batas kirim terdekat.',
+                   PackingListController::ALL => 'Semua resi yang belum dikirim dan belum mulai discan di QC Kemas, tanpa melihat stok. Untuk melihat total kebutuhan barang.',
+                   default => 'Resi menurut tanggal unggah atau satu batch import, seperti sebelumnya.',
+               } }}"
+               @class(['inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm whitespace-nowrap transition',
+                   'border-brand-500 bg-brand-50 font-medium text-brand-800' => $type === $value,
+                   'border-ink-200 bg-white text-ink-600 hover:border-ink-300 hover:text-ink-950' => $type !== $value])>
+                {{ $label }}
+            </a>
+        @endforeach
+    </div>
 
     <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4" data-packing-totals>
         <x-ui.stat-card label="Resi" :value="$num($totals['orders'])" icon="document" accent
@@ -109,6 +127,18 @@
                 </div>
             @endif
 
+            @if ($type === PackingListController::DAILY)
+                <div class="flex flex-col gap-1.5 sm:flex-row sm:items-start">
+                    <span class="w-20 shrink-0 pt-1 text-xs text-ink-500">Batas kirim</span>
+                    <div class="flex flex-wrap gap-1.5">
+                        @foreach (PackingListController::DUE as $value => $label)
+                            <a href="{{ route('admin.orders.packing', $keep(['batas'], ['batas' => $value])) }}"
+                               @class([$pill, $pillOn => $due === $value, $pillOff => $due !== $value])>{{ $label }}</a>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
             <div class="flex flex-col gap-1.5 sm:flex-row sm:items-start">
                 <span class="w-20 shrink-0 pt-1 text-xs text-ink-500">Ringkas per</span>
                 <div class="flex flex-wrap gap-1.5">
@@ -131,12 +161,13 @@
         </div>
 
         <form method="GET" action="{{ route('admin.orders.packing') }}" class="flex flex-col gap-3 border-b border-ink-100 p-4 lg:flex-row lg:items-end print:hidden">
-            @foreach (['marketplace', 'store', 'courier', 'show', 'per'] as $field)
+            @foreach (['marketplace', 'store', 'courier', 'show', 'per', 'jenis', 'batas'] as $field)
                 @if (request()->filled($field))
                     <input type="hidden" name="{{ $field }}" value="{{ request($field) }}">
                 @endif
             @endforeach
 
+            @if ($type === PackingListController::BY_UPLOAD)
             <div class="w-full lg:w-72">
                 <label for="packing-import" class="mb-1 block text-xs text-ink-500">Batch import</label>
                 <select id="packing-import" name="import" class="form-control" onchange="this.form.requestSubmit()">
@@ -155,6 +186,7 @@
             @unless ($import)
                 <x-ui.date-filter label="Tanggal unggah berkas" />
             @endunless
+            @endif
 
             <div class="relative flex-1">
                 <span class="pointer-events-none absolute left-0 top-0 flex h-8 w-8 items-center justify-center text-ink-400">
@@ -166,7 +198,7 @@
             <div class="flex items-center gap-2">
                 <x-ui.button type="submit" icon="filter">Terapkan</x-ui.button>
                 @if (request()->hasAny(['search', 'import', 'from', 'to', 'range']))
-                    <x-ui.button :href="route('admin.orders.packing', request()->only(['marketplace', 'store', 'courier', 'show', 'per']))"
+                    <x-ui.button :href="route('admin.orders.packing', request()->only(['marketplace', 'store', 'courier', 'show', 'per', 'jenis', 'batas']))"
                                  variant="ghost" size="icon" title="Reset">
                         <x-icon name="close" class="h-4 w-4" />
                     </x-ui.button>
@@ -256,7 +288,9 @@
                         <tr>
                             <td colspan="7" class="p-0">
                                 <x-ui.empty-state icon="box" title="Tidak ada barang untuk dikemas"
-                                                  description="Belum ada resi aktif pada saringan ini. Coba ganti tanggal unggah atau pilih batch import." />
+                                                  :description="$type === PackingListController::DAILY
+                                                      ? 'Belum ada resi yang stoknya siap pada saringan ini. Cek resi Menunggu stok di halaman Pesanan.'
+                                                      : 'Belum ada resi aktif pada saringan ini. Coba ganti tanggal unggah atau pilih batch import.'" />
                             </td>
                         </tr>
                     @endforelse
@@ -277,4 +311,74 @@
             </table>
         </div>
     </div>
+
+    @if ($resi->isNotEmpty())
+        {{-- Label yang diambil dari rak tunggu, paling mendesak lebih dulu. --}}
+        <div class="frappe-card mt-4" data-packing-resi>
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-ink-100 px-4 py-3">
+                <div>
+                    <h2 class="text-sm font-semibold text-ink-950">Daftar resi {{ $type === PackingListController::DAILY ? 'yang dikerjakan' : 'belum diproses' }}</h2>
+                    <p class="mt-0.5 text-xs text-ink-500">Urut prioritas lalu batas kirim terdekat. Ambil labelnya dari rak tunggu sesuai tanggal pesanan.
+                        @if ($totals['orders'] > $resi->count()) Tampil {{ $num($resi->count()) }} dari {{ $num($totals['orders']) }} resi; Export Excel memuat semuanya. @endif
+                    </p>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="erp-table min-w-full text-sm">
+                    <thead>
+                        <tr>
+                            <th class="w-10 text-right">#</th>
+                            <th>No. Resi</th>
+                            <th>Batas kirim</th>
+                            <th>Tanggal pesanan</th>
+                            <th>Isi</th>
+                            @if ($type === PackingListController::ALL)
+                                <th>Stok</th>
+                            @endif
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($resi as $order)
+                            @php $state = $order->deadlineState(); @endphp
+                            <tr class="align-top">
+                                <td class="text-right tabular-nums text-ink-400">{{ $loop->iteration }}</td>
+                                <td>
+                                    <span class="font-mono text-[13px] font-medium text-ink-950">{{ $order->tracking_number }}</span>
+                                    <div class="mt-0.5 flex flex-wrap gap-1">
+                                        @if ($order->is_priority)
+                                            <x-ui.badge variant="purple">Prioritas</x-ui.badge>
+                                        @endif
+                                        @if ($kind = \App\Http\Controllers\Admin\OrderController::orderKind($order))
+                                            <x-ui.badge variant="outline">{{ $kind }}</x-ui.badge>
+                                        @endif
+                                    </div>
+                                </td>
+                                <td class="whitespace-nowrap">
+                                    @if ($order->ship_by)
+                                        <span class="text-xs text-ink-700">{{ $order->ship_by->format('d/m/Y H:i') }}</span>
+                                        <x-ui.badge :variant="$state[1]">{{ $state[0] }}</x-ui.badge>
+                                    @else
+                                        <x-ui.badge variant="warning">Belum ada batas</x-ui.badge>
+                                    @endif
+                                </td>
+                                <td class="whitespace-nowrap text-xs text-ink-500">{{ $order->order_date?->format('d/m/Y H:i') }}</td>
+                                <td class="text-xs">{{ $order->items->map(fn ($item) => $item->sku.' ×'.$item->quantity)->implode(', ') }}</td>
+                                @if ($type === PackingListController::ALL)
+                                    <td class="text-xs">
+                                        @if ($order->stock_status === \App\Services\OrderPlanner::READY)
+                                            <x-ui.badge variant="success">Siap</x-ui.badge>
+                                        @elseif ($order->stock_status === \App\Services\OrderPlanner::WAITING)
+                                            <x-ui.badge variant="warning">Menunggu stok</x-ui.badge>
+                                        @elseif ($order->stock_status === \App\Services\OrderPlanner::UNKNOWN_SKU)
+                                            <x-ui.badge variant="danger">SKU tidak dikenal</x-ui.badge>
+                                        @endif
+                                    </td>
+                                @endif
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
 </x-app-layout>

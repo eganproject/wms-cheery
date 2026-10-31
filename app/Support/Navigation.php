@@ -48,7 +48,7 @@ class Navigation
                 'icon' => 'marketplace',
                 'items' => [
                     ['label' => 'Pesanan', 'icon' => 'shopping-cart', 'route' => 'admin.orders.index',
-                        'match' => 'admin.orders.index', 'can' => 'imports.view',
+                        'match' => ['admin.orders.index', 'admin.orders.priority'], 'can' => 'imports.view',
                         // Dokumen pengiriman pesanan marketplace dibuka dari
                         // Pesanan, jadi detailnya juga berada di bawah menu ini.
                         'also' => fn () => static::viewingMarketplaceOutbound(),
@@ -56,6 +56,9 @@ class Navigation
                     ['label' => 'Packing List', 'icon' => 'list', 'route' => 'admin.orders.packing',
                         'match' => 'admin.orders.packing', 'can' => 'imports.view',
                         'keywords' => 'packing list picking daftar barang dikemas sisa remaining resi import'],
+                    ['label' => 'Lama PO', 'icon' => 'calendar', 'route' => 'admin.po-periods.index',
+                        'match' => 'admin.po-periods.*', 'can' => 'imports.view',
+                        'keywords' => 'lama po pre order preorder batas kirim harus dikirim deadline sla normal'],
                     ['label' => 'QC Kemas', 'icon' => 'packing', 'route' => 'admin.outbounds.marketplace',
                         'match' => ['admin.outbounds.marketplace', 'admin.outbounds.scan'], 'can' => 'outbounds.scan',
                         'keywords' => 'qc kemas stasiun packing scan qc resi pesanan marketplace'],

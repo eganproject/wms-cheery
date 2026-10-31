@@ -206,19 +206,20 @@ class TikTokExportLayoutTest extends TestCase
 
     /* --------------------------------------------------- redundansi ------ */
 
-    public function test_a_waybill_already_in_the_system_is_intercepted(): void
+    public function test_a_waybill_already_in_the_system_is_skipped_not_failed(): void
     {
         $this->upload($this->sample());
 
         $this->upload([$this->line(['Seller SKU' => 'Erika C', 'Quantity' => '5'])])
-            ->assertSessionHas('error');
+            ->assertSessionHas('success');
 
         $order = ShipmentOrder::where('tracking_number', 'JX0000000001')->firstOrFail();
         $this->assertSame(3, $order->totalQuantity(), 'Data lama tidak boleh berubah.');
 
-        $failure = ShipmentImport::latest('id')->first()->failures->sole();
-        $this->assertSame(ShipmentImportFailure::REASON_TRACKING_IN_SYSTEM, $failure->reason);
-        $this->assertStringContainsString('Untuk Dikirim pesanan.xlsx', $failure->detail);
+        $import = ShipmentImport::latest('id')->first();
+        $this->assertSame(1, $import->skipped_count);
+        $this->assertSame(0, $import->order_count);
+        $this->assertCount(0, $import->failures);
     }
 
     public function test_a_cancellation_on_a_known_waybill_is_still_applied(): void
@@ -227,7 +228,7 @@ class TikTokExportLayoutTest extends TestCase
         $this->upload([$this->line(['Order Status' => 'Dibatalkan'])]);
 
         $this->assertTrue(ShipmentOrder::sole()->isCancelled());
-        $this->assertStringContainsString('Status batal', ShipmentImportFailure::sole()->detail);
+        $this->assertSame(0, ShipmentImportFailure::count());
     }
 
     public function test_one_waybill_for_several_orders_is_intercepted(): void

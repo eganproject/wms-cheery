@@ -36,6 +36,8 @@
                 Export Excel
             </x-ui.button>
             <x-ui.button :href="route('admin.orders.packing', request()->only(['marketplace', 'store', 'courier', 'from', 'to', 'range']))" variant="secondary" icon="list">Packing List</x-ui.button>
+            <x-ui.button :href="route('admin.orders.priority')" variant="secondary" icon="clock"
+                         title="Unggah pesanan yang di TikTok harus dikirim hari ini">Harus Dikirim TikTok</x-ui.button>
             @can('imports.create')
                 <x-ui.button :href="route('admin.imports.create')" variant="secondary" icon="import">Import Resi</x-ui.button>
             @endcan
@@ -90,6 +92,56 @@
                 <span class="opacity-70">{{ $unmatched }}</span>
             @endif
         </a>
+    </div>
+
+    {{--
+        Kesiapan stok dan batas kirim. Tanpa tanggal yang dipilih sendiri,
+        penanda ini mencari di seluruh resi yang belum dikirim, bukan hanya
+        yang diunggah hari ini.
+    --}}
+    @php
+        $planHints = [
+            'ready.siap' => ['Siap dikemas', 'Resi Belum QC yang seluruh barangnya kebagian stok. Stok dibagi ke resi yang paling mendesak lebih dulu (prioritas, batas kirim, lalu waktu bayar).', 'Ambil labelnya dari rak dan kerjakan di QC Kemas.'],
+            'ready.menunggu' => ['Menunggu stok', 'Resi Belum QC yang barangnya belum cukup. Keterangan di baris pesanan menyebut SKU yang kurang.', null],
+            'deadline.overdue' => ['Lewat batas', 'Belum dikirim padahal batas kirimnya sudah lewat.', null],
+            'deadline.today' => ['Sampai hari ini', 'Batas kirim hari ini atau sudah lewat.', null],
+            'deadline.tomorrow' => ['Sampai besok', 'Batas kirim paling lambat besok.', null],
+            'deadline.priority' => ['Prioritas', 'Pengiriman Instan / besok sampai, atau dikunci menurut TikTok.', null],
+            'deadline.missing' => ['Belum ada batas kirim', 'Pesanan PO yang barangnya belum punya lama PO pada waktu bayarnya.', 'Isi lama PO di menu Lama PO.'],
+            'deadline.mismatch' => ['Beda dengan TikTok', 'TikTok meminta dikirim hari ini, tetapi hitungan lama PO di sistem lebih lambat.', 'Betulkan lama PO barangnya di menu Lama PO.'],
+        ];
+        $planTone = ['ready.siap' => 'emerald', 'ready.menunggu' => 'amber', 'deadline.overdue' => 'rose', 'deadline.today' => 'rose', 'deadline.tomorrow' => 'amber', 'deadline.priority' => 'violet', 'deadline.missing' => 'amber', 'deadline.mismatch' => 'rose'];
+    @endphp
+    <div class="mb-4 flex flex-wrap items-center gap-1.5" data-plan-chips>
+        <span class="mr-1 inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-ink-500">Pengiriman <x-ui.hint text="Kesiapan stok dan batas kirim resi yang belum dikirim. Tanpa tanggal unggah yang dipilih sendiri, dihitung atas seluruh resi." /></span>
+        @foreach ($planHints as $key => [$label, $hint, $next])
+            @php
+                [$param, $value] = explode('.', $key);
+                $active = request($param) === $value;
+                $count = $planCounts[$key] ?? 0;
+                $tone = $planTone[$key];
+            @endphp
+            <a href="{{ route('admin.orders.index', $keep([$param], [$param => $active ? null : $value, 'sort' => $active ? request('sort') : (request('sort') ?: 'deadline')])) }}"
+               data-hint-title="{{ $label }}" data-hint="{{ $hint }}" @if ($next) data-hint-next="{{ $next }}" @endif
+               @class([$chip, 'font-medium',
+                   'border-emerald-600 bg-emerald-600 text-white' => $active && $tone === 'emerald',
+                   'border-amber-600 bg-amber-600 text-white' => $active && $tone === 'amber',
+                   'border-rose-600 bg-rose-600 text-white' => $active && $tone === 'rose',
+                   'border-violet-600 bg-violet-600 text-white' => $active && $tone === 'violet',
+                   'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300' => ! $active && $count && $tone === 'emerald',
+                   'border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-300' => ! $active && $count && $tone === 'amber',
+                   'border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300' => ! $active && $count && $tone === 'rose',
+                   'border-violet-200 bg-violet-50 text-violet-700 hover:border-violet-300' => ! $active && $count && $tone === 'violet',
+                   'border-ink-200 bg-white text-ink-400' => ! $active && ! $count])
+               data-plan="{{ $key }}">
+                {{ $label }}
+                @if ($active)
+                    <x-icon name="close" class="h-3.5 w-3.5" />
+                @else
+                    <span class="opacity-70">{{ number_format($count, 0, ',', '.') }}</span>
+                @endif
+            </a>
+        @endforeach
     </div>
 
     {{--
@@ -216,7 +268,7 @@
         {{-- Pencarian: satu kata kunci, atau tempel banyak nomor sekaligus (satu per baris). --}}
         <form method="GET" action="{{ route('admin.orders.index') }}" class="space-y-3 border-b border-ink-100 p-4"
               x-data="{ multi: @js($searchTerms > 1) }">
-            @foreach (['stage', 'marketplace', 'store', 'courier', 'duplicate', 'unmatched'] as $field)
+            @foreach (['stage', 'marketplace', 'store', 'courier', 'duplicate', 'unmatched', 'ready', 'deadline'] as $field)
                 @if (request()->filled($field))
                     <input type="hidden" name="{{ $field }}" value="{{ request($field) }}">
                 @endif
@@ -250,7 +302,12 @@
             </div>
 
             <div class="flex flex-col gap-3 lg:flex-row lg:items-end">
-                <x-ui.date-filter label="Tanggal unggah berkas" />
+                <div class="min-w-0">
+                    <x-ui.date-filter label="Tanggal unggah berkas" />
+                    @if (! $explicitDate && (request()->filled('ready') || request()->filled('deadline')))
+                        <p class="mt-1 text-[11px] text-ink-500">Penanda pengiriman aktif: mencari di semua tanggal unggah.</p>
+                    @endif
+                </div>
 
                 <div class="flex flex-wrap items-center gap-2 lg:ml-auto">
                     <label for="order-per-page" class="whitespace-nowrap text-xs text-ink-500">Tampilkan</label>
@@ -267,7 +324,7 @@
                     </select>
                     <x-ui.button type="submit" icon="filter">Cari</x-ui.button>
                     @if (request()->hasAny(['search', 'search_by', 'from', 'to', 'range', 'sort']))
-                        <x-ui.button :href="route('admin.orders.index', request()->only(['stage', 'marketplace', 'store', 'courier', 'per_page']))"
+                        <x-ui.button :href="route('admin.orders.index', request()->only(['stage', 'marketplace', 'store', 'courier', 'per_page', 'ready', 'deadline']))"
                                      variant="ghost" size="icon" title="Reset pencarian">
                             <x-icon name="close" class="h-4 w-4" />
                         </x-ui.button>
@@ -321,7 +378,15 @@
                                             <x-icon name="warning" class="h-3.5 w-3.5" /> SKU tidak dikenal: <span class="font-mono">{{ $unmatchedItems->pluck('sku')->unique()->implode(', ') }}</span>
                                         </span>
                                     @endif
-                                    <span class="ml-auto flex items-center gap-4 whitespace-nowrap text-ink-500">
+                                    <span class="ml-auto flex flex-wrap items-center gap-x-4 gap-y-1 whitespace-nowrap text-ink-500">
+                                        @if ($order->ship_by && $orderStage !== ShipmentOrder::STAGE_SHIPPED && $orderStage !== ShipmentOrder::STAGE_CANCELLED)
+                                            @php [$dlText, $dlTone] = $order->deadlineState(); @endphp
+                                            <span class="inline-flex items-center gap-1" data-deadline
+                                                  title="{{ $order->isShipByLocked() ? ($order->ship_by_source === 'tiktok' ? 'Dikunci menurut TikTok' : 'Diubah manual') : 'Waktu bayar + '.(OrderController::orderKind($order) ?: 'aturan') }}">
+                                                Kirim sebelum <span class="font-medium text-ink-800">{{ $order->ship_by->format('d/m/Y H:i') }}</span>
+                                                <x-ui.badge :variant="$dlTone">{{ $dlText }}</x-ui.badge>
+                                            </span>
+                                        @endif
                                         @if ($order->order_date)
                                             <span title="Tanggal pesanan di marketplace">Dipesan <span class="text-ink-700">{{ $order->order_date->format('d/m/Y') }}</span></span>
                                         @endif
@@ -372,6 +437,33 @@
                                     <x-ui.badge variant="danger" class="ml-1 cursor-help" data-hint-title="Resi duplikat" data-hint="Pesanan yang sama juga punya resi {{ $twin->implode(', ') }}. Pastikan hanya satu resi yang dikirim." data-hint-next="Tandai batal resi yang tidak dipakai.">Duplikat</x-ui.badge>
                                 @endif
                                 <p class="mt-1 max-w-56 text-[11px] text-ink-500">{{ $order->stageDetail() }}</p>
+                                @if ($orderStage === ShipmentOrder::STAGE_AWAITING_QC && $order->stock_status)
+                                    <div class="mt-1.5" data-stock-status="{{ $order->stock_status }}">
+                                        @if ($order->stock_status === \App\Services\OrderPlanner::READY)
+                                            <x-ui.badge variant="success" class="cursor-help" data-hint-title="Siap dikemas" data-hint="Semua barangnya kebagian stok. Stok dibagi ke resi yang paling mendesak lebih dulu.">Siap dikemas</x-ui.badge>
+                                        @elseif ($order->stock_status === \App\Services\OrderPlanner::WAITING)
+                                            <x-ui.badge variant="warning">Menunggu stok</x-ui.badge>
+                                            @if ($order->stock_note)
+                                                <p class="mt-0.5 max-w-56 text-[11px] text-amber-700">{{ $order->stock_note }}</p>
+                                            @endif
+                                        @endif
+                                    </div>
+                                @endif
+                                @if ($order->isOpen())
+                                    <div class="mt-1.5 flex flex-wrap items-center gap-1">
+                                        @if ($kind = OrderController::orderKind($order))
+                                            <x-ui.badge variant="outline">{{ $kind }}</x-ui.badge>
+                                        @endif
+                                        @if ($order->is_priority)
+                                            <x-ui.badge variant="purple" class="cursor-help" data-hint-title="Prioritas" data-hint="{{ $order->ship_by_source === 'tiktok' ? 'Dikunci menurut TikTok: harus dikirim hari ini.' : 'Pengiriman '.$order->shipping_method.': kirim hari yang sama.' }}">Prioritas</x-ui.badge>
+                                        @endif
+                                        @if ($order->differsFromTikTok())
+                                            <x-ui.badge variant="danger" class="cursor-help" data-hint-title="Beda dengan TikTok" data-hint="Hitungan sistem: {{ $order->computed_ship_by?->format('d/m/Y H:i') ?? 'belum ada' }}. TikTok meminta lebih cepat." data-hint-next="Betulkan lama PO barangnya.">Beda dgn TikTok</x-ui.badge>
+                                        @elseif (! $order->ship_by)
+                                            <x-ui.badge variant="warning" class="cursor-help" data-hint-title="Belum ada batas kirim" data-hint="Barangnya belum punya lama PO yang berlaku pada waktu bayar pesanan ini." data-hint-next="Isi di menu Lama PO.">Lama PO belum diisi</x-ui.badge>
+                                        @endif
+                                    </div>
+                                @endif
                                 @if ($order->order_status)
                                     <p class="mt-1 text-[11px] text-ink-400" title="Status di marketplace saat diimport (hanya keterangan)">Marketplace: {{ $order->order_status }}</p>
                                 @endif
@@ -397,6 +489,34 @@
                                             <x-icon name="import" class="h-4 w-4" />
                                         </a>
                                     @endif
+                                    @can('imports.create')
+                                        @if ($order->isOpen())
+                                            <div class="relative" x-data="{ open: false }" @keydown.escape="open = false">
+                                                <button type="button" class="btn btn-ghost btn-icon" title="Ubah batas kirim" @click="open = ! open">
+                                                    <x-icon name="clock" class="h-4 w-4" />
+                                                </button>
+                                                <div x-show="open" x-cloak @click.outside="open = false"
+                                                     class="absolute right-0 z-20 mt-1 w-64 rounded-lg border border-ink-200 bg-white p-3 text-left shadow-lg">
+                                                    <form method="POST" action="{{ route('admin.orders.deadline', $order) }}" class="space-y-2">
+                                                        @csrf
+                                                        @method('PUT')
+                                                        <label class="block text-xs font-medium text-ink-700" for="ship-by-{{ $order->id }}">Batas kirim resi ini</label>
+                                                        <input id="ship-by-{{ $order->id }}" type="datetime-local" name="ship_by" class="form-control w-full" required
+                                                               value="{{ ($order->ship_by ?? now()->endOfDay())->format('Y-m-d\TH:i') }}">
+                                                        <p class="text-[11px] text-ink-500">Hitungan sistem: {{ $order->computed_ship_by?->format('d/m/Y H:i') ?? 'belum ada' }}</p>
+                                                        <x-ui.button type="submit" size="sm" class="w-full">Simpan</x-ui.button>
+                                                    </form>
+                                                    @if ($order->isShipByLocked())
+                                                        <form method="POST" action="{{ route('admin.orders.deadline.reset', $order) }}" class="mt-2">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <x-ui.button type="submit" size="sm" variant="ghost" class="w-full">Kembalikan ke hitungan sistem</x-ui.button>
+                                                        </form>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        @endif
+                                    @endcan
                                     @include('admin.imports.partials.cancel-control')
                                 </div>
                             </td>

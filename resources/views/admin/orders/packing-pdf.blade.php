@@ -55,7 +55,7 @@
         <span class="page" style="float: right;"></span>
     </footer>
 
-    <h1>Packing List</h1>
+    <h1>Packing List{{ $type === PackingListController::DAILY ? ' Harian' : ($type === PackingListController::ALL ? ' Keseluruhan' : '') }}</h1>
     <p class="meta muted small">
         @foreach ($filters as $line){{ $line }}<br>@endforeach
         {{ config('app.name') }}
@@ -136,6 +136,36 @@
             </tfoot>
         @endif
     </table>
+
+    @if ($resi->isNotEmpty())
+        <h2 style="font-size: 11pt; margin: 16px 0 4px; page-break-before: always;">Daftar resi yang dikerjakan</h2>
+        <p class="muted small" style="margin: 0 0 6px;">Urut prioritas lalu batas kirim terdekat. Ambil labelnya dari rak tunggu.</p>
+        <table class="list">
+            <thead>
+                <tr>
+                    <th class="center" style="width: 16px;">✓</th>
+                    <th class="right" style="width: 20px;">#</th>
+                    <th>No. Resi</th>
+                    <th style="width: 92px;">Batas kirim</th>
+                    <th style="width: 70px;">Tgl pesanan</th>
+                    <th>Isi</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($resi as $order)
+                    <tr>
+                        <td class="center"><span class="box"></span></td>
+                        <td class="right muted">{{ $loop->iteration }}</td>
+                        <td><span class="sku">{{ $order->tracking_number }}</span>
+                            @if ($order->is_priority) <span class="tag warn">Prioritas</span> @endif</td>
+                        <td>{{ $order->ship_by?->format('d/m/Y H:i') ?? '-' }}<br><span class="small muted">{{ $order->deadlineState()[0] ?? '' }}</span></td>
+                        <td class="small">{{ $order->order_date?->format('d/m/Y') }}</td>
+                        <td class="small">{{ $order->items->map(fn ($item) => $item->sku.' x'.$item->quantity)->implode(', ') }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
 
     <table class="sign">
         <tr>

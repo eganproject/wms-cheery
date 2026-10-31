@@ -96,7 +96,7 @@ class DailyWaybillReportTest extends TestCase
     public function test_the_default_range_is_the_current_month(): void
     {
         $today = $this->makeOrder('SPX', 'RESI-HARI-INI', Carbon::today(), 1);
-        $old = $this->makeOrder('SPX', 'RESI-BULAN-LALU', Carbon::today()->subMonth(), 1);
+        $old = $this->makeOrder('SPX', 'RESI-BULAN-LALU', Carbon::today()->subMonthNoOverflow(), 1);
 
         $rows = $this->rows();
 

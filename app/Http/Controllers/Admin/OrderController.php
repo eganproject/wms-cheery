@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ShipmentOrder;
 use App\Models\ShipmentOrderItem;
+use App\Services\OrderPlanner;
 use App\Services\TableExport;
 use App\Support\DateRange;
 use Illuminate\Database\Eloquent\Builder;
@@ -39,6 +40,7 @@ class OrderController extends Controller implements HasMiddleware
 
     public const SORTS = [
         '' => 'Terbaru diunggah',
+        'deadline' => 'Batas kirim terdekat',
         'oldest' => 'Terlama diunggah',
         'order_date_desc' => 'Tanggal pesanan terbaru',
         'order_date_asc' => 'Tanggal pesanan terlama',
@@ -50,6 +52,23 @@ class OrderController extends Controller implements HasMiddleware
     public const FILTER_KEYS = [
         'stage', 'search', 'search_by', 'marketplace', 'store', 'courier',
         'duplicate', 'unmatched', 'from', 'to', 'range', 'sort', 'per_page',
+        'ready', 'deadline',
+    ];
+
+    /** Saringan kesiapan stok (resi Belum QC). */
+    public const READY_FILTERS = [
+        OrderPlanner::READY => 'Siap dikemas',
+        OrderPlanner::WAITING => 'Menunggu stok',
+    ];
+
+    /** Saringan batas kirim (resi yang belum dikirim). */
+    public const DEADLINE_FILTERS = [
+        'overdue' => 'Lewat batas',
+        'today' => 'Sampai hari ini',
+        'tomorrow' => 'Sampai besok',
+        'priority' => 'Prioritas',
+        'missing' => 'Belum ada batas kirim',
+        'mismatch' => 'Beda dengan TikTok',
     ];
 
     /**
@@ -70,8 +89,10 @@ class OrderController extends Controller implements HasMiddleware
         ];
     }
 
-    public function index(Request $request): View
+    public function index(Request $request, OrderPlanner $planner): View
     {
+        $planner->refresh();
+
         // `stage` dipakai sejak halaman ini menggantikan Status Resi; `status`
         // tetap diterima supaya tautan lama tidak rusak.
         $stage = (string) ($request->input('stage') ?? $request->input('status'));
@@ -103,6 +124,8 @@ class OrderController extends Controller implements HasMiddleware
             'onlyDuplicates' => $request->boolean('duplicate'),
             'counts' => $this->counts($request),
             'duplicates' => $this->filtered($request, withFlags: false)->duplicated()->count(),
+            'planCounts' => $this->planCounts($request),
+            'explicitDate' => $this->explicitDate($request),
             'unmatched' => $this->filtered($request, withFlags: false)->whereHas('items', fn (Builder $items) => $items->whereNull('product_id'))->count(),
             'unknownSkus' => $this->unknownSkus($request),
             'twins' => ShipmentOrder::twinsFor($orders->items()),
@@ -119,8 +142,10 @@ class OrderController extends Controller implements HasMiddleware
      * Lembar "Pesanan" satu baris per resi; "Detail Barang" satu baris per
      * SKU per resi, untuk diolah ulang di spreadsheet.
      */
-    public function export(Request $request): StreamedResponse
+    public function export(Request $request, OrderPlanner $planner): StreamedResponse
     {
+        $planner->refresh();
+
         $stage = (string) ($request->input('stage') ?? $request->input('status'));
         $stage = ShipmentOrder::LEGACY_STAGES[$stage] ?? $stage;
         $stage = array_key_exists($stage, ShipmentOrder::STAGES) ? $stage : '';
@@ -150,6 +175,10 @@ class OrderController extends Controller implements HasMiddleware
                     $order->buyer_name,
                     $order->courier,
                     $order->shipping_method,
+                    $order->ship_by,
+                    self::orderKind($order),
+                    $order->is_priority ? 'Ya' : '',
+                    self::readyLabel($order),
                     self::STAGE_LABELS[$order->stage()] ?? $order->stageLabel(),
                     $order->stageDetail(),
                     $order->order_status,
@@ -184,12 +213,14 @@ class OrderController extends Controller implements HasMiddleware
 
         $notes = collect([
             'Tahap: '.(self::STAGE_LABELS[$stage] ?? 'Semua'),
-            'Tanggal unggah: '.DateRange::fromRequest($request)->label(),
+            'Tanggal unggah: '.($this->dateApplies($request) ? DateRange::fromRequest($request)->label() : 'semua'),
             $request->filled('marketplace') ? 'Marketplace: '.$request->string('marketplace') : null,
             $request->filled('store') ? 'Toko: '.$request->string('store') : null,
             $request->filled('courier') ? 'Kurir: '.$request->string('courier') : null,
             $request->boolean('duplicate') ? 'Hanya resi kembar' : null,
             $request->boolean('unmatched') ? 'Hanya SKU belum terdaftar' : null,
+            isset(self::READY_FILTERS[(string) $request->input('ready')]) ? self::READY_FILTERS[(string) $request->input('ready')] : null,
+            isset(self::DEADLINE_FILTERS[(string) $request->input('deadline')]) ? 'Batas kirim: '.mb_strtolower(self::DEADLINE_FILTERS[(string) $request->input('deadline')]) : null,
             count($this->terms($request)) ? 'Cari: '.Str::limit(implode(', ', $this->terms($request)), 80) : null,
         ])->filter()->implode(' · ');
 
@@ -206,6 +237,10 @@ class OrderController extends Controller implements HasMiddleware
                 ['Pembeli', 'text'],
                 ['Kurir', 'text'],
                 ['Layanan', 'text'],
+                ['Batas Kirim', 'datetime'],
+                ['Jenis', 'text'],
+                ['Prioritas', 'text'],
+                ['Kesiapan Stok', 'text'],
                 ['Tahap', 'text'],
                 ['Keterangan Tahap', 'text'],
                 ['Status Marketplace', 'text'],
@@ -237,8 +272,10 @@ class OrderController extends Controller implements HasMiddleware
      * Tab status sengaja tidak termasuk: tab itulah pemilihnya, jadi angkanya
      * tidak boleh ikut berubah saat tab lain dibuka.
      */
-    protected function filtered(Request $request, bool $withFlags = true): Builder
+    protected function filtered(Request $request, bool $withFlags = true, ?bool $applyDate = null): Builder
     {
+        $applyDate ??= $this->dateApplies($request);
+
         $field = array_key_exists((string) $request->input('search_by'), self::SEARCH_FIELDS)
             ? (string) $request->input('search_by')
             : '';
@@ -250,7 +287,9 @@ class OrderController extends Controller implements HasMiddleware
             ->when($request->filled('marketplace'), fn (Builder $query) => $query->where('marketplace', $request->string('marketplace')))
             ->when($request->filled('store'), fn (Builder $query) => $query->where('store_name', $request->string('store')))
             ->when($request->filled('courier'), fn (Builder $query) => $query->where('courier', $request->string('courier')))
-            ->dateBetween(DateRange::fromRequest($request))
+            ->when($applyDate, fn (Builder $query) => $query->dateBetween(DateRange::fromRequest($request)))
+            ->when($withFlags && $request->filled('ready'), fn (Builder $query) => $query->stockStatus((string) $request->input('ready')))
+            ->when($withFlags && $request->filled('deadline'), fn (Builder $query) => $query->deadline((string) $request->input('deadline')))
             ->when($withFlags && $request->boolean('duplicate'), fn (Builder $query) => $query->duplicated())
             ->when($withFlags && $request->boolean('unmatched'),
                 fn (Builder $query) => $query->whereHas('items', fn (Builder $items) => $items->whereNull('product_id')));
@@ -327,9 +366,100 @@ class OrderController extends Controller implements HasMiddleware
         };
     }
 
+    /**
+     * Tanggal unggah dipilih sendiri oleh pengguna (bukan bawaan "hari ini").
+     */
+    protected function explicitDate(Request $request): bool
+    {
+        return $request->hasAny(['from', 'to', 'range']);
+    }
+
+    /**
+     * Saringan kesiapan stok dan batas kirim mencari di seluruh resi yang
+     * belum dikirim. Bawaan "diunggah hari ini" justru menyembunyikan resi PO
+     * lama yang paling mendesak, jadi ia hanya berlaku bila dipilih sendiri.
+     */
+    protected function dateApplies(Request $request): bool
+    {
+        $planFilter = isset(self::READY_FILTERS[(string) $request->input('ready')])
+            || isset(self::DEADLINE_FILTERS[(string) $request->input('deadline')]);
+
+        return $this->explicitDate($request) || ! $planFilter;
+    }
+
+    /**
+     * Angka pada penanda kesiapan dan batas kirim. Tanpa tanggal yang dipilih
+     * sendiri, dihitung atas seluruh resi (sama dengan isi daftarnya saat
+     * penanda diklik).
+     *
+     * @return array<string, int>
+     */
+    protected function planCounts(Request $request): array
+    {
+        // Satu query: di antara resi yang belum dikirim, stock_status hanya
+        // terisi untuk resi Belum QC, jadi semua angka bisa dijumlah sekaligus.
+        $now = now();
+        $row = $this->filtered($request, withFlags: false, applyDate: $this->explicitDate($request))
+            ->open()
+            ->toBase()
+            ->selectRaw(implode(', ', [
+                "SUM(CASE WHEN shipment_orders.stock_status = 'siap' THEN 1 ELSE 0 END) AS ready_siap",
+                "SUM(CASE WHEN shipment_orders.stock_status = 'menunggu' THEN 1 ELSE 0 END) AS ready_menunggu",
+                'SUM(CASE WHEN shipment_orders.ship_by < ? THEN 1 ELSE 0 END) AS deadline_overdue',
+                'SUM(CASE WHEN shipment_orders.ship_by <= ? THEN 1 ELSE 0 END) AS deadline_today',
+                'SUM(CASE WHEN shipment_orders.ship_by <= ? THEN 1 ELSE 0 END) AS deadline_tomorrow',
+                'SUM(CASE WHEN shipment_orders.is_priority = 1 THEN 1 ELSE 0 END) AS deadline_priority',
+                'SUM(CASE WHEN shipment_orders.ship_by IS NULL THEN 1 ELSE 0 END) AS deadline_missing',
+                "SUM(CASE WHEN shipment_orders.ship_by_source = 'tiktok' AND (shipment_orders.computed_ship_by IS NULL OR shipment_orders.computed_ship_by > shipment_orders.ship_by) THEN 1 ELSE 0 END) AS deadline_mismatch",
+            ]), [
+                $now->toDateTimeString(),
+                $now->copy()->endOfDay()->toDateTimeString(),
+                $now->copy()->addDay()->endOfDay()->toDateTimeString(),
+            ])
+            ->first();
+
+        $counts = [];
+
+        foreach (array_keys(self::READY_FILTERS) as $key) {
+            $counts['ready.'.$key] = (int) ($row->{'ready_'.$key} ?? 0);
+        }
+
+        foreach (array_keys(self::DEADLINE_FILTERS) as $key) {
+            $counts['deadline.'.$key] = (int) ($row->{'deadline_'.$key} ?? 0);
+        }
+
+        return $counts;
+    }
+
+    public static function orderKind(ShipmentOrder $order): string
+    {
+        return match (true) {
+            $order->po_days > 0 => 'PO '.$order->po_days.' hari',
+            $order->is_preorder === false => 'Normal',
+            $order->po_days === 0 => 'PO · siap stok',
+            (bool) $order->is_preorder => 'PO',
+            default => '',
+        };
+    }
+
+    public static function readyLabel(ShipmentOrder $order): string
+    {
+        if ($order->stage() !== ShipmentOrder::STAGE_AWAITING_QC) {
+            return '';
+        }
+
+        return match ($order->stock_status) {
+            OrderPlanner::READY => 'Siap dikemas',
+            OrderPlanner::WAITING => 'Menunggu stok'.($order->stock_note ? ' ('.$order->stock_note.')' : ''),
+            OrderPlanner::UNKNOWN_SKU => 'SKU tidak dikenal',
+            default => '',
+        };
+    }
+
     protected function sort(Builder $query, string $sort): void
     {
         match ($sort) {
+            'deadline' => $query->mostUrgentFirst(),
             'oldest' => $query->orderBy('shipment_orders.created_at')->orderBy('shipment_orders.id'),
             'order_date_desc' => $query->orderByDesc('order_date')->orderByDesc('shipment_orders.id'),
             'order_date_asc' => $query->orderBy('order_date')->orderBy('shipment_orders.id'),

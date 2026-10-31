@@ -7,6 +7,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\Product;
 use App\Models\ShipmentImport;
 use App\Models\ShipmentOrder;
+use App\Services\OrderPlanner;
 use App\Services\TableExport;
 use App\Support\DateRange;
 use App\Support\PackingList;
@@ -28,6 +29,30 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class PackingListController extends Controller implements HasMiddleware
 {
+    /** Jenis packing list. */
+    public const DAILY = 'harian';
+
+    public const ALL = 'semua';
+
+    public const BY_UPLOAD = 'unggahan';
+
+    public const TYPES = [
+        self::DAILY => 'Harian (resi siap)',
+        self::ALL => 'Keseluruhan (belum diproses)',
+        self::BY_UPLOAD => 'Per unggahan',
+    ];
+
+    /** Batas kirim pada packing list harian. */
+    public const DUE = [
+        '' => 'Semua yang siap',
+        'today' => 'Batas sampai hari ini',
+        'tomorrow' => 'Sampai besok',
+        'week' => 'Sampai 7 hari',
+    ];
+
+    /** Banyaknya resi yang ditampilkan di layar; Excel memuat semuanya. */
+    public const RESI_ON_SCREEN = 300;
+
     public const SHOW = [
         '' => 'Semua barang',
         'sisa' => 'Masih ada sisa',
@@ -41,9 +66,11 @@ class PackingListController extends Controller implements HasMiddleware
         ];
     }
 
-    public function index(Request $request): View
+    public function index(Request $request, OrderPlanner $planner): View
     {
+        $planner->refresh();
         $data = $this->build($request);
+        $data['resi'] = $data['type'] === self::BY_UPLOAD ? collect() : $this->resiQuery($request, $data)->limit(self::RESI_ON_SCREEN)->get();
 
         $distinct = fn (string $column) => ShipmentOrder::filterOptions($column);
 
@@ -59,8 +86,10 @@ class PackingListController extends Controller implements HasMiddleware
      * Excel dengan saringan dan mode ringkasan yang sama dengan layar.
      * Lembar kedua memuat resi yang belum tuntas per barang.
      */
-    public function excel(Request $request): StreamedResponse
+    public function excel(Request $request, OrderPlanner $planner): StreamedResponse
     {
+        $planner->refresh();
+
         ['rows' => $rows, 'list' => $list, 'mode' => $mode] = $data = $this->build($request);
         $bySku = $mode === PackingList::BY_SKU;
 
@@ -97,6 +126,28 @@ class PackingListController extends Controller implements HasMiddleware
             $row['open_orders'],
         ]));
 
+        if ($data['type'] !== self::BY_UPLOAD) {
+            $export->sheet('Daftar Resi', [
+                ['No', 'number'],
+                ['No. Resi', 'text'],
+                ['No. Pesanan', 'text'],
+                ['Batas Kirim', 'datetime'],
+                ['Keterangan Batas', 'text'],
+                ['Prioritas', 'text'],
+                ['Jenis', 'text'],
+                ['Tanggal Pesanan', 'datetime'],
+                ['Kurir', 'text'],
+                ['Isi Pesanan', 'text'],
+                ['Kesiapan Stok', 'text'],
+            ], (function () use ($request, $data) {
+                $number = 0;
+
+                foreach ($this->resiQuery($request, $data)->lazy(500) as $order) {
+                    yield $this->resiRow(++$number, $order);
+                }
+            })());
+        }
+
         $export->sheet('Resi Belum Tuntas', [
             ['SKU', 'text'],
             ['Nama Barang', 'text'],
@@ -119,11 +170,17 @@ class PackingListController extends Controller implements HasMiddleware
     /**
      * PDF untuk dicetak dan dibawa packer: daftar barang dengan kotak centang.
      */
-    public function pdf(Request $request): Response
+    public function pdf(Request $request, OrderPlanner $planner): Response
     {
+        $planner->refresh();
         $data = $this->build($request);
 
+        // Daftar resi (label yang diambil dari rak) hanya untuk packing list
+        // harian; daftar keseluruhan bisa berisi puluhan ribu resi.
+        $resi = $data['type'] === self::DAILY ? $this->resiQuery($request, $data)->limit(2000)->get() : collect();
+
         $pdf = Pdf::loadView('admin.orders.packing-pdf', array_merge($data, [
+            'resi' => $resi,
             'filters' => $this->describe($request, $data),
             'images' => $request->boolean('gambar', true) ? $this->thumbnails($data['rows']) : [],
         ]))->setPaper('a4', 'portrait');
@@ -142,8 +199,12 @@ class PackingListController extends Controller implements HasMiddleware
             ? ShipmentImport::find($request->integer('import'))
             : null;
 
+        $type = $this->type($request);
+        $import = $type === self::BY_UPLOAD ? $import : null;
+        $due = array_key_exists((string) $request->input('batas'), self::DUE) ? (string) $request->input('batas') : '';
+
         $mode = $request->input('per') === PackingList::BY_PRODUCT ? PackingList::BY_PRODUCT : PackingList::BY_SKU;
-        $list = PackingList::for($this->filtered($request, $import), $mode);
+        $list = PackingList::for($this->filtered($request, $import, $type, $due), $mode);
 
         $show = array_key_exists((string) $request->input('show'), self::SHOW) ? (string) $request->input('show') : '';
         $search = trim((string) $request->input('search'));
@@ -160,6 +221,60 @@ class PackingListController extends Controller implements HasMiddleware
             'show' => $show,
             'mode' => $mode,
             'import' => $import,
+            'type' => $type,
+            'due' => $due,
+        ];
+    }
+
+    /**
+     * Harian bila tidak dipilih; "per unggahan" bila halaman dibuka dengan
+     * batch atau tanggal unggah (tautan lama dari Import Resi dan Pesanan).
+     */
+    protected function type(Request $request): string
+    {
+        $type = (string) $request->input('jenis');
+
+        if (array_key_exists($type, self::TYPES)) {
+            return $type;
+        }
+
+        return $request->hasAny(['import', 'from', 'to', 'range']) ? self::BY_UPLOAD : self::DAILY;
+    }
+
+    /**
+     * Resi pada packing list, paling mendesak lebih dulu.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    protected function resiQuery(Request $request, array $data): Builder
+    {
+        return $this->filtered($request, null, $data['type'], $data['due'])
+            ->with(['items:id,shipment_order_id,sku,quantity'])
+            ->mostUrgentFirst();
+    }
+
+    /**
+     * @return array<int, mixed>
+     */
+    protected function resiRow(int $number, ShipmentOrder $order): array
+    {
+        return [
+            $number,
+            $order->tracking_number,
+            $order->order_number,
+            $order->ship_by,
+            $order->deadlineState()[0] ?? 'Belum ada batas',
+            $order->is_priority ? 'Ya' : '',
+            OrderController::orderKind($order),
+            $order->order_date,
+            $order->courier,
+            $order->items->map(fn ($item) => $item->sku.' x'.$item->quantity)->implode(', '),
+            match ($order->stock_status) {
+                OrderPlanner::READY => 'Siap dikemas',
+                OrderPlanner::WAITING => 'Menunggu stok'.($order->stock_note ? ' ('.$order->stock_note.')' : ''),
+                OrderPlanner::UNKNOWN_SKU => 'SKU tidak dikenal',
+                default => '',
+            },
         ];
     }
 
@@ -171,9 +286,13 @@ class PackingListController extends Controller implements HasMiddleware
      */
     protected function describe(Request $request, array $data): array
     {
-        $parts = [];
+        $parts = ['Jenis: '.self::TYPES[$data['type']]];
 
-        if ($data['import']) {
+        if ($data['type'] === self::DAILY) {
+            $parts[] = self::DUE[$data['due']].', urut batas kirim (prioritas lebih dulu)';
+        } elseif ($data['type'] === self::ALL) {
+            $parts[] = 'Semua resi yang belum mulai discan di QC Kemas, tanpa melihat stok';
+        } elseif ($data['import']) {
             $parts[] = 'Batch: '.$data['import']->filename.' ('.$data['import']->created_at->format('d/m/Y H:i').')';
         } else {
             $parts[] = 'Tanggal unggah: '.DateRange::fromRequest($request)->label();
@@ -212,8 +331,9 @@ class PackingListController extends Controller implements HasMiddleware
     protected function filename(Request $request, string $extension): string
     {
         $mode = $request->input('per') === PackingList::BY_PRODUCT ? '-per-barang' : '';
+        $type = '-'.$this->type($request);
 
-        return 'packing-list'.$mode.'-'.now()->format('Y-m-d-Hi').'.'.$extension;
+        return 'packing-list'.$type.$mode.'-'.now()->format('Y-m-d-Hi').'.'.$extension;
     }
 
     /**
@@ -277,11 +397,15 @@ class PackingListController extends Controller implements HasMiddleware
      * Resi yang dihitung. Bila satu batch import dipilih, tanggal unggah
      * diabaikan: batch itu sendiri sudah menjadi batasnya.
      */
-    protected function filtered(Request $request, ?ShipmentImport $import): Builder
+    protected function filtered(Request $request, ?ShipmentImport $import, string $type = self::BY_UPLOAD, string $due = ''): Builder
     {
         return ShipmentOrder::query()
-            ->when($import, fn (Builder $query) => $query->where('shipment_import_id', $import->id))
-            ->when(! $import, fn (Builder $query) => $query->dateBetween(DateRange::fromRequest($request)))
+            ->when($type === self::DAILY, fn (Builder $query) => $query
+                ->stockStatus(OrderPlanner::READY)
+                ->when($due !== '', fn (Builder $query) => $query->deadline($due)))
+            ->when($type === self::ALL, fn (Builder $query) => $query->notStarted())
+            ->when($type === self::BY_UPLOAD && $import, fn (Builder $query) => $query->where('shipment_import_id', $import->id))
+            ->when($type === self::BY_UPLOAD && ! $import, fn (Builder $query) => $query->dateBetween(DateRange::fromRequest($request)))
             ->when($request->filled('marketplace'), fn (Builder $query) => $query->where('marketplace', $request->string('marketplace')))
             ->when($request->filled('store'), fn (Builder $query) => $query->where('store_name', $request->string('store')))
             ->when($request->filled('courier'), fn (Builder $query) => $query->where('courier', $request->string('courier')));
