@@ -103,8 +103,8 @@ fun StatusBarIcons(darkScreen: Boolean) {
         if (window != null) {
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkScreen
         }
-        onDispose {
-            if (window != null) WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
-        }
+        // Tidak dikembalikan saat layar ditutup: layar berikutnya sudah
+        // memasang warnanya sendiri, dan mengembalikan di sini menimpanya.
+        onDispose { }
     }
 }

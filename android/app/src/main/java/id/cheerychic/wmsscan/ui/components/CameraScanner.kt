@@ -1,6 +1,9 @@
 package id.cheerychic.wmsscan.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
@@ -123,7 +126,11 @@ fun CameraScanner(
                 "Kamera tidak tersedia · pakai scanner genggam",
                 color = Color(0xFFBBBBBB),
                 fontSize = 12.5.sp,
-                modifier = Modifier.align(Alignment.TopStart).padding(14.dp),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color(0xE61A1B20))
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
             )
         }
     }
