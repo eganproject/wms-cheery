@@ -14,7 +14,9 @@ mkdir -p "$OUT"
 # proses latar yang masih memegang stdout membuat langkah CI tidak pernah selesai.
 python3 "$HERE/mock_server.py" > /tmp/mock_server.log 2>&1 < /dev/null &
 MOCK_PID=$!
-trap 'kill $MOCK_PID 2>/dev/null || true' EXIT
+# Catat crash aplikasi (bila ada) supaya bisa dibaca dari branch screenshot.
+crashlog() { adb logcat -d -b crash > "$OUT/crash.txt" 2>/dev/null || true; adb logcat -d -s AndroidRuntime:E > "$OUT/runtime.txt" 2>/dev/null || true; }
+trap 'crashlog; kill $MOCK_PID 2>/dev/null || true' EXIT
 sleep 2
 
 adb wait-for-device
@@ -92,6 +94,7 @@ launch; shot 02-beranda 5
 # 3. Scan Kemas
 tap "Scan Kemas"; shot 03-kemas-menunggu-resi 3
 scan SPXID04918822731; shot 04-kemas-resi 1
+crashlog
 scan 8991234500035; shot 05-kemas-sebagian 1
 scan 8991234500035
 # Layar hijau "Paket lengkap" hanya tampil ~2 detik: ambil cepat.
