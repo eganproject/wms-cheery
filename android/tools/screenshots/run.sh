@@ -21,6 +21,10 @@ adb wait-for-device
 adb shell 'while [ "$(getprop sys.boot_completed)" != "1" ]; do sleep 1; done'
 adb install -r "$APK"
 
+# Emulator di CI kadang menampilkan dialog "Pixel Launcher isn't responding".
+adb shell settings put global hide_error_dialogs 1 || true
+sleep 15
+
 # Tanpa keyboard layar supaya tidak menutupi tampilan; "adb input" tetap jalan.
 for ime in $(adb shell ime list -s | tr -d '\r'); do adb shell ime disable "$ime" || true; done
 
@@ -32,7 +36,8 @@ adb shell am broadcast -a com.android.systemui.demo -e command battery -e level 
 adb shell am broadcast -a com.android.systemui.demo -e command network -e wifi show -e level 4 >/dev/null
 adb shell am broadcast -a com.android.systemui.demo -e command notifications -e visible false >/dev/null
 
-shot() { sleep "${2:-2}"; adb exec-out screencap -p > "$OUT/$1.png"; echo "shot $1"; }
+dismiss() { adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1 || true; }
+shot() { sleep "${2:-2}"; dismiss; sleep 0.5; adb exec-out screencap -p > "$OUT/$1.png"; echo "shot $1"; }
 
 prefs() {
   printf '%s' "$1" > /tmp/prefs.xml
@@ -47,6 +52,7 @@ launch() {
 
 # Ketuk elemen yang teksnya mengandung $1 (yang paling atas di layar).
 tap() {
+  dismiss
   adb shell uiautomator dump /sdcard/ui.xml >/dev/null
   adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null
   read -r x y < <(python3 - "$1" <<'PY'
