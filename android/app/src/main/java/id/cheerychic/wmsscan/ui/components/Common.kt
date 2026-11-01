@@ -123,8 +123,12 @@ fun ScanPanel(
     // hanya menutupi daftar barang. Ketuk kotaknya untuk mengetik manual.
     LaunchedEffect(Unit) {
         runCatching { focus.requestFocus() }
-        kotlinx.coroutines.delay(150)
-        keyboard?.hide()
+        // Keyboard bisa muncul sedikit setelah fokus didapat, jadi disembunyikan
+        // beberapa kali selama layar baru dibuka.
+        repeat(3) {
+            kotlinx.coroutines.delay(200)
+            keyboard?.hide()
+        }
     }
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
