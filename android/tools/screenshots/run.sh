@@ -86,12 +86,12 @@ tap "Scan Kemas"; shot 03-kemas-menunggu-resi 2
 scan SPXID04918822731; shot 04-kemas-resi 1
 scan 8991234500035; shot 05-kemas-sebagian 1
 scan 8991234500035; scan CC-HJB-PASMINA-CRM; shot 06-kemas-lengkap 1
-adb shell input keyevent 4; sleep 2
+launch; sleep 4
 
 # 4. Serah Terima
 tap "Scan Serah Terima"; sleep 2
 scan SPXID04918822705; scan JX3820194488; scan SPXID04918822706; shot 07-serah-terima 1
-adb shell input keyevent 4; sleep 2
+launch; sleep 4
 
 # 5. Daftar pesanan
 tap "Daftar Pesanan"; shot 08-pesanan-belum 3

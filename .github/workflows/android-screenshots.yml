@@ -58,6 +58,7 @@ jobs:
           path: shots
 
       - name: Publish to branch android-screenshots
+        if: always()
         run: |
           cd shots
           git init -q
