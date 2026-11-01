@@ -21,25 +21,29 @@ android {
         versionName = "1.0.$buildNumber"
     }
 
+    // Kunci tanda tangan diambil dari GitHub Secrets (lihat README). Dengan
+    // kunci tetap, APK baru bisa dipasang menimpa yang lama. Tanpa secret,
+    // APK ditandatangani kunci debug sementara (versi baru harus uninstall
+    // dulu yang lama).
+    val keystoreFile = file("release.keystore")
+    val hasReleaseKey = keystoreFile.exists() && !System.getenv("WMS_KEYSTORE_PASSWORD").isNullOrEmpty()
+
     signingConfigs {
-        // Kunci tanda tangan tetap (ikut di repo) supaya setiap APK hasil
-        // build bisa langsung memperbarui aplikasi yang sudah terpasang.
-        // Aplikasi ini dipasang manual (bukan lewat Play Store).
-        create("shared") {
-            storeFile = file("wms-scan.keystore")
-            storePassword = "cheerychic"
-            keyAlias = "wmsscan"
-            keyPassword = "cheerychic"
+        if (hasReleaseKey) {
+            create("shared") {
+                storeFile = keystoreFile
+                storePassword = System.getenv("WMS_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("WMS_KEY_ALIAS")?.takeIf { it.isNotEmpty() } ?: "wmsscan"
+                keyPassword = System.getenv("WMS_KEY_PASSWORD")?.takeIf { it.isNotEmpty() }
+                    ?: System.getenv("WMS_KEYSTORE_PASSWORD")
+            }
         }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("shared")
-        }
-        debug {
-            signingConfig = signingConfigs.getByName("shared")
+            signingConfig = signingConfigs.findByName("shared") ?: signingConfigs.getByName("debug")
         }
     }
 

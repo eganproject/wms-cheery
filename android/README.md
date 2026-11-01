@@ -34,5 +34,21 @@ Menu mengikuti hak akses role di web:
 ## Membangun sendiri
 
 Buka folder `android/` di Android Studio, atau jalankan `./gradlew assembleRelease`
-(butuh JDK 17 + Android SDK 35). APK ditandatangani dengan `app/wms-scan.keystore`
-yang ikut di repo supaya setiap build bisa menimpa versi sebelumnya.
+(butuh JDK 17 + Android SDK 35).
+
+## Kunci tanda tangan (sekali saja)
+
+Supaya APK versi baru bisa dipasang menimpa yang lama, semua build harus
+ditandatangani kunci yang sama. Kunci itu tidak disimpan di repo; isi di
+GitHub > Settings > Secrets and variables > Actions:
+
+| Secret | Isi |
+|---|---|
+| `WMS_KEYSTORE_BASE64` | isi berkas keystore dalam base64 (`base64 -w0 wms-scan.keystore`) |
+| `WMS_KEYSTORE_PASSWORD` | sandi keystore |
+| `WMS_KEY_ALIAS` | alias kunci (bawaan `wmsscan`) |
+| `WMS_KEY_PASSWORD` | sandi kunci (boleh kosong bila sama dengan sandi keystore) |
+
+Membuat keystore: `keytool -genkeypair -keystore wms-scan.keystore -alias wmsscan -keyalg RSA -keysize 2048 -validity 10000`.
+Selama secret belum diisi, APK memakai kunci debug sementara: setiap versi baru
+harus di-uninstall dulu sebelum dipasang.
