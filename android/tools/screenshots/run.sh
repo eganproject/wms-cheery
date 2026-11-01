@@ -75,7 +75,7 @@ USER_JSON='{&quot;id&quot;:1,&quot;name&quot;:&quot;Rina&quot;,&quot;email&quot;
 # 1. Login
 adb shell am start -n $PKG/.MainActivity >/dev/null; sleep 3
 prefs "<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map><string name=\"server\">https://wms.cheerychic.id</string><string name=\"email\">rina@cheerychic.id</string></map>"
-launch; shot 01-login 4
+launch; shot 01-login 9
 
 # 2. Beranda (sudah login)
 prefs "<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map><string name=\"server\">$SERVER</string><string name=\"email\">rina@cheerychic.id</string><string name=\"token\">demo</string><string name=\"user\">$USER_JSON</string></map>"

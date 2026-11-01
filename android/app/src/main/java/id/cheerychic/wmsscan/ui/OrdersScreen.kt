@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -270,6 +272,7 @@ fun OrdersScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun OrderCard(order: Order, onClick: () -> Unit) {
     Column(
@@ -304,7 +307,7 @@ fun OrderCard(order: Order, onClick: () -> Unit) {
             color = Ink,
             maxLines = 2,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             val (fg, bg) = when (order.stage) {
                 Stages.DIKIRIM -> Success to SuccessBg
                 Stages.SUDAH -> Info to InfoBg

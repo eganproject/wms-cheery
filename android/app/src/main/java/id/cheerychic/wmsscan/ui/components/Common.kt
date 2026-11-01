@@ -48,6 +48,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -103,6 +104,7 @@ fun ScanPanel(
     var text by remember { mutableStateOf("") }
     var cameraOn by rememberSaveable { mutableStateOf(false) }
     val focus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
 
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         cameraOn = granted
@@ -112,9 +114,18 @@ fun ScanPanel(
         val code = text.trim()
         text = ""
         if (code.isNotEmpty()) onScan(code)
+        // Setelah scan keyboard disembunyikan lagi supaya daftar barang terlihat.
+        keyboard?.hide()
     }
 
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    // Kotak scan langsung aktif untuk scanner genggam, tetapi keyboard layar
+    // tidak dimunculkan: operator memakai scanner atau kamera, dan keyboard
+    // hanya menutupi daftar barang. Ketuk kotaknya untuk mengetik manual.
+    LaunchedEffect(Unit) {
+        runCatching { focus.requestFocus() }
+        kotlinx.coroutines.delay(150)
+        keyboard?.hide()
+    }
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (cameraOn) {
