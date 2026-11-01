@@ -10,7 +10,11 @@ PKG=id.cheerychic.wmsscan
 APK="$HERE/../../app/build/outputs/apk/debug/app-debug.apk"
 mkdir -p "$OUT"
 
-python3 "$HERE/mock_server.py" &
+# Keluaran server dialihkan ke berkas dan servernya dimatikan di akhir:
+# proses latar yang masih memegang stdout membuat langkah CI tidak pernah selesai.
+python3 "$HERE/mock_server.py" > /tmp/mock_server.log 2>&1 < /dev/null &
+MOCK_PID=$!
+trap 'kill $MOCK_PID 2>/dev/null || true' EXIT
 sleep 2
 
 adb wait-for-device
