@@ -1,0 +1,54 @@
+name: Android APK
+
+# Membangun aplikasi Android (folder android/) setiap kali kodenya berubah.
+# Di main, APK-nya diterbitkan sebagai GitHub Release "WMS Cheery Scan" supaya
+# bisa diunduh langsung dari HP.
+on:
+  push:
+    paths:
+      - 'android/**'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk ../wms-cheery-scan.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wms-cheery-scan-${{ github.run_number }}
+          path: wms-cheery-scan.apk
+
+      - name: Publish release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-v1.0.${{ github.run_number }}
+          name: WMS Cheery Scan 1.0.${{ github.run_number }}
+          make_latest: true
+          files: wms-cheery-scan.apk
+          body: |
+            Aplikasi Android Scan Kemas & Serah Terima untuk WMS Cheery.
+
+            Cara pasang: buka halaman ini dari HP, unduh `wms-cheery-scan.apk`, lalu buka berkasnya.
+            Bila diminta, izinkan "Instal aplikasi tidak dikenal" untuk browser/Files.
+            Versi baru cukup dipasang menimpa yang lama (data login tetap).
