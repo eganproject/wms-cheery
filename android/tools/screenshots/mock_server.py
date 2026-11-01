@@ -5,16 +5,32 @@ app/Http/Controllers/Api/Mobile dan tests/Feature/Api/MobileAppApiTest.php).
 """
 import json
 import re
+import struct
+import zlib
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 USER = {"id": 1, "name": "Rina", "email": "rina@cheerychic.id", "role": "Staff Gudang",
         "can": {"kemas": True, "serah_terima": True, "pesanan": True}}
 
+
+def png(rgb, size=96):
+    """PNG polos satu warna sebagai pengganti foto produk."""
+    raw = b"".join(b"\x00" + bytes(rgb) * size for _ in range(size))
+
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+
+
+IMAGES = {"maroon": png((128, 28, 46)), "cream": png((236, 224, 200))}
+
 ITEMS = [
     {"id": 11, "sku": "CC-DRS-MAWAR-M", "name": "Dress Mawar Brokat - Maroon M", "barcode": "8991234500035",
-     "unit": "pcs", "stock": 24, "quantity": 2},
+     "image_url": "/img/maroon.png", "unit": "pcs", "stock": 24, "quantity": 2},
     {"id": 12, "sku": "CC-HJB-PASMINA-CRM", "name": "Pashmina Ceruti Cream", "barcode": "8991234500042",
-     "unit": "pcs", "stock": 51, "quantity": 1},
+     "image_url": "/img/cream.png", "unit": "pcs", "stock": 51, "quantity": 1},
 ]
 scanned = {11: 0, 12: 0}
 shipped = []
@@ -30,8 +46,10 @@ def order(i, resi, stage, **extra):
                          "dikirim": "Dikirim 01 Nov 2026 09:12"}[stage],
         "ready_label": "", "kind": "Normal", "is_priority": False, "ship_by": None, "deadline_label": None,
         "deadline_tone": None, "total_quantity": 3, "scanned_quantity": 0, "shipped_at": None,
-        "items": [{"sku": "CC-DRS-MAWAR-M", "name": "Dress Mawar Brokat - Maroon M", "quantity": 2},
-                  {"sku": "CC-HJB-PASMINA-CRM", "name": "Pashmina Ceruti Cream", "quantity": 1}],
+        "items": [{"sku": "CC-DRS-MAWAR-M", "name": "Dress Mawar Brokat - Maroon M", "quantity": 2,
+                   "image_url": "/img/maroon.png"},
+                  {"sku": "CC-HJB-PASMINA-CRM", "name": "Pashmina Ceruti Cream", "quantity": 1,
+                   "image_url": "/img/cream.png"}],
     }
     base.update(extra)
     return base
@@ -71,11 +89,25 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = self.path.split("?")[0]
         query = self.path.split("?")[1] if "?" in self.path else ""
+        m = re.match(r"/img/(\w+)\.png$", path)
+        if m and m.group(1) in IMAGES:
+            body = IMAGES[m.group(1)]
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if path == "/api/mobile/me":
             return self.send(200, {"user": USER})
         if path == "/api/mobile/summary":
             return self.send(200, {"date": "2026-11-01", "belum_dikemas": 37, "siap_dikemas": 29,
-                                   "sudah_dikemas": 12, "dikirim": 58})
+                                   "menunggu_stok": 8, "prioritas": 3, "sudah_dikemas": 12, "dikirim": 58,
+                                   "batas_hari_ini_terbuka": 49, "lewat_batas": 12, "dikirim_sejam_terakhir": 8,
+                                   "antrean_per_kurir": [{"courier": "J&T Express", "total": 6},
+                                                         {"courier": "SPX Express", "total": 3},
+                                                         {"courier": "Tanpa kurir", "total": 2},
+                                                         {"courier": "JNE", "total": 1}]})
         if path == "/api/mobile/orders":
             stage = re.search(r"stage=([a-z-]+)", query)
             stage = stage.group(1) if stage else "belum-qc"
@@ -87,7 +119,7 @@ class Handler(BaseHTTPRequestHandler):
         if m:
             o = dict(order(5, "SPXID04918822705", "serah-terima", scanned_quantity=3))
             o.update({"buyer_note": "Tolong dibungkus rapi ya kak", "outbound_code": "OUT-202611-0142",
-                      "packed_items": [{"sku": i["sku"], "name": i["name"], "barcode": i["barcode"],
+                      "packed_items": [{"sku": i["sku"], "name": i["name"], "barcode": i["barcode"], "image_url": i["image_url"],
                                         "quantity": i["quantity"], "scanned": i["quantity"]} for i in ITEMS]})
             return self.send(200, {"order": o})
         self.send(404, {"message": "Not found"})

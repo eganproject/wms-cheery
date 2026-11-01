@@ -25,6 +25,9 @@ use Illuminate\Support\Carbon;
  */
 class OrderController extends Controller implements HasMiddleware
 {
+    /** Label antrean untuk resi yang kurirnya kosong. */
+    public const NO_COURIER = 'Tanpa kurir';
+
     public const STAGES = [
         ShipmentOrder::STAGE_AWAITING_QC => 'Belum Dikemas',
         ShipmentOrder::STAGE_HANDOVER => 'Sudah Dikemas',
@@ -47,12 +50,37 @@ class OrderController extends Controller implements HasMiddleware
 
         $date = $this->date($request);
 
+        $shipped = $this->shippedOn(ShipmentOrder::query(), $date)->count();
+
+        // Batas kirim hari ini: yang sudah dikirim hari ini ditambah yang masih
+        // terbuka dan batasnya sampai hari ini (termasuk yang sudah lewat).
+        $dueOpen = ShipmentOrder::query()->deadline('today')->count();
+
         return response()->json([
             'date' => $date->toDateString(),
             'belum_dikemas' => ShipmentOrder::query()->awaitingQc()->count(),
             'siap_dikemas' => ShipmentOrder::query()->stockStatus(OrderPlanner::READY)->count(),
+            'menunggu_stok' => ShipmentOrder::query()->stockStatus(OrderPlanner::WAITING)->count(),
+            'prioritas' => ShipmentOrder::query()->awaitingQc()->where('shipment_orders.is_priority', true)->count(),
             'sudah_dikemas' => ShipmentOrder::query()->qualityChecked()->count(),
-            'dikirim' => $this->shippedOn(ShipmentOrder::query(), $date)->count(),
+            'dikirim' => $shipped,
+            'batas_hari_ini_terbuka' => $dueOpen,
+            'lewat_batas' => ShipmentOrder::query()->deadline('overdue')->count(),
+            'dikirim_sejam_terakhir' => Outbound::query()
+                ->where('type', Outbound::TYPE_MARKETPLACE)
+                ->where('status', Outbound::STATUS_POSTED)
+                ->where('posted_at', '>=', now()->subHour())
+                ->count(),
+            // Antrean serah terima per kurir, supaya petugas tahu paket kurir
+            // mana yang harus disiapkan saat kurirnya datang.
+            'antrean_per_kurir' => ShipmentOrder::query()->qualityChecked()
+                ->toBase()
+                ->selectRaw("COALESCE(NULLIF(courier, ''), ?) as courier_name, COUNT(*) as total", [self::NO_COURIER])
+                ->groupByRaw("COALESCE(NULLIF(courier, ''), ?)", [self::NO_COURIER])
+                ->orderByDesc('total')
+                ->get()
+                ->map(fn ($row) => ['courier' => $row->courier_name, 'total' => (int) $row->total])
+                ->values(),
         ]);
     }
 
@@ -68,8 +96,17 @@ class OrderController extends Controller implements HasMiddleware
 
         $query = ShipmentOrder::query()
             ->when($search !== '', fn (Builder $query) => $query->search($search))
+            // Saringan cepat untuk tab Belum Dikemas.
+            ->when($stage === ShipmentOrder::STAGE_AWAITING_QC && in_array($request->input('ready'), [OrderPlanner::READY, OrderPlanner::WAITING], true),
+                fn (Builder $query) => $query->stockStatus((string) $request->input('ready')))
+            ->when($stage === ShipmentOrder::STAGE_AWAITING_QC && $request->boolean('priority'),
+                fn (Builder $query) => $query->where('shipment_orders.is_priority', true))
+            ->when($stage === ShipmentOrder::STAGE_HANDOVER && $request->filled('courier'),
+                fn (Builder $query) => $request->input('courier') === self::NO_COURIER
+                    ? $query->where(fn (Builder $q) => $q->whereNull('courier')->orWhere('courier', ''))
+                    : $query->where('courier', $request->string('courier')->value()))
             ->with([
-                'items',
+                'items.product.group',
                 'outbound' => fn ($query) => $query
                     ->withSum('items', 'quantity')
                     ->withSum('items', 'scanned_quantity'),
@@ -106,11 +143,11 @@ class OrderController extends Controller implements HasMiddleware
     public function show(ShipmentOrder $order): JsonResponse
     {
         $order->load([
-            'items',
+            'items.product.group',
             'outbound' => fn ($query) => $query
                 ->withSum('items', 'quantity')
                 ->withSum('items', 'scanned_quantity')
-                ->with('items.product'),
+                ->with('items.product.group'),
         ]);
 
         return response()->json([
@@ -121,6 +158,7 @@ class OrderController extends Controller implements HasMiddleware
                     'sku' => $item->product?->sku,
                     'name' => $item->product?->name,
                     'barcode' => $item->product?->barcode,
+                    'image_url' => $item->product?->image_url,
                     'quantity' => (int) $item->quantity,
                     'scanned' => (int) $item->scanned_quantity,
                 ])->values() ?? [],
@@ -160,6 +198,7 @@ class OrderController extends Controller implements HasMiddleware
                 'sku' => $item->sku,
                 'name' => $item->product_name,
                 'quantity' => (int) $item->quantity,
+                'image_url' => $item->product?->image_url,
             ])->values(),
         ];
     }

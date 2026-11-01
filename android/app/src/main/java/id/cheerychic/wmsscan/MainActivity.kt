@@ -3,9 +3,11 @@ package id.cheerychic.wmsscan
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -19,10 +21,12 @@ import id.cheerychic.wmsscan.ui.LoginScreen
 import id.cheerychic.wmsscan.ui.OrderDetailScreen
 import id.cheerychic.wmsscan.ui.OrdersScreen
 import id.cheerychic.wmsscan.ui.SerahTerimaScreen
+import id.cheerychic.wmsscan.ui.components.Tab
 import id.cheerychic.wmsscan.ui.theme.WmsTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
             WmsTheme { AppRoot() }
@@ -40,12 +44,11 @@ private fun AppRoot() {
     }
 
     val nav = rememberNavController()
+    val openTab: (Tab) -> Unit = { tab -> nav.openTab(tab) }
+
     NavHost(navController = nav, startDestination = "home") {
         composable("home") {
-            HomeScreen(
-                user = user!!,
-                onOpen = { route -> nav.navigate(route) },
-            )
+            HomeScreen(user = user!!, onTab = openTab)
         }
         composable("kemas") { KemasScreen(onBack = { nav.popBackStack() }) }
         composable("serah") {
@@ -60,7 +63,7 @@ private fun AppRoot() {
         ) { entry ->
             OrdersScreen(
                 initialStage = entry.arguments?.getString("stage") ?: Stages.BELUM,
-                onBack = { nav.popBackStack() },
+                onTab = openTab,
                 onOpen = { id -> nav.navigate("order/$id") },
             )
         }
@@ -72,6 +75,19 @@ private fun AppRoot() {
                 id = entry.arguments?.getInt("id") ?: 0,
                 onBack = { nav.popBackStack() },
             )
+        }
+    }
+}
+
+private fun NavHostController.openTab(tab: Tab) {
+    val user = Session.user.value ?: return
+    when (tab) {
+        Tab.Home -> popBackStack("home", inclusive = false)
+        Tab.Kemas -> if (user.can.kemas) navigate("kemas")
+        Tab.Serah -> if (user.can.serahTerima) navigate("serah")
+        Tab.Pesanan -> if (user.can.pesanan) navigate("orders/${Stages.BELUM}") {
+            popUpTo("home")
+            launchSingleTop = true
         }
     }
 }

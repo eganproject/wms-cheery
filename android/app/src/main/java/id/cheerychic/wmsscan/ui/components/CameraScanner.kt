@@ -2,6 +2,7 @@ package id.cheerychic.wmsscan.ui.components
 
 import android.os.SystemClock
 import androidx.annotation.OptIn
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
@@ -10,6 +11,9 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -32,8 +36,14 @@ import java.util.concurrent.Executors
 @Composable
 fun CameraScanner(
     modifier: Modifier = Modifier,
+    torch: Boolean = false,
     onCode: (String) -> Unit,
 ) {
+    var camera by remember { mutableStateOf<Camera?>(null) }
+    LaunchedEffect(camera, torch) {
+        camera?.let { cam -> if (cam.cameraInfo.hasFlashUnit()) cam.cameraControl.enableTorch(torch) }
+    }
+
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentOnCode by rememberUpdatedState(onCode)
@@ -81,7 +91,7 @@ fun CameraScanner(
 
             runCatching {
                 provider.unbindAll()
-                provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
+                camera = provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
             }
         }, ContextCompat.getMainExecutor(context))
 

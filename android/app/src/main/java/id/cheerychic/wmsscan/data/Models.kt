@@ -46,6 +46,7 @@ data class PackItem(
     val sku: String,
     val name: String = "",
     val barcode: String? = null,
+    @SerialName("image_url") val imageUrl: String? = null,
     val unit: String? = null,
     val stock: Int = 0,
     val quantity: Int,
@@ -119,15 +120,25 @@ data class Summary(
     val date: String = "",
     @SerialName("belum_dikemas") val belumDikemas: Int = 0,
     @SerialName("siap_dikemas") val siapDikemas: Int = 0,
+    @SerialName("menunggu_stok") val menungguStok: Int = 0,
+    val prioritas: Int = 0,
     @SerialName("sudah_dikemas") val sudahDikemas: Int = 0,
     val dikirim: Int = 0,
+    @SerialName("batas_hari_ini_terbuka") val batasHariIniTerbuka: Int = 0,
+    @SerialName("lewat_batas") val lewatBatas: Int = 0,
+    @SerialName("dikirim_sejam_terakhir") val dikirimSejamTerakhir: Int = 0,
+    @SerialName("antrean_per_kurir") val antreanPerKurir: List<CourierCount> = emptyList(),
 )
+
+@Serializable
+data class CourierCount(val courier: String = "", val total: Int = 0)
 
 @Serializable
 data class OrderItem(
     val sku: String? = null,
     val name: String? = null,
     val quantity: Int = 0,
+    @SerialName("image_url") val imageUrl: String? = null,
 )
 
 @Serializable
@@ -135,6 +146,7 @@ data class PackedItem(
     val sku: String? = null,
     val name: String? = null,
     val barcode: String? = null,
+    @SerialName("image_url") val imageUrl: String? = null,
     val quantity: Int = 0,
     val scanned: Int = 0,
 )

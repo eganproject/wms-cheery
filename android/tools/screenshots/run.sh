@@ -20,6 +20,8 @@ sleep 2
 adb wait-for-device
 adb shell 'while [ "$(getprop sys.boot_completed)" != "1" ]; do sleep 1; done'
 adb install -r "$APK"
+# Kamera menyala otomatis di layar scan; izinkan supaya dialog izin tidak menutupi.
+adb shell pm grant $PKG android.permission.CAMERA || true
 
 # Emulator di CI kadang menampilkan dialog "Pixel Launcher isn't responding".
 adb shell settings put global hide_error_dialogs 1 || true
@@ -88,21 +90,25 @@ prefs "<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map><string name
 launch; shot 02-beranda 5
 
 # 3. Scan Kemas
-tap "Scan Kemas"; shot 03-kemas-menunggu-resi 2
+tap "Scan Kemas"; shot 03-kemas-menunggu-resi 3
 scan SPXID04918822731; shot 04-kemas-resi 1
 scan 8991234500035; shot 05-kemas-sebagian 1
-scan 8991234500035; scan CC-HJB-PASMINA-CRM; shot 06-kemas-lengkap 1
+scan 8991234500035
+# Layar hijau "Paket lengkap" hanya tampil ~2 detik: ambil cepat.
+adb shell input text CC-HJB-PASMINA-CRM; adb shell input keyevent 66; shot 06-kemas-lengkap 0.7
+sleep 3; shot 06b-kemas-siap-resi-berikutnya 0
 launch; sleep 4
 
 # 4. Serah Terima
-tap "Scan Serah Terima"; sleep 2
+tap "Serah Terima"; sleep 3
 scan SPXID04918822705; scan JX3820194488; scan SPXID04918822706; shot 07-serah-terima 1
 launch; sleep 4
 
 # 5. Daftar pesanan
-tap "Daftar Pesanan"; shot 08-pesanan-belum 3
-tap "Sudah Dikemas"; shot 09-pesanan-sudah 3
+tap "Pesanan"; shot 08-pesanan-belum 4
+tap "Prioritas"; shot 08b-pesanan-prioritas 3
+tap "Dikemas"; shot 09-pesanan-sudah 3
 tap "Dikirim"; shot 10-pesanan-dikirim 3
-tap "Sudah Dikemas"; sleep 3; tap "SPXID04918822705"; shot 11-rincian-resi 3
+tap "Dikemas"; sleep 3; tap "SPXID04918822705"; shot 11-rincian-resi 3
 
 ls -la "$OUT"

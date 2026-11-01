@@ -223,6 +223,73 @@ class MobileAppApiTest extends TestCase
             ->assertJsonPath('order.packed_items', []);
     }
 
+    public function test_summary_carries_the_home_screen_numbers(): void
+    {
+        $today = $this->importOrder('SPXID111', 1);
+        $today->forceFill(['ship_by' => now()->setTime(23, 0), 'ship_by_source' => 'manual', 'courier' => 'J&T Express'])->save();
+        $later = $this->importOrder('SPXID222', 1);
+        $later->forceFill(['ship_by' => now()->addDays(3), 'ship_by_source' => 'manual', 'courier' => 'J&T Express'])->save();
+        $token = $this->tokenFor($this->admin);
+
+        $id = $this->withToken($token)->postJson('/api/mobile/kemas/resi', ['code' => 'SPXID222'])->json('outbound.id');
+        $this->withToken($token)->postJson("/api/mobile/kemas/{$id}/item", ['code' => 'FLT-OLI-STD'])->assertOk();
+
+        $this->withToken($token)->getJson('/api/mobile/summary')
+            ->assertOk()
+            ->assertJsonPath('batas_hari_ini_terbuka', 1)
+            ->assertJsonPath('dikirim_sejam_terakhir', 0)
+            ->assertJsonPath('antrean_per_kurir.0.courier', 'J&T Express')
+            ->assertJsonPath('antrean_per_kurir.0.total', 1);
+
+        $this->withToken($token)->postJson('/api/mobile/serah-terima/scan', ['code' => 'SPXID222'])->assertOk();
+
+        $this->withToken($token)->getJson('/api/mobile/summary')
+            ->assertOk()
+            ->assertJsonPath('dikirim', 1)
+            ->assertJsonPath('dikirim_sejam_terakhir', 1)
+            ->assertJsonPath('antrean_per_kurir', []);
+    }
+
+    public function test_quick_filters_narrow_the_unpacked_list(): void
+    {
+        $this->importOrder('SPXID111', 1);
+        $this->importOrder('SPXID222', 1)->forceFill(['shipping_method' => 'Instant'])->save();
+        $token = $this->tokenFor($this->admin);
+
+        $this->withToken($token)->getJson('/api/mobile/orders?stage=belum-qc&priority=1')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.tracking_number', 'SPXID222')
+            ->assertJsonPath('data.0.items.0.image_url', null);
+    }
+
+    public function test_handover_queue_groups_blank_couriers_and_filters_them(): void
+    {
+        $this->importOrder('SPXID111', 1)->forceFill(['courier' => null])->save();
+        $this->importOrder('SPXID222', 1)->forceFill(['courier' => ''])->save();
+        $this->importOrder('SPXID333', 1)->forceFill(['courier' => 'JNE'])->save();
+        $token = $this->tokenFor($this->admin);
+
+        foreach (['SPXID111', 'SPXID222', 'SPXID333'] as $code) {
+            $id = $this->withToken($token)->postJson('/api/mobile/kemas/resi', ['code' => $code])->json('outbound.id');
+            $this->withToken($token)->postJson("/api/mobile/kemas/{$id}/item", ['code' => 'FLT-OLI-STD'])->assertOk();
+        }
+
+        $this->withToken($token)->getJson('/api/mobile/summary')
+            ->assertOk()
+            ->assertJsonCount(2, 'antrean_per_kurir')
+            ->assertJsonPath('antrean_per_kurir.0.courier', 'Tanpa kurir')
+            ->assertJsonPath('antrean_per_kurir.0.total', 2);
+
+        $this->withToken($token)->getJson('/api/mobile/orders?stage=serah-terima&courier=Tanpa%20kurir')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2);
+
+        $this->withToken($token)->getJson('/api/mobile/orders?stage=serah-terima&courier=JNE')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1);
+    }
+
     /* --------------------------------------------------- bantuan --------- */
 
     protected function tokenFor(User $user): string

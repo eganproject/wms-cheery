@@ -33,6 +33,11 @@ object Session {
         get() = prefs.getString("email", "") ?: ""
         set(value) = prefs.edit().putString("email", value).apply()
 
+    /** Kamera di layar scan menyala otomatis (bisa dimatikan bila pakai scanner genggam). */
+    var cameraEnabled: Boolean
+        get() = prefs.getBoolean("camera", true)
+        set(value) = prefs.edit().putBoolean("camera", value).apply()
+
     val token: String?
         get() = prefs.getString("token", null)
 

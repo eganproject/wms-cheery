@@ -87,11 +87,22 @@ object Api {
     suspend fun summary(date: String? = null): Summary =
         json.decodeFromString(call("GET", "/summary", query = mapOf("date" to date)))
 
-    suspend fun orders(stage: String, page: Int, search: String, date: String?): OrdersResponse =
+    suspend fun orders(
+        stage: String,
+        page: Int,
+        search: String,
+        date: String?,
+        ready: String? = null,
+        priority: Boolean = false,
+        courier: String? = null,
+    ): OrdersResponse =
         json.decodeFromString(
             call(
                 "GET", "/orders",
-                query = mapOf("stage" to stage, "page" to page.toString(), "search" to search, "date" to date),
+                query = mapOf(
+                    "stage" to stage, "page" to page.toString(), "search" to search, "date" to date,
+                    "ready" to ready, "priority" to if (priority) "1" else null, "courier" to courier,
+                ),
             )
         )
 
