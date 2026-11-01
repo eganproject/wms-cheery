@@ -1,5 +1,13 @@
 package id.cheerychic.wmsscan.ui.components
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import android.os.SystemClock
 import androidx.annotation.OptIn
 import androidx.camera.core.Camera
@@ -40,6 +48,7 @@ fun CameraScanner(
     onCode: (String) -> Unit,
 ) {
     var camera by remember { mutableStateOf<Camera?>(null) }
+    var unavailable by remember { mutableStateOf(false) }
     LaunchedEffect(camera, torch) {
         camera?.let { cam -> if (cam.cameraInfo.hasFlashUnit()) cam.cameraControl.enableTorch(torch) }
     }
@@ -59,7 +68,12 @@ fun CameraScanner(
         var lastAt = 0L
 
         providerFuture.addListener({
-            val provider = providerFuture.get()
+            // HP tanpa kamera / kamera dipakai aplikasi lain: jangan sampai
+            // aplikasi tertutup, cukup beri tahu dan pakai scanner genggam.
+            val provider = runCatching { providerFuture.get() }.getOrElse {
+                unavailable = true
+                return@addListener
+            }
             val preview = Preview.Builder().build()
             preview.setSurfaceProvider(previewView.surfaceProvider)
 
@@ -92,7 +106,7 @@ fun CameraScanner(
             runCatching {
                 provider.unbindAll()
                 camera = provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
-            }
+            }.onFailure { unavailable = true }
         }, ContextCompat.getMainExecutor(context))
 
         onDispose {
@@ -102,5 +116,15 @@ fun CameraScanner(
         }
     }
 
-    AndroidView(factory = { previewView }, modifier = modifier)
+    Box(modifier) {
+        AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
+        if (unavailable) {
+            Text(
+                "Kamera tidak tersedia · pakai scanner genggam",
+                color = Color(0xFFBBBBBB),
+                fontSize = 12.5.sp,
+                modifier = Modifier.align(Alignment.TopStart).padding(14.dp),
+            )
+        }
+    }
 }
