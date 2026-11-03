@@ -64,6 +64,7 @@ import id.cheerychic.wmsscan.ui.theme.InkLine
 import id.cheerychic.wmsscan.ui.theme.InkMuted
 import id.cheerychic.wmsscan.ui.theme.Success
 import id.cheerychic.wmsscan.ui.theme.SuccessBg
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -83,6 +84,8 @@ data class HandoverLog(
  * Serah Terima Paket: setiap resi yang discan langsung dikirim (stok
  * berkurang), atau diajukan bila akun tidak punya hak menyetujui.
  */
+private const val MAX_LOG = 200
+
 class SerahTerimaViewModel : ViewModel() {
     val log = mutableStateListOf<HandoverLog>()
     var banner by mutableStateOf<Banner?>(null)
@@ -97,6 +100,12 @@ class SerahTerimaViewModel : ViewModel() {
         private set
 
     private val lock = Mutex()
+
+    private fun addLog(entry: HandoverLog) {
+        log.add(0, entry)
+        // Riwayat hanya untuk sesi ini; dibatasi supaya tidak memberatkan HP.
+        while (log.size > MAX_LOG) log.removeAt(log.lastIndex)
+    }
     private val clock = SimpleDateFormat("HH:mm", Locale("id"))
 
     fun loadSummary() {
@@ -105,7 +114,9 @@ class SerahTerimaViewModel : ViewModel() {
             runCatching {
                 val s = Api.summary()
                 summary = s
-                remaining = s.sudahDikemas
+                // Angka yang sama dengan jawaban scan serah terima (antrean
+                // dokumen), supaya "Sisa antrean" tidak meloncat-loncat.
+                remaining = s.antreanSerahTerima ?: s.sudahDikemas
             }
         }
     }
@@ -121,7 +132,7 @@ class SerahTerimaViewModel : ViewModel() {
                     remaining = result.remaining
                     sentCount++
                     banner = Banner("${o.trackingNumber ?: o.code} · ${result.message}", Tone.Success)
-                    log.add(0, HandoverLog(
+                    addLog(HandoverLog(
                         code, true, o.trackingNumber ?: o.code,
                         listOfNotNull(o.marketplace, o.recipient, if (o.units > 0) "${o.units} unit" else null)
                             .filter { it.isNotBlank() }.joinToString(" · "),
@@ -131,8 +142,10 @@ class SerahTerimaViewModel : ViewModel() {
                     loadSummary()
                 } catch (e: ApiException) {
                     banner = Banner("$code · ${e.message}", Tone.Error)
-                    log.add(0, HandoverLog(code, false, code, e.message ?: "Gagal", now))
+                    addLog(HandoverLog(code, false, code, e.message ?: "Gagal", now))
                     Feedback.error(context)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     banner = Banner("$code · jawaban server tidak dikenali", Tone.Error)
                     Feedback.error(context)

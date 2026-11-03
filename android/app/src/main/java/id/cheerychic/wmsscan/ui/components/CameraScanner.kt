@@ -40,8 +40,11 @@ import java.util.concurrent.Executors
 /**
  * Pratinjau kamera yang terus membaca barcode / QR.
  *
- * Kode yang sama tidak dikirim dua kali dalam 2,5 detik, supaya label yang
- * masih di depan kamera tidak terhitung berulang.
+ * Kode yang sama baru dikirim lagi setelah ia keluar dari bidikan kamera
+ * (tidak terlihat sedikitnya [REARM_MS]). Dulu batasnya 2,5 detik sejak scan
+ * terakhir, sehingga satu barang yang dibiarkan di depan kamera terhitung
+ * berulang kali — QC Kemas menganggap 3 unit padahal hanya 1 yang dipegang —
+ * dan resi yang masih terbidik di Serah Terima dikirim ulang lalu ditolak.
  */
 @OptIn(ExperimentalGetImage::class)
 @Composable
@@ -68,11 +71,13 @@ fun CameraScanner(
         val executor = Executors.newSingleThreadExecutor()
         val scanner = BarcodeScanning.getClient()
         var lastCode = ""
-        var lastAt = 0L
+        var lastSeenAt = 0L
+        var disposed = false
 
         providerFuture.addListener({
             // HP tanpa kamera / kamera dipakai aplikasi lain: jangan sampai
             // aplikasi tertutup, cukup beri tahu dan pakai scanner genggam.
+            if (disposed) return@addListener
             val provider = runCatching { providerFuture.get() }.getOrElse {
                 unavailable = true
                 return@addListener
@@ -91,21 +96,32 @@ fun CameraScanner(
                     return@setAnalyzer
                 }
                 val input = InputImage.fromMediaImage(media, proxy.imageInfo.rotationDegrees)
-                scanner.process(input)
+                val task = runCatching { scanner.process(input) }.getOrElse {
+                    // Pemindai sudah ditutup (layar baru saja ditinggalkan).
+                    proxy.close()
+                    return@setAnalyzer
+                }
+                task
                     .addOnSuccessListener { barcodes ->
-                        val value = barcodes.firstOrNull { !it.rawValue.isNullOrBlank() }?.rawValue?.trim()
-                        if (!value.isNullOrEmpty()) {
-                            val now = SystemClock.elapsedRealtime()
-                            if (value != lastCode || now - lastAt > 2500) {
-                                lastCode = value
-                                lastAt = now
-                                currentOnCode(value)
-                            }
+                        if (disposed) return@addOnSuccessListener
+                        val now = SystemClock.elapsedRealtime()
+                        val values = barcodes.mapNotNull { it.rawValue?.trim() }.filter { it.isNotEmpty() }
+                        // Selama kode terakhir masih terlihat, ia tidak dikirim ulang.
+                        if (lastCode.isNotEmpty() && lastCode in values) {
+                            lastSeenAt = now
+                            return@addOnSuccessListener
+                        }
+                        val value = values.firstOrNull() ?: return@addOnSuccessListener
+                        if (value != lastCode || now - lastSeenAt > REARM_MS) {
+                            lastCode = value
+                            lastSeenAt = now
+                            currentOnCode(value)
                         }
                     }
                     .addOnCompleteListener { proxy.close() }
             }
 
+            if (disposed) return@addListener
             runCatching {
                 provider.unbindAll()
                 camera = provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
@@ -113,6 +129,7 @@ fun CameraScanner(
         }, ContextCompat.getMainExecutor(context))
 
         onDispose {
+            disposed = true
             runCatching { providerFuture.get().unbindAll() }
             executor.shutdown()
             scanner.close()
@@ -135,3 +152,6 @@ fun CameraScanner(
         }
     }
 }
+
+/** Lama kode harus hilang dari bidikan sebelum boleh terbaca lagi. */
+private const val REARM_MS = 1000L

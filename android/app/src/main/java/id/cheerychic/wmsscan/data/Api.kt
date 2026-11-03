@@ -172,6 +172,8 @@ object Api {
         return when (status) {
             403 -> "Akun Anda tidak punya akses untuk ini."
             404 -> "Data tidak ditemukan. Pastikan alamat server benar."
+            // POST yang dialihkan (mis. http -> https) berubah menjadi GET.
+            405 -> "Alamat server dialihkan. Coba tulis alamatnya diawali https://"
             429 -> "Terlalu banyak permintaan. Tunggu sebentar lalu coba lagi."
             in 500..599 -> "Server sedang bermasalah ($status). Coba lagi sebentar."
             else -> message?.takeIf { it.isNotBlank() } ?: "Gagal ($status)."

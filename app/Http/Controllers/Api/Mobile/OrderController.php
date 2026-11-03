@@ -63,6 +63,9 @@ class OrderController extends Controller implements HasMiddleware
             'menunggu_stok' => ShipmentOrder::query()->stockStatus(OrderPlanner::WAITING)->count(),
             'prioritas' => ShipmentOrder::query()->awaitingQc()->where('shipment_orders.is_priority', true)->count(),
             'sudah_dikemas' => ShipmentOrder::query()->qualityChecked()->count(),
+            // Dihitung sama persis dengan "remaining" pada jawaban scan serah
+            // terima, supaya angka di aplikasi tidak berubah-ubah.
+            'antrean_serah_terima' => Outbound::awaitingHandover()->count(),
             'dikirim' => $shipped,
             'batas_hari_ini_terbuka' => $dueOpen,
             'lewat_batas' => ShipmentOrder::query()->deadline('overdue')->count(),

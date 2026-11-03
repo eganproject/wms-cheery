@@ -198,7 +198,12 @@ class OrdersViewModel : ViewModel() {
                 page = result.meta.currentPage
                 lastPage = result.meta.lastPage
                 total = result.meta.total
-                orders.addAll(result.data)
+                // Urutan daftar bisa bergeser selagi halaman berikutnya
+                // dimuat (resi baru dikemas/dikirim), sehingga resi yang sama
+                // bisa muncul di dua halaman. Kunci ganda di daftar membuat
+                // aplikasi tertutup, jadi yang sudah tampil dilewati.
+                val shown = orders.mapTo(HashSet()) { it.id }
+                orders.addAll(result.data.filter { shown.add(it.id) })
                 error = null
             } catch (e: ApiException) {
                 error = e.message

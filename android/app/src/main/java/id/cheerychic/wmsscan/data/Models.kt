@@ -123,6 +123,8 @@ data class Summary(
     @SerialName("menunggu_stok") val menungguStok: Int = 0,
     val prioritas: Int = 0,
     @SerialName("sudah_dikemas") val sudahDikemas: Int = 0,
+    /** Paket yang menunggu discan di Serah Terima (null pada server lama). */
+    @SerialName("antrean_serah_terima") val antreanSerahTerima: Int? = null,
     val dikirim: Int = 0,
     @SerialName("batas_hari_ini_terbuka") val batasHariIniTerbuka: Int = 0,
     @SerialName("lewat_batas") val lewatBatas: Int = 0,

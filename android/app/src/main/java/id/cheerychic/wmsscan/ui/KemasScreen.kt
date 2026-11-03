@@ -78,6 +78,7 @@ import id.cheerychic.wmsscan.ui.theme.InkMuted
 import id.cheerychic.wmsscan.ui.theme.Night
 import id.cheerychic.wmsscan.ui.theme.Success
 import id.cheerychic.wmsscan.ui.theme.SuccessDark
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -132,6 +133,8 @@ class KemasViewModel : ViewModel() {
                 } catch (e: ApiException) {
                     banner = Banner(e.message ?: "Gagal", Tone.Error)
                     Feedback.error(context)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     banner = Banner("Jawaban server tidak dikenali.", Tone.Error)
                     Feedback.error(context)
@@ -192,13 +195,22 @@ class KemasViewModel : ViewModel() {
         val current = packet ?: return
         viewModelScope.launch {
             lock.withLock {
+                busy = true
                 try {
                     val result = Api.resetPacking(current.outbound.id)
                     packet = null
-                    banner = Banner(result.message, Tone.Info)
+                    banner = Banner(result.message.ifBlank { "Progres scan direset." }, Tone.Info)
                 } catch (e: ApiException) {
                     banner = Banner(e.message ?: "Gagal reset", Tone.Error)
                     Feedback.error(context)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Galat lain tidak boleh menutup aplikasi.
+                    banner = Banner("Gagal reset · jawaban server tidak dikenali.", Tone.Error)
+                    Feedback.error(context)
+                } finally {
+                    busy = false
                 }
             }
         }
