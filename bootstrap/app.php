@@ -14,6 +14,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Mesin fingerprint tidak membawa token CSRF.
+        $middleware->validateCsrfTokens(except: ['iclock/*']);
+
         $middleware->alias([
             'stock.api.access' => StockApiAccess::class,
         ]);

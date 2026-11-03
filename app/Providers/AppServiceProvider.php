@@ -35,6 +35,10 @@ class AppServiceProvider extends ServiceProvider
             config('stock_api.rate_limit_per_minute')
         )->by(hash('sha256', (string) $request->bearerToken().'|'.$request->ip())));
 
+        // Mesin fingerprint menghubungi server tiap ~30 detik; batasi per IP
+        // supaya alamat publik ini tidak bisa dibanjiri.
+        RateLimiter::for('iclock', fn (Request $request) => Limit::perMinute(120)->by($request->ip()));
+
         Product::saved(fn (Product $product) => StockApiSyncService::sync($product));
         Product::deleting(fn (Product $product) => StockApiSyncService::markDeleted($product));
     }

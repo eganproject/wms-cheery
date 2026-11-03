@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\OutboundHandoverController;
 use App\Http\Controllers\Admin\OutboundMarketplaceController;
 use App\Http\Controllers\Admin\OutboundScanController;
+use App\Http\Controllers\Api\Mobile\AttendanceController as MobileAttendanceController;
 use App\Http\Controllers\Api\Mobile\AuthController as MobileAuthController;
 use App\Http\Controllers\Api\Mobile\OrderController as MobileOrderController;
 use App\Http\Controllers\Api\Mobile\PackingController as MobilePackingController;
@@ -49,5 +50,10 @@ Route::prefix('mobile')
             Route::get('/summary', [MobileOrderController::class, 'summary'])->name('summary');
             Route::get('/orders', [MobileOrderController::class, 'index'])->name('orders.index');
             Route::get('/orders/{order}', [MobileOrderController::class, 'show'])->name('orders.show');
+
+            // Absen lewat HP (selfie + lokasi).
+            Route::get('/absen', [MobileAttendanceController::class, 'today'])->name('absen.today');
+            Route::post('/absen', [MobileAttendanceController::class, 'store'])->name('absen.store');
+            Route::get('/absen/riwayat', [MobileAttendanceController::class, 'history'])->name('absen.history');
         });
     });

@@ -8,6 +8,7 @@ data class Can(
     val kemas: Boolean = false,
     @SerialName("serah_terima") val serahTerima: Boolean = false,
     val pesanan: Boolean = false,
+    val absen: Boolean = false,
 )
 
 @Serializable
@@ -203,3 +204,105 @@ object Stages {
     const val SUDAH = "serah-terima"
     const val DIKIRIM = "dikirim"
 }
+
+/* ------------------------------------------------------------ absen -- */
+
+@Serializable
+data class AbsenEmployee(
+    val name: String = "",
+    val code: String = "",
+    val position: String? = null,
+    val method: String = "both",
+    @SerialName("can_use_phone") val canUsePhone: Boolean = false,
+)
+
+@Serializable
+data class AbsenShift(
+    val name: String = "",
+    val start: String = "",
+    val end: String = "",
+    val label: String = "",
+)
+
+@Serializable
+data class AbsenDay(
+    val date: String = "",
+    @SerialName("date_label") val dateLabel: String? = null,
+    val status: String = "",
+    val label: String = "",
+    val variant: String = "neutral",
+    @SerialName("is_workday") val isWorkday: Boolean = false,
+    @SerialName("check_in") val checkIn: String? = null,
+    @SerialName("check_in_source") val checkInSource: String? = null,
+    @SerialName("check_out") val checkOut: String? = null,
+    @SerialName("check_out_source") val checkOutSource: String? = null,
+    @SerialName("late_minutes") val lateMinutes: Int = 0,
+    @SerialName("early_minutes") val earlyMinutes: Int = 0,
+    val note: String? = null,
+)
+
+@Serializable
+data class AbsenLeave(val type: String = "", val label: String = "", val period: String = "")
+
+@Serializable
+data class AbsenToday(
+    val employee: AbsenEmployee = AbsenEmployee(),
+    val date: String = "",
+    @SerialName("date_label") val dateLabel: String = "",
+    val shift: AbsenShift? = null,
+    val day: AbsenDay = AbsenDay(),
+    /** "in", "out", atau null (tidak boleh absen dari HP). */
+    @SerialName("next_action") val nextAction: String? = null,
+    val leave: AbsenLeave? = null,
+    @SerialName("require_selfie") val requireSelfie: Boolean = true,
+    @SerialName("allow_outside_radius") val allowOutsideRadius: Boolean = false,
+    val locations: List<AbsenLocation> = emptyList(),
+)
+
+@Serializable
+data class AbsenLocation(
+    val name: String = "",
+    val latitude: Double = 0.0,
+    val longitude: Double = 0.0,
+    @SerialName("radius_meters") val radiusMeters: Int = 100,
+)
+
+@Serializable
+data class AbsenPunch(
+    val id: Int = 0,
+    val type: String? = null,
+    val time: String = "",
+    val location: String? = null,
+    @SerialName("distance_meters") val distanceMeters: Int? = null,
+    @SerialName("outside_radius") val outsideRadius: Boolean = false,
+    @SerialName("has_selfie") val hasSelfie: Boolean = false,
+)
+
+@Serializable
+data class AbsenResult(
+    val message: String = "",
+    val punch: AbsenPunch = AbsenPunch(),
+    val today: AbsenToday = AbsenToday(),
+)
+
+@Serializable
+data class AbsenSummary(
+    val workdays: Int = 0,
+    val present: Int = 0,
+    val late: Int = 0,
+    @SerialName("late_minutes") val lateMinutes: Int = 0,
+    val early: Int = 0,
+    val izin: Int = 0,
+    val sakit: Int = 0,
+    val cuti: Int = 0,
+    val absent: Int = 0,
+    val rate: Int? = null,
+)
+
+@Serializable
+data class AbsenHistory(
+    val month: String = "",
+    @SerialName("month_label") val monthLabel: String = "",
+    val summary: AbsenSummary = AbsenSummary(),
+    val days: List<AbsenDay> = emptyList(),
+)

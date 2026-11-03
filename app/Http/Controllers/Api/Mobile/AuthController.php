@@ -80,7 +80,8 @@ class AuthController extends Controller
      */
     protected function profile(User $user): array
     {
-        $user->loadMissing('role');
+        $user->loadMissing('role', 'employee');
+        $employee = $user->employee;
 
         return [
             'id' => $user->id,
@@ -94,6 +95,8 @@ class AuthController extends Controller
                 'serah_terima' => $user->can('outbounds.post'),
                 // Halaman Pesanan di web: imports.view.
                 'pesanan' => $user->can('imports.view'),
+                // Absen dari HP: akun terhubung ke karyawan aktif bermetode HP.
+                'absen' => $employee !== null && $employee->is_active && $employee->allowsPhone(),
             ],
         ];
     }

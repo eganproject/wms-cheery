@@ -15,8 +15,10 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -108,6 +110,35 @@ object Api {
 
     suspend fun order(id: Int): OrderDetailResponse = json.decodeFromString(call("GET", "/orders/$id"))
 
+    /* ------------------------------------------------------ absen ---- */
+
+    suspend fun absenToday(): AbsenToday = json.decodeFromString(call("GET", "/absen"))
+
+    suspend fun absenHistory(month: String?): AbsenHistory =
+        json.decodeFromString(call("GET", "/absen/riwayat", query = mapOf("month" to month)))
+
+    /** Absen masuk/pulang: lokasi GPS + selfie (JPEG) dalam satu kiriman multipart. */
+    suspend fun absen(
+        type: String,
+        latitude: Double,
+        longitude: Double,
+        accuracy: Float?,
+        isMock: Boolean,
+        selfie: ByteArray?,
+    ): AbsenResult {
+        val form = MultipartBody.Builder().setType(MultipartBody.FORM)
+            .addFormDataPart("type", type)
+            .addFormDataPart("latitude", latitude.toString())
+            .addFormDataPart("longitude", longitude.toString())
+            .addFormDataPart("is_mock", if (isMock) "1" else "0")
+            .apply {
+                accuracy?.let { addFormDataPart("accuracy", it.toString()) }
+                selfie?.let { addFormDataPart("selfie", "selfie.jpg", it.toRequestBody("image/jpeg".toMediaType())) }
+            }
+            .build()
+        return json.decodeFromString(call("POST", "/absen", rawBody = form))
+    }
+
     /* ----------------------------------------------------- inti ------ */
 
     private suspend fun call(
@@ -115,6 +146,7 @@ object Api {
         path: String,
         body: JsonObject? = null,
         query: Map<String, String?> = emptyMap(),
+        rawBody: RequestBody? = null,
         base: String = Session.serverUrl,
         authed: Boolean = true,
     ): String = withContext(Dispatchers.IO) {
@@ -130,7 +162,7 @@ object Api {
                 if (verb == "GET") {
                     get()
                 } else {
-                    method(verb, (body ?: JsonObject(emptyMap())).toString().toRequestBody(jsonType))
+                    method(verb, rawBody ?: (body ?: JsonObject(emptyMap())).toString().toRequestBody(jsonType))
                 }
             }
             .build()
@@ -170,7 +202,8 @@ object Api {
         val message = (parsed?.get("message") as? JsonPrimitive)?.contentOrNull
 
         return when (status) {
-            403 -> "Akun Anda tidak punya akses untuk ini."
+            // Pesan bawaan Laravel berbahasa Inggris; pesan buatan WMS diteruskan.
+            403 -> message?.takeIf { it.isNotBlank() && !it.startsWith("This action") } ?: "Akun Anda tidak punya akses untuk ini."
             404 -> "Data tidak ditemukan. Pastikan alamat server benar."
             // POST yang dialihkan (mis. http -> https) berubah menjadi GET.
             405 -> "Alamat server dialihkan. Coba tulis alamatnya diawali https://"

@@ -121,6 +121,23 @@ class RolePermissionSeeder extends Seeder
             'stock-api-access.update' => 'Menambah dan mengubah IP API stok',
             'stock-api-access.delete' => 'Menghapus IP API stok',
         ],
+        'Absensi' => [
+            'attendance.view' => 'Melihat absensi harian & rekap absensi',
+            'leaves.view' => 'Melihat izin, sakit & cuti',
+            'leaves.create' => 'Mencatat izin, sakit & cuti',
+            'leaves.update' => 'Mengubah catatan izin, sakit & cuti',
+            'leaves.delete' => 'Menghapus catatan izin, sakit & cuti',
+            'attendance-settings.view' => 'Melihat lokasi & mesin absen',
+            'attendance-settings.update' => 'Mengatur lokasi & mesin absen',
+        ],
+        'Karyawan & Jam Kerja' => [
+            'employees.view' => 'Melihat data karyawan',
+            'employees.create' => 'Menambah karyawan',
+            'employees.update' => 'Mengubah karyawan',
+            'employees.delete' => 'Menghapus karyawan',
+            'work-shifts.view' => 'Melihat jam kerja & hari libur',
+            'work-shifts.update' => 'Mengatur jam kerja & hari libur',
+        ],
     ];
 
     public function run(): void

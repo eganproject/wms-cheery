@@ -35,10 +35,26 @@ use App\Http\Controllers\Admin\PoPeriodController;
 use App\Http\Controllers\Admin\ShipmentOrderDeadlineController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PackingListController;
+use App\Http\Controllers\Admin\AttendanceController;
+use App\Http\Controllers\Admin\AttendanceLeaveController;
+use App\Http\Controllers\Admin\AttendanceReportController;
+use App\Http\Controllers\Admin\AttendanceSettingController;
+use App\Http\Controllers\Admin\EmployeeController;
+use App\Http\Controllers\Admin\WorkShiftController;
+use App\Http\Controllers\Attendance\IclockController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/admin');
+
+// Mesin fingerprint ZKTeco (protokol push iclock). Tanpa login: yang dilayani
+// hanya nomor seri yang terdaftar di Lokasi & Mesin Absen.
+Route::middleware('throttle:iclock')->group(function () {
+    Route::get('iclock/cdata', [IclockController::class, 'handshake']);
+    Route::post('iclock/cdata', [IclockController::class, 'receive']);
+    Route::get('iclock/getrequest', [IclockController::class, 'getrequest']);
+    Route::post('iclock/devicecmd', [IclockController::class, 'devicecmd']);
+});
 
 Route::middleware('auth')
     ->prefix('admin')
@@ -184,6 +200,34 @@ Route::middleware('auth')
         Route::post('stock-api-access', [StockApiAllowedIpController::class, 'store'])->name('stock-api-access.store');
         Route::put('stock-api-access/{stockApiAllowedIp}', [StockApiAllowedIpController::class, 'update'])->name('stock-api-access.update');
         Route::delete('stock-api-access/{stockApiAllowedIp}', [StockApiAllowedIpController::class, 'destroy'])->name('stock-api-access.destroy');
+
+        // Absensi karyawan
+        Route::get('attendance/export', [AttendanceController::class, 'export'])->name('attendance.export');
+        Route::get('attendance', [AttendanceController::class, 'index'])->name('attendance.index');
+        Route::get('attendance/employees/{employee}', [AttendanceController::class, 'employee'])->name('attendance.employee');
+        Route::get('attendance/punches/{punch}/selfie', [AttendanceController::class, 'selfie'])->name('attendance.selfie');
+        Route::get('attendance/report/export', [AttendanceReportController::class, 'export'])->name('attendance.report.export');
+        Route::get('attendance/report', [AttendanceReportController::class, 'index'])->name('attendance.report');
+        Route::get('attendance-leaves/{attendance_leave}/attachment', [AttendanceLeaveController::class, 'attachment'])->name('attendance-leaves.attachment');
+        Route::resource('attendance-leaves', AttendanceLeaveController::class)->except('show')
+            ->parameters(['attendance-leaves' => 'attendance_leave']);
+        Route::resource('employees', EmployeeController::class)->except('show');
+        Route::get('work-shifts', [WorkShiftController::class, 'index'])->name('work-shifts.index');
+        Route::get('work-shifts/create', [WorkShiftController::class, 'create'])->name('work-shifts.create');
+        Route::post('work-shifts', [WorkShiftController::class, 'store'])->name('work-shifts.store');
+        Route::get('work-shifts/{work_shift}/edit', [WorkShiftController::class, 'edit'])->name('work-shifts.edit');
+        Route::put('work-shifts/{work_shift}', [WorkShiftController::class, 'update'])->name('work-shifts.update');
+        Route::delete('work-shifts/{work_shift}', [WorkShiftController::class, 'destroy'])->name('work-shifts.destroy');
+        Route::post('holidays', [WorkShiftController::class, 'storeHoliday'])->name('holidays.store');
+        Route::delete('holidays/{holiday}', [WorkShiftController::class, 'destroyHoliday'])->name('holidays.destroy');
+        Route::get('attendance-settings', [AttendanceSettingController::class, 'index'])->name('attendance-settings.index');
+        Route::put('attendance-settings', [AttendanceSettingController::class, 'update'])->name('attendance-settings.update');
+        Route::post('attendance-settings/locations', [AttendanceSettingController::class, 'storeLocation'])->name('attendance-settings.locations.store');
+        Route::put('attendance-settings/locations/{location}', [AttendanceSettingController::class, 'updateLocation'])->name('attendance-settings.locations.update');
+        Route::delete('attendance-settings/locations/{location}', [AttendanceSettingController::class, 'destroyLocation'])->name('attendance-settings.locations.destroy');
+        Route::post('attendance-settings/devices', [AttendanceSettingController::class, 'storeDevice'])->name('attendance-settings.devices.store');
+        Route::put('attendance-settings/devices/{device}', [AttendanceSettingController::class, 'updateDevice'])->name('attendance-settings.devices.update');
+        Route::delete('attendance-settings/devices/{device}', [AttendanceSettingController::class, 'destroyDevice'])->name('attendance-settings.devices.destroy');
 
         Route::resource('users', UserController::class);
         Route::resource('roles', RoleController::class)->except('show');
