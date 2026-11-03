@@ -67,6 +67,11 @@ class User extends Authenticatable
         });
     }
 
+    public function employee(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Employee::class);
+    }
+
     public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class);
