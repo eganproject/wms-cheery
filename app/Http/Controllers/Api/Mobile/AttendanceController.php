@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Mobile;
 
 use App\Http\Controllers\Controller;
 use App\Models\AppSetting;
+use App\Models\AttendanceLocation;
 use App\Models\AttendancePunch;
 use App\Models\Employee;
 use App\Services\Attendance\AttendanceCalculator;
@@ -103,7 +104,7 @@ class AttendanceController extends Controller
         $to = $month->endOfMonth()->startOfDay()->min(CarbonImmutable::today());
 
         if ($to->lessThan($from)) {
-            return response()->json(['month' => $month->format('Y-m'), 'summary' => $this->calculator->summarize(collect()), 'days' => []]);
+            return response()->json(['month' => $month->format('Y-m'), 'month_label' => $month->translatedFormat('F Y'), 'summary' => $this->calculator->summarize(collect()), 'days' => []]);
         }
 
         $days = $this->calculator->range(collect([$employee]), $from, $to)->get($employee->id);
@@ -169,6 +170,15 @@ class AttendanceController extends Controller
                 'period' => $day->leave->periodLabel(),
             ] : null,
             'require_selfie' => AppSetting::flag(AppSetting::ATTENDANCE_REQUIRE_SELFIE),
+            'allow_outside_radius' => AppSetting::flag(AppSetting::ATTENDANCE_ALLOW_OUTSIDE),
+            // Supaya HP bisa memberi tahu jarak ke gudang sebelum absen dikirim.
+            'locations' => AttendanceLocation::query()->where('is_active', true)->orderBy('name')->get()
+                ->map(fn (AttendanceLocation $location) => [
+                    'name' => $location->name,
+                    'latitude' => $location->latitude,
+                    'longitude' => $location->longitude,
+                    'radius_meters' => $location->radius_meters,
+                ])->values(),
         ];
     }
 

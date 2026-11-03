@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import id.cheerychic.wmsscan.data.AbsenToday
 import id.cheerychic.wmsscan.data.Api
 import id.cheerychic.wmsscan.data.ApiException
 import id.cheerychic.wmsscan.data.Session
@@ -81,17 +82,30 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun HomeScreen(user: User, onTab: (Tab) -> Unit) {
+fun HomeScreen(user: User, onTab: (Tab) -> Unit, onAbsen: (String) -> Unit = {}, onAbsenHistory: () -> Unit = {}) {
     StatusBarIcons(darkScreen = false)
     val scope = rememberCoroutineScope()
     val lifecycle = LocalLifecycleOwner.current
     var summary by remember { mutableStateOf<Summary?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var confirmLogout by remember { mutableStateOf(false) }
+    var absen by remember { mutableStateOf<AbsenToday?>(null) }
+    var absenError by remember { mutableStateOf<String?>(null) }
 
     suspend fun load() {
         // Hak akses bisa diubah admin kapan saja; ambil ulang setiap kembali.
         runCatching { Session.updateUser(Api.me().user) }
+        if (Session.user.value?.can?.absen == true) {
+            try {
+                absen = Api.absenToday()
+                absenError = null
+            } catch (e: ApiException) {
+                absen = null
+                absenError = e.message
+            } catch (e: Exception) {
+                absenError = "Data absen belum bisa dimuat."
+            }
+        }
         if (Session.user.value?.can?.pesanan != true) return
         try {
             summary = Api.summary()
@@ -160,6 +174,10 @@ fun HomeScreen(user: User, onTab: (Tab) -> Unit) {
             }
 
             BannerView(error?.let { Banner(it, Tone.Error) })
+
+            if (user.can.absen) {
+                AbsenCard(absen, absenError, onAbsen = onAbsen, onHistory = onAbsenHistory)
+            }
 
             if (user.can.pesanan) {
                 TargetCard(summary) { onTab(Tab.Pesanan) }
@@ -295,5 +313,86 @@ private fun WorkTile(
             Text(title, color = fg.copy(alpha = if (enabled) 1f else 0.5f), fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
             Text(subtitle, color = fg.copy(alpha = 0.7f), fontSize = 12.5.sp)
         }
+    }
+}
+
+/** Kartu absen hari ini: status, jam masuk/pulang, dan tombol absen dari HP. */
+@Composable
+private fun AbsenCard(today: AbsenToday?, error: String?, onAbsen: (String) -> Unit, onHistory: () -> Unit) {
+    AppCard(radius = 22.dp, onClick = if (today != null) onHistory else null) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(BrandBg),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Ic.Fingerprint, null, tint = Brand2, modifier = Modifier.size(22.dp))
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Absensi hari ini", color = Ink, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text(
+                        today?.shift?.label ?: if (today != null) "Belum ada jam kerja" else "Memuat…",
+                        color = InkMuted, fontSize = 12.5.sp, maxLines = 1,
+                    )
+                }
+                if (today != null) {
+                    val (fg, bg) = variantColors(today.day.variant)
+                    Chip(today.day.label, fg, bg)
+                }
+            }
+
+            if (error != null && today == null) {
+                Text(error, color = Warning, fontSize = 13.sp, lineHeight = 18.sp)
+                return@Column
+            }
+            if (today == null) return@Column
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                TimeBox("Masuk", today.day.checkIn, Modifier.weight(1f))
+                TimeBox("Pulang", today.day.checkOut, Modifier.weight(1f))
+            }
+            if (!today.day.note.isNullOrBlank()) {
+                Text(today.day.note, color = if (today.day.lateMinutes > 0) Warning else InkMuted, fontSize = 12.5.sp)
+            }
+
+            val leave = today.leave
+            when {
+                leave != null -> Text("${leave.label} · ${leave.period}", color = InkMuted, fontSize = 13.sp)
+                today.nextAction == null -> Text(
+                    if (today.employee.method == "machine") "Absen lewat mesin fingerprint di gudang." else "Absen dari HP belum diaktifkan untukmu.",
+                    color = InkMuted, fontSize = 13.sp,
+                )
+                else -> {
+                    val out = today.nextAction == "out"
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(if (out) Ink else Brand)
+                            .clickable { onAbsen(today.nextAction ?: "in") }
+                            .padding(vertical = 14.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            when {
+                                !out -> "Absen Masuk"
+                                today.day.checkOut != null -> "Perbarui Absen Pulang"
+                                else -> "Absen Pulang"
+                            },
+                            color = if (out) Color.White else OnBrand, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimeBox(label: String, time: String?, modifier: Modifier) {
+    Column(modifier.clip(RoundedCornerShape(14.dp)).background(Bg).padding(horizontal = 12.dp, vertical = 10.dp)) {
+        Text(label, color = InkMuted, fontSize = 11.5.sp)
+        Text(time ?: "–", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
     }
 }

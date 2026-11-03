@@ -15,6 +15,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import id.cheerychic.wmsscan.data.Session
 import id.cheerychic.wmsscan.data.Stages
+import id.cheerychic.wmsscan.ui.AbsenHistoryScreen
+import id.cheerychic.wmsscan.ui.AbsenScreen
 import id.cheerychic.wmsscan.ui.HomeScreen
 import id.cheerychic.wmsscan.ui.KemasScreen
 import id.cheerychic.wmsscan.ui.LoginScreen
@@ -48,8 +50,24 @@ private fun AppRoot() {
 
     NavHost(navController = nav, startDestination = "home") {
         composable("home") {
-            HomeScreen(user = user!!, onTab = openTab)
+            HomeScreen(
+                user = user!!,
+                onTab = openTab,
+                onAbsen = { type -> nav.navigate("absen/$type") { launchSingleTop = true } },
+                onAbsenHistory = { nav.navigate("absen-riwayat") { launchSingleTop = true } },
+            )
         }
+        composable(
+            "absen/{type}",
+            arguments = listOf(navArgument("type") { type = NavType.StringType }),
+        ) { entry ->
+            AbsenScreen(
+                type = entry.arguments?.getString("type") ?: "in",
+                onBack = { nav.popBackStack() },
+                onDone = { nav.popBackStack("home", inclusive = false) },
+            )
+        }
+        composable("absen-riwayat") { AbsenHistoryScreen(onBack = { nav.popBackStack() }) }
         composable("kemas") { KemasScreen(onBack = { nav.popBackStack() }) }
         composable("serah") {
             SerahTerimaScreen(
