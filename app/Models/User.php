@@ -54,6 +54,19 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * Sandi diganti (mis. HP hilang lalu admin mengganti sandinya): semua HP
+     * yang masih login dengan sandi lama ikut keluar.
+     */
+    protected static function booted(): void
+    {
+        static::updated(function (User $user) {
+            if ($user->wasChanged('password')) {
+                MobileToken::where('user_id', $user->id)->delete();
+            }
+        });
+    }
+
     public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class);
