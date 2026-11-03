@@ -40,6 +40,13 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        // Aplikasi Android Scan Kemas & Serah Terima: token Bearer dari
+        // tabel mobile_tokens (lihat AppServiceProvider).
+        'mobile' => [
+            'driver' => 'mobile-token',
+            'provider' => 'users',
+        ],
     ],
 
     /*

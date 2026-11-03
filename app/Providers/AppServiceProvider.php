@@ -2,11 +2,13 @@
 
 namespace App\Providers;
 
+use App\Models\MobileToken;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\StockApiSyncService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -27,6 +29,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerPermissionGates();
+        $this->registerMobileGuard();
 
         RateLimiter::for('stock-api', fn (Request $request) => Limit::perMinute(
             config('stock_api.rate_limit_per_minute')
@@ -34,6 +37,30 @@ class AppServiceProvider extends ServiceProvider
 
         Product::saved(fn (Product $product) => StockApiSyncService::sync($product));
         Product::deleting(fn (Product $product) => StockApiSyncService::markDeleted($product));
+    }
+
+    /**
+     * Guard "mobile": aplikasi Android mengirim token Bearer hasil login.
+     * Pengguna yang dinonaktifkan langsung tertolak walau tokennya masih ada.
+     */
+    protected function registerMobileGuard(): void
+    {
+        Auth::viaRequest('mobile-token', function (Request $request) {
+            $token = MobileToken::findPlain($request->bearerToken());
+
+            if (! $token || ! $token->user?->is_active) {
+                return null;
+            }
+
+            // Cukup dicatat sekali semenit, bukan pada setiap scan.
+            if (! $token->last_used_at || $token->last_used_at->lt(now()->subMinute())) {
+                $token->forceFill(['last_used_at' => now()])->saveQuietly();
+            }
+
+            $request->attributes->set('mobile_token', $token);
+
+            return $token->user;
+        });
     }
 
     /**
