@@ -169,6 +169,15 @@ class OutboundMarketplaceController extends Controller implements HasMiddleware
         // Paket bundling sudah dipecah menjadi barang isinya oleh resolver.
         $lines = $this->resolver->toOutboundLines($order);
 
+        // Resi tanpa barang sama sekali (baris pesanannya kosong di berkas
+        // import) tidak dibuka: tidak ada yang bisa discan, sehingga layar
+        // tertahan di tahap scan barang tanpa jalan keluar.
+        if ($lines->items === []) {
+            throw ValidationException::withMessages([
+                'code' => 'Resi ini tidak berisi barang · periksa data import pesanannya',
+            ]);
+        }
+
         // Paket yang stoknya tidak cukup tidak dibuka sama sekali: lebih baik
         // ditolak sebelum ada yang discan daripada tersangkut di tengah.
         //

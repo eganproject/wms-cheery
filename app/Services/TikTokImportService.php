@@ -389,7 +389,7 @@ class TikTokImportService
                 'tracking_number' => $tracking,
                 'sku' => $sku,
                 'product_name' => $this->productName($this->value($row, $header, 'product_name'), $variation),
-                'quantity' => max(1, (int) preg_replace('/[^0-9]/', '', (string) $this->value($row, $header, 'quantity')) ?: 1),
+                'quantity' => $this->parseQuantity($this->value($row, $header, 'quantity')),
             ];
 
             if (blank($tracking)) {
@@ -448,6 +448,23 @@ class TikTokImportService
         }
 
         return [$orders, $failures];
+    }
+
+    /**
+     * Jumlah barang pada satu baris, minimal 1.
+     *
+     * Angka dari Excel bisa terbaca "2.0"; membuang semua yang bukan digit
+     * menjadikannya 20. Angka desimal dibaca sebagai angka lebih dulu.
+     */
+    protected function parseQuantity(?string $value): int
+    {
+        $value = trim((string) $value);
+
+        if (is_numeric($value)) {
+            return max(1, (int) round((float) $value));
+        }
+
+        return max(1, (int) preg_replace('/[^0-9]/', '', $value));
     }
 
     protected function key(string $tracking): string
@@ -601,8 +618,21 @@ class TikTokImportService
             return null;
         }
 
+        // Berkas yang sempat dibuka lalu disimpan ulang di Excel menyimpan
+        // tanggal sebagai nomor seri Excel (mis. 46325.83), bukan teks.
+        if (is_numeric($value) && (float) $value > 20000 && (float) $value < 80000) {
+            try {
+                return \Illuminate\Support\Carbon::instance(
+                    \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((float) $value)
+                )->startOfSecond()->toDateTimeString();
+            } catch (\Throwable) {
+                return null;
+            }
+        }
+
         // TikTok menulis tanggal sebagai hari/bulan/tahun, mis. 29/10/2026 19:55:14.
-        foreach (['d/m/Y H:i:s', 'd/m/Y H:i', 'd/m/Y', 'd-m-Y H:i:s', 'd-m-Y H:i', 'd-m-Y'] as $format) {
+        // Tanda "!" membuat jam yang tidak tertulis menjadi 00:00, bukan jam sekarang.
+        foreach (['!d/m/Y H:i:s', '!d/m/Y H:i', '!d/m/Y', '!d-m-Y H:i:s', '!d-m-Y H:i', '!d-m-Y'] as $format) {
             try {
                 return \Illuminate\Support\Carbon::createFromFormat($format, $value)->toDateTimeString();
             } catch (\Throwable) {

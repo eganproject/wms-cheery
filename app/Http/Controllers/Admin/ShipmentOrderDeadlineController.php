@@ -37,7 +37,9 @@ class ShipmentOrderDeadlineController extends Controller implements HasMiddlewar
             'ship_by_set_at' => now(),
         ])->save();
 
-        $planner->refresh();
+        // Dipaksa: sidik jari hanya berubah per detik, sedangkan perubahan
+        // ini harus langsung terlihat di urutan dan kesiapan stok.
+        $planner->refresh(force: true);
 
         return back()->with('success', "Batas kirim resi {$order->tracking_number} diubah ke {$order->ship_by->translatedFormat('d M Y H:i')}.");
     }
@@ -51,7 +53,9 @@ class ShipmentOrderDeadlineController extends Controller implements HasMiddlewar
             'ship_by_set_at' => null,
         ])->save();
 
-        $planner->refresh();
+        // Dipaksa: sidik jari hanya berubah per detik, sedangkan perubahan
+        // ini harus langsung terlihat di urutan dan kesiapan stok.
+        $planner->refresh(force: true);
 
         return back()->with('success', "Batas kirim resi {$order->tracking_number} kembali mengikuti hitungan sistem.");
     }
