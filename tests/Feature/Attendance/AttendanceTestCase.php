@@ -41,7 +41,7 @@ abstract class AttendanceTestCase extends TestCase
 
     protected function employee(array $attributes = []): Employee
     {
-        return Employee::create($attributes + [
+        $employee = Employee::create($attributes + [
             'code' => Employee::nextCode(),
             'name' => 'Rina Marlina',
             'position' => 'Packer',
@@ -50,6 +50,11 @@ abstract class AttendanceTestCase extends TestCase
             'joined_at' => '2026-01-01',
             'is_active' => true,
         ]);
+
+        // Anggap datanya sudah lama ada di WMS, supaya hari-hari lalu ikut dihitung.
+        $employee->forceFill(['created_at' => '2026-01-01 00:00:00'])->saveQuietly();
+
+        return $employee;
     }
 
     protected function warehouse(int $radius = 100): AttendanceLocation

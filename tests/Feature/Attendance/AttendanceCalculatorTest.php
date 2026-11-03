@@ -139,6 +139,17 @@ class AttendanceCalculatorTest extends AttendanceTestCase
         $this->assertFalse($this->day($employee, '2026-11-02')->isWorkday);
     }
 
+    public function test_days_before_employee_was_added_are_not_absences(): void
+    {
+        $employee = $this->employee(['joined_at' => null]);
+        $employee->forceFill(['created_at' => '2026-11-03 09:00:00'])->saveQuietly();
+
+        $before = $this->day($employee->fresh(), '2026-11-02');
+        $this->assertFalse($before->isWorkday);
+        $this->assertSame('Belum terdaftar', $before->label);
+        $this->assertTrue($this->day($employee->fresh(), '2026-11-03')->isWorkday);
+    }
+
     public function test_monthly_summary(): void
     {
         $employee = $this->employee();

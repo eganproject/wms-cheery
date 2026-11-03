@@ -91,8 +91,8 @@ class AttendanceCalculator
     ): AttendanceDay {
         $shift = $employee->workShift;
         $leave = $leaves->first(fn (AttendanceLeave $leave) => $leave->covers($date));
-        $isWorkday = $shift !== null && $shift->worksOn($date) && $holiday === null
-            && ($employee->joined_at === null || $employee->joined_at->lessThanOrEqualTo($date));
+        $registered = $this->registeredOn($employee, $date);
+        $isWorkday = $shift !== null && $shift->worksOn($date) && $holiday === null && $registered;
 
         [$windowStart, $windowEnd, $start, $end] = $this->window($shift, $date);
 
@@ -122,10 +122,15 @@ class AttendanceCalculator
 
         if (! $isWorkday) {
             $present = $checkIn || $checkOut;
-            $label = $shift === null ? ($present ? 'Hadir' : 'Tanpa jadwal') : ($present ? 'Masuk di hari libur' : 'Libur');
+            $label = match (true) {
+                $present => $shift === null ? 'Hadir' : 'Masuk di hari libur',
+                ! $registered => 'Belum terdaftar',
+                $shift === null => 'Tanpa jadwal',
+                default => 'Libur',
+            };
 
             return new AttendanceDay(...$base,
-                status: $shift === null && ! $present ? AttendanceDay::NO_SCHEDULE : ($present ? AttendanceDay::PRESENT : AttendanceDay::OFF),
+                status: ($shift === null || ! $registered) && ! $present ? AttendanceDay::NO_SCHEDULE : ($present ? AttendanceDay::PRESENT : AttendanceDay::OFF),
                 label: $label,
                 variant: $present ? 'info' : 'neutral',
                 notes: array_values(array_filter([$holiday, ...$this->punchNotes($checkIn, $checkOut)])),
@@ -179,6 +184,21 @@ class AttendanceCalculator
 
         return new AttendanceDay(...$base, status: AttendanceDay::PRESENT, label: $label, variant: $variant,
             lateMinutes: $late, earlyMinutes: $early, missingCheckOut: $missingOut, notes: $notes);
+    }
+
+    /**
+     * Hari sebelum karyawan masuk kerja, atau sebelum datanya dibuat di WMS,
+     * tidak dihitung hari kerja. Tanpa ini, karyawan yang baru didaftarkan
+     * di tengah bulan langsung tercatat "Tidak hadir" untuk hari-hari sebelumnya.
+     */
+    protected function registeredOn(Employee $employee, CarbonImmutable $date): bool
+    {
+        $since = collect([$employee->joined_at, $employee->created_at])
+            ->filter()
+            ->map(fn ($value) => CarbonImmutable::parse($value)->startOfDay())
+            ->max();
+
+        return $since === null || $since->lessThanOrEqualTo($date);
     }
 
     /**

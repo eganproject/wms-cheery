@@ -50,6 +50,8 @@ class AttendanceSettingController extends Controller implements HasMiddleware
             'allowOutside' => AppSetting::flag(AppSetting::ATTENDANCE_ALLOW_OUTSIDE),
             'defaultMethod' => AppSetting::get(AppSetting::ATTENDANCE_DEFAULT_METHOD),
             'serverHost' => request()->getHost(),
+            'serverPort' => request()->getPort(),
+            'serverSecure' => request()->isSecure(),
         ]);
     }
 

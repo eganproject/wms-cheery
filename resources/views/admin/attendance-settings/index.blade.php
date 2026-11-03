@@ -188,7 +188,7 @@
                 <ol class="list-decimal space-y-2 pl-4 text-sm text-ink-600">
                     <li>Daftarkan nomor seri mesin di halaman ini (ada di stiker belakang mesin, atau menu <b>System Info</b>).</li>
                     <li>Di mesin, buka <b>Menu › Comm › Cloud Server Setting</b>.</li>
-                    <li>Alamat server: <span class="font-mono text-xs text-ink-950">{{ $serverHost }}</span>, port <b>443</b>, aktifkan HTTPS. Mode proxy: mati.</li>
+                    <li>Alamat server: <span class="font-mono text-xs text-ink-950">{{ $serverHost }}</span>, port <b>{{ $serverPort }}</b>{{ $serverSecure ? ", aktifkan HTTPS" : ", HTTPS mati" }}. Mode proxy: mati.</li>
                     <li>Daftarkan sidik jari karyawan di mesin, lalu isi <b>PIN</b> (ID User di mesin) di data karyawan.</li>
                     <li>Status mesin di atas berubah jadi <b>Online</b> dalam 1 menit.</li>
                 </ol>
