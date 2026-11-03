@@ -239,7 +239,8 @@ class MobileAppApiTest extends TestCase
             ->assertJsonPath('batas_hari_ini_terbuka', 1)
             ->assertJsonPath('dikirim_sejam_terakhir', 0)
             ->assertJsonPath('antrean_per_kurir.0.courier', 'J&T Express')
-            ->assertJsonPath('antrean_per_kurir.0.total', 1);
+            ->assertJsonPath('antrean_per_kurir.0.total', 1)
+            ->assertJsonPath('antrean_serah_terima', 1);
 
         $this->withToken($token)->postJson('/api/mobile/serah-terima/scan', ['code' => 'SPXID222'])->assertOk();
 
@@ -247,7 +248,24 @@ class MobileAppApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('dikirim', 1)
             ->assertJsonPath('dikirim_sejam_terakhir', 1)
-            ->assertJsonPath('antrean_per_kurir', []);
+            ->assertJsonPath('antrean_per_kurir', [])
+            ->assertJsonPath('antrean_serah_terima', 0);
+    }
+
+    public function test_changing_the_password_signs_out_every_phone(): void
+    {
+        $token = $this->tokenFor($this->admin);
+        $this->withToken($token)->getJson('/api/mobile/me')->assertOk();
+
+        // Nama diubah: HP tetap login.
+        $this->admin->update(['name' => 'Admin Gudang']);
+        $this->app['auth']->forgetGuards();
+        $this->withToken($token)->getJson('/api/mobile/me')->assertOk();
+
+        $this->admin->update(['password' => 'sandi-baru-123']);
+        $this->app['auth']->forgetGuards();
+        $this->withToken($token)->getJson('/api/mobile/me')->assertUnauthorized();
+        $this->assertDatabaseCount('mobile_tokens', 0);
     }
 
     public function test_quick_filters_narrow_the_unpacked_list(): void
