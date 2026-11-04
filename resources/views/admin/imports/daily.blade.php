@@ -94,16 +94,16 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th><span class="inline-flex items-center gap-1">Tanggal Masuk <x-ui.hint text="Tanggal resi diimport ke sistem (bukan tanggal pesanan di marketplace)." /></span></th>
-                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Resi <x-ui.hint text="Jumlah resi yang masuk pada tanggal itu." /></span></th>
-                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Unit <x-ui.hint text="Total unit barang di resi-resi tersebut." /></span></th>
-                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Ekspedisi <x-ui.hint text="Banyaknya ekspedisi berbeda pada tanggal itu." /></span></th>
-                            @foreach ($stages as $stage)
+                            <th><span class="inline-flex items-center gap-1"><x-ui.sort key="date" first="desc">Tanggal Masuk</x-ui.sort> <x-ui.hint text="Tanggal resi diimport ke sistem (bukan tanggal pesanan di marketplace)." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="total" first="desc">Resi</x-ui.sort> <x-ui.hint text="Jumlah resi yang masuk pada tanggal itu." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="units" first="desc">Unit</x-ui.sort> <x-ui.hint text="Total unit barang di resi-resi tersebut." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="couriers" first="desc">Ekspedisi</x-ui.sort> <x-ui.hint text="Banyaknya ekspedisi berbeda pada tanggal itu." /></span></th>
+                            @foreach ($stages as $key => $stage)
                                 <th class="px-4 text-right">
-                                    {{ $stage['label'] }}
+                                    <x-ui.sort :key="$key" first="desc">{{ $stage['label'] }}</x-ui.sort>
                                 </th>
                             @endforeach
-                            <th><span class="inline-flex items-center gap-1">Kesiapan <x-ui.hint text="Bagian resi yang sudah tidak menunggu packing: lolos QC, sudah dikirim, atau dibatalkan." /></span></th>
+                            <th><span class="inline-flex items-center gap-1"><x-ui.sort key="readiness">Kesiapan</x-ui.sort> <x-ui.hint text="Bagian resi yang sudah tidak menunggu packing: lolos QC, sudah dikirim, atau dibatalkan." /></span></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -181,6 +181,8 @@
                     </div>
                 @endforeach
             </div>
+
+            <x-ui.pagination :paginator="$rows" unit="tanggal" />
         @endif
     </div>
 

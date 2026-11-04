@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceLeave;
 use App\Models\Employee;
+use App\Support\Listing;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -48,7 +49,14 @@ class AttendanceLeaveController extends Controller implements HasMiddleware
             ->when($search !== '', fn ($query) => $query->whereHas('employee', fn ($q) => $q->search($search)))
             ->orderByDesc('start_date')
             ->orderByDesc('id')
-            ->paginate(20)
+            ->tap(fn ($query) => Listing::sort($query, $request, [
+                'employee' => fn ($query, $dir) => $query->orderBy(
+                    Employee::select('name')->whereColumn('employees.id', 'attendance_leaves.employee_id'), $dir
+                ),
+                'type' => 'type',
+                'date' => 'start_date',
+            ], ['date', 'desc']))
+            ->paginate(Listing::perPage($request))
             ->withQueryString();
 
         $counts = (clone $base)->selectRaw('type, count(*) as total')->groupBy('type')->pluck('total', 'type');

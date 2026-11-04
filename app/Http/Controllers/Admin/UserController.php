@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\StoreUserRequest;
 use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\Listing;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -39,7 +40,16 @@ class UserController extends Controller implements HasMiddleware
             ->when($request->filled('role'), fn ($query) => $query->where('role_id', $request->integer('role')))
             ->when($request->filled('status'), fn ($query) => $query->where('is_active', $request->input('status') === 'active'))
             ->latest()
-            ->paginate(10)
+            ->tap(fn ($query) => Listing::sort($query, $request, [
+                'name' => 'name',
+                'role' => fn ($query, $dir) => $query->orderBy(
+                    Role::select('name')->whereColumn('roles.id', 'users.role_id'), $dir
+                ),
+                'phone' => 'phone',
+                'status' => 'is_active',
+                'last_login' => 'last_login_at',
+            ]))
+            ->paginate(Listing::perPage($request))
             ->withQueryString();
 
         $roles = Role::orderBy('name')->get();

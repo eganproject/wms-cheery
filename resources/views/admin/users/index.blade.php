@@ -62,11 +62,11 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th scope="col">Pengguna</th>
-                            <th scope="col"><span class="inline-flex items-center gap-1">Role <x-ui.hint text="Peran yang menentukan menu dan aksi apa saja yang boleh dibuka pengguna." /></span></th>
-                            <th scope="col">Kontak</th>
-                            <th scope="col"><span class="inline-flex items-center gap-1">Status <x-ui.hint text="Nonaktif = pengguna tidak bisa masuk ke aplikasi." /></span></th>
-                            <th scope="col">Terakhir Masuk</th>
+                            <th scope="col"><x-ui.sort key="name">Pengguna</x-ui.sort></th>
+                            <th scope="col"><span class="inline-flex items-center gap-1"><x-ui.sort key="role">Role</x-ui.sort> <x-ui.hint text="Peran yang menentukan menu dan aksi apa saja yang boleh dibuka pengguna." /></span></th>
+                            <th scope="col"><x-ui.sort key="phone">Kontak</x-ui.sort></th>
+                            <th scope="col"><span class="inline-flex items-center gap-1"><x-ui.sort key="status" first="desc">Status</x-ui.sort> <x-ui.hint text="Nonaktif = pengguna tidak bisa masuk ke aplikasi." /></span></th>
+                            <th scope="col"><x-ui.sort key="last_login" first="desc">Terakhir Masuk</x-ui.sort></th>
                             <th scope="col" class="text-right">Aksi</th>
                         </tr>
                     </thead>

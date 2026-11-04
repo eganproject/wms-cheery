@@ -72,11 +72,11 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th>Dokumen</th>
-                            <th>Alasan</th>
-                            <th class="text-right">Baris</th>
+                            <th><x-ui.sort key="date" first="desc">Dokumen</x-ui.sort></th>
+                            <th><x-ui.sort key="reason">Alasan</x-ui.sort></th>
+                            <th class="text-right"><x-ui.sort key="items" first="desc">Baris</x-ui.sort></th>
                             <th class="text-right"><span class="inline-flex items-center gap-1">Selisih <x-ui.hint text="Total perubahan stok dari penyesuaian ini. Minus berarti stok dikurangi." /></span></th>
-                            <th>Status</th>
+                            <th><x-ui.sort key="status">Status</x-ui.sort></th>
                             <th class="text-right">Aksi</th>
                         </tr>
                     </thead>

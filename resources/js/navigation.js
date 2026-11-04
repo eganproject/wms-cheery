@@ -314,6 +314,8 @@ document.addEventListener('input', (event) => {
 document.addEventListener('change', (event) => {
     const form = event.target.closest('form[data-auto-submit]');
     if (!form || event.target.tagName !== 'SELECT') return;
+    // Pilihan baris per halaman punya penanganannya sendiri (listing.js).
+    if (event.target.dataset.perPage !== undefined) return;
 
     clearTimeout(autoSubmitTimer);
     form.requestSubmit();

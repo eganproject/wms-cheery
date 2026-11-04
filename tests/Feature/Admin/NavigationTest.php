@@ -154,7 +154,7 @@ class NavigationTest extends TestCase
 
     public function test_a_longer_list_still_paginates(): void
     {
-        foreach (range(1, 12) as $i) {
+        foreach (range(1, 30) as $i) {
             Product::create(['sku' => "FLT-{$i}", 'name' => "Filter {$i}", 'unit' => 'pcs', 'min_stock' => 0]);
         }
 

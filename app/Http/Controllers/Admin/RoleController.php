@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\StoreRoleRequest;
 use App\Http\Requests\Admin\UpdateRoleRequest;
 use App\Models\Permission;
 use App\Models\Role;
+use App\Support\Listing;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -34,7 +35,7 @@ class RoleController extends Controller implements HasMiddleware
                     ->orWhere('slug', 'like', "%{$search}%");
             })
             ->orderBy('name')
-            ->paginate(10)
+            ->paginate(Listing::perPage($request, 12, options: [12, 24, 48, 96]))
             ->withQueryString();
 
         return view('admin.roles.index', compact('roles'));

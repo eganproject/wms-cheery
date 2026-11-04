@@ -120,7 +120,7 @@
               x-data="productBulkEdit({
                   ids: @js($products->pluck('id')->all()),
                   total: {{ $products->total() }},
-                  key: @js(collect(request()->query())->except('page')->sortKeys()->toJson()),
+                  key: @js(collect(request()->query())->except(['page', 'per_page', 'sort', 'dir'])->sortKeys()->toJson()),
               })"
               {{-- Pilihan yang sudah dipakai tidak perlu diingat lagi. --}}
               x-on:submit="forget()">
@@ -235,10 +235,10 @@
                                     <span class="sr-only">Pilih semua barang di halaman ini</span>
                                 </th>
                             @endcan
-                            <th>Barang</th>
-                            <th>Kategori</th>
-                            <th><span class="inline-flex items-center gap-1">Lokasi <x-ui.hint text="Posisi rak tempat barang disimpan." /></span></th>
-                            <th class="text-right"><span class="inline-flex items-center gap-1">Stok <x-ui.hint text="Saldo stok di gudang. Angka &quot;min.&quot; adalah batas menipis barang ini." /></span></th>
+                            <th><x-ui.sort key="name">Barang</x-ui.sort></th>
+                            <th><x-ui.sort key="category">Kategori</x-ui.sort></th>
+                            <th><span class="inline-flex items-center gap-1"><x-ui.sort key="location">Lokasi</x-ui.sort> <x-ui.hint text="Posisi rak tempat barang disimpan." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="stock" first="desc">Stok</x-ui.sort> <x-ui.hint text="Saldo stok di gudang. Angka &quot;min.&quot; adalah batas menipis barang ini." /></span></th>
                             <th><span class="inline-flex items-center gap-1">Status <x-ui.hint text="Aman, Menipis (di bawah batas minimum), atau Habis." /></span></th>
                             <th class="text-right">Aksi</th>
                         </tr>

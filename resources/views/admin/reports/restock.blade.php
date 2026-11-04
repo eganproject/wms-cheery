@@ -128,15 +128,15 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th>Barang</th>
+                            <th><x-ui.sort key="nama">Barang</x-ui.sort></th>
                             <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Stok <x-ui.hint text="Saldo di rak saat ini." /></span></th>
                             <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Terikat <x-ui.hint text="Unit yang sudah dijanjikan ke pesanan tapi belum dikirim." /></span></th>
                             <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Tersedia <x-ui.hint text="Stok dikurangi terikat: yang benar-benar bebas untuk pesanan baru." /></span></th>
                             <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Batas <x-ui.hint text="Batas stok menipis yang diatur di master barang." /></span></th>
-                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Laju <x-ui.hint text="Rata-rata unit keluar per hari selama periode yang diamati." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="laku">Laju</x-ui.sort> <x-ui.hint text="Rata-rata unit keluar per hari selama periode yang diamati." /></span></th>
                             <th class="px-4"><span class="inline-flex items-center gap-1">Klasifikasi <x-ui.hint text="Fast, Medium, atau Slow Moving menurut laju keluar barang." /></span></th>
                             <th class="px-4"><span class="inline-flex items-center gap-1">Kondisi <x-ui.hint text="Habis, menipis (di bawah batas), atau aman." /></span></th>
-                            <th class="text-right"><span class="inline-flex items-center gap-1">Saran Pesan <x-ui.hint text="Jumlah yang disarankan dipesan: yang lebih besar antara mengembalikan stok ke batas menipis dan menutup kebutuhan beberapa hari ke depan." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="jumlah">Saran Pesan</x-ui.sort> <x-ui.hint text="Jumlah yang disarankan dipesan: yang lebih besar antara mengembalikan stok ke batas menipis dan menutup kebutuhan beberapa hari ke depan." /></span></th>
                         </tr>
                     </thead>
                     <tbody>

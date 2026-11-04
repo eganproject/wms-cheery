@@ -10,6 +10,7 @@ use App\Services\TikTokImportService;
 use App\Services\ShipmentImportFailureExportService;
 use App\Services\ShipmentOrderResolver;
 use App\Support\DateRange;
+use App\Support\Listing;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -53,7 +54,7 @@ class ShipmentImportController extends Controller implements HasMiddleware
             ->when($request->input('match') === 'unmatched', fn ($query) => $query->whereHas('items', fn ($items) => $items->whereNull('product_id')))
             ->when($request->input('match') === 'matched', fn ($query) => $query->whereDoesntHave('items', fn ($items) => $items->whereNull('product_id')))
             ->latestFirst()
-            ->paginate(10)
+            ->paginate(Listing::perPage($request))
             ->withQueryString();
 
         return view('admin.imports.index', [
@@ -167,7 +168,7 @@ class ShipmentImportController extends Controller implements HasMiddleware
 
         return view('admin.imports.show', [
             'import' => $import,
-            'orders' => $import->orders()->with('items.product')->latest('id')->paginate(15),
+            'orders' => $import->orders()->with('items.product')->latest('id')->paginate(Listing::perPage(request())),
         ]);
     }
 
@@ -177,7 +178,16 @@ class ShipmentImportController extends Controller implements HasMiddleware
     public function batches(): View
     {
         return view('admin.imports.batches', [
-            'imports' => ShipmentImport::with('user')->latest('id')->paginate(10),
+            'imports' => ShipmentImport::with('user')
+                ->latest('id')
+                ->tap(fn ($query) => Listing::sort($query, request(), [
+                    'file' => 'filename',
+                    'orders' => 'order_count',
+                    'items' => 'item_count',
+                    'unmatched' => 'unmatched_sku_count',
+                    'date' => 'created_at',
+                ], ['date', 'desc']))
+                ->paginate(Listing::perPage(request())),
         ]);
     }
 

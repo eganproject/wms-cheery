@@ -306,7 +306,7 @@ class ProductBulkEditTest extends TestCase
      */
     public function test_the_selection_key_ignores_the_page_number(): void
     {
-        foreach (range(1, 12) as $number) {
+        foreach (range(1, 30) as $number) {
             $this->makeProduct('FLT-'.$number, minStock: 1, category: 'Filter');
         }
 
@@ -317,6 +317,9 @@ class ProductBulkEditTest extends TestCase
         $first = $key(['category' => 'Filter']);
         $second = $key(['category' => 'Filter', 'page' => 2]);
         $other = $key(['category' => 'Filter', 'stock' => 'low']);
+
+        // Mengganti jumlah baris atau urutan juga bukan berganti saringan.
+        $this->assertSame($first, $key(['category' => 'Filter', 'per_page' => 10, 'sort' => 'stock', 'dir' => 'desc']));
 
         $this->assertNotSame('', $first);
         $this->assertSame($first, $second, 'Berpindah halaman bukan berganti saringan.');

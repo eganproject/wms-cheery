@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\DailyWaybillReportExportService;
 use App\Services\DailyWaybillReportService;
 use App\Support\DailyWaybillReportFilters;
+use App\Support\Listing;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -31,7 +32,17 @@ class DailyWaybillReportController extends Controller implements HasMiddleware
 
         return view('admin.imports.daily', [
             'filters' => $filters,
-            'rows' => $rows,
+            'rows' => Listing::collection($rows, $request, [
+                'date' => 'date',
+                'total' => 'total',
+                'units' => 'units',
+                'couriers' => 'couriers',
+                'awaiting' => 'awaiting',
+                'checked' => 'checked',
+                'shipped' => 'shipped',
+                'cancelled' => 'cancelled',
+                'readiness' => fn ($row) => $row->readiness(),
+            ], ['date', 'desc']),
             'summary' => $this->report->summary($rows, $filters),
             'couriers' => $this->report->couriers(),
         ]);

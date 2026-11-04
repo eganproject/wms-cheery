@@ -26,16 +26,16 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th>Karyawan</th>
-                            <th class="text-right"><span class="inline-flex items-center gap-1">Hari kerja <x-ui.hint text="Hari terjadwal masuk menurut jam kerja, tanpa hari libur, sampai hari ini." /></span></th>
-                            <th class="text-right">Hadir</th>
-                            <th class="text-right"><span class="inline-flex items-center gap-1">Telat <x-ui.hint text="Berapa kali telat, dan total menitnya." /></span></th>
-                            <th class="text-right">Pulang cepat</th>
-                            <th class="text-right">Izin</th>
-                            <th class="text-right">Sakit</th>
-                            <th class="text-right">Cuti</th>
-                            <th class="text-right">Tidak hadir</th>
-                            <th class="text-right"><span class="inline-flex items-center gap-1">Kehadiran <x-ui.hint text="Hari hadir dibagi hari kerja, tanpa menghitung hari izin, sakit, atau cuti." /></span></th>
+                            <th><x-ui.sort key="name">Karyawan</x-ui.sort></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="workdays" first="desc">Hari kerja</x-ui.sort> <x-ui.hint text="Hari terjadwal masuk menurut jam kerja, tanpa hari libur, sampai hari ini." /></span></th>
+                            <th class="text-right"><x-ui.sort key="present" first="desc">Hadir</x-ui.sort></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="late" first="desc">Telat</x-ui.sort> <x-ui.hint text="Berapa kali telat, dan total menitnya." /></span></th>
+                            <th class="text-right"><x-ui.sort key="early" first="desc">Pulang cepat</x-ui.sort></th>
+                            <th class="text-right"><x-ui.sort key="izin" first="desc">Izin</x-ui.sort></th>
+                            <th class="text-right"><x-ui.sort key="sakit" first="desc">Sakit</x-ui.sort></th>
+                            <th class="text-right"><x-ui.sort key="cuti" first="desc">Cuti</x-ui.sort></th>
+                            <th class="text-right"><x-ui.sort key="absent" first="desc">Tidak hadir</x-ui.sort></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="rate" first="desc">Kehadiran</x-ui.sort> <x-ui.hint text="Hari hadir dibagi hari kerja, tanpa menghitung hari izin, sakit, atau cuti." /></span></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -70,6 +70,8 @@
                     </tbody>
                 </table>
             </div>
+
+            <x-ui.pagination :paginator="$rows" unit="karyawan" />
         @endif
     </div>
 </x-app-layout>

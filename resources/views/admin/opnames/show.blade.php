@@ -295,10 +295,10 @@
                         <table class="erp-table">
                             <thead>
                                 <tr>
-                                    <th>Barang</th>
-                                    <th class="text-right"><span class="inline-flex items-center gap-1">Tercatat <x-ui.hint text="Stok menurut sistem saat sesi dibuka." /></span></th>
-                                    <th class="text-right"><span class="inline-flex items-center gap-1">Hitung <x-ui.hint text="Hasil hitung fisik di rak." /></span></th>
-                                    <th class="text-right"><span class="inline-flex items-center gap-1">Selisih <x-ui.hint text="Hitung dikurangi tercatat. Minus berarti barang kurang dari catatan." /></span></th>
+                                    <th><x-ui.sort key="product">Barang</x-ui.sort></th>
+                                    <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="system" first="desc">Tercatat</x-ui.sort> <x-ui.hint text="Stok menurut sistem saat sesi dibuka." /></span></th>
+                                    <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="counted" first="desc">Hitung</x-ui.sort> <x-ui.hint text="Hasil hitung fisik di rak." /></span></th>
+                                    <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="difference">Selisih</x-ui.sort> <x-ui.hint text="Hitung dikurangi tercatat. Minus berarti barang kurang dari catatan." /></span></th>
                                     <th>Dihitung Oleh</th>
                                 </tr>
                             </thead>

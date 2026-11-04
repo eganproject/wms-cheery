@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\RestockExportService;
 use App\Services\RestockReportService;
 use App\Support\RestockFilters;
+use App\Support\Listing;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -37,9 +38,16 @@ class RestockReportController extends Controller implements HasMiddleware
     {
         $filters = RestockFilters::fromRequest($request);
 
+        // Judul kolom menjadi jalan pintas ke pilihan "Urut" yang sudah ada.
+        Listing::presetSort($request, $filters->sort, [
+            'nama' => 'asc',
+            'laku' => 'desc',
+            'jumlah' => 'desc',
+        ]);
+
         return view('admin.reports.restock', [
             'filters' => $filters,
-            'rows' => $this->report->paginate($filters),
+            'rows' => $this->report->paginate($filters, Listing::perPage($request)),
             'summary' => $this->report->summary($filters),
             'categories' => $this->report->categories(),
         ]);

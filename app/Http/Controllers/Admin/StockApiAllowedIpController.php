@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\StockApiAllowedIp;
+use App\Support\Listing;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -35,7 +36,12 @@ class StockApiAllowedIpController extends Controller implements HasMiddleware
                 ->where('is_active', $request->input('status') === 'active'))
             ->orderByDesc('is_active')
             ->orderBy('ip_address')
-            ->paginate(20)
+            ->tap(fn ($query) => Listing::sort($query, $request, [
+                'ip' => 'ip_address',
+                'label' => 'label',
+                'status' => 'is_active',
+            ]))
+            ->paginate(Listing::perPage($request))
             ->withQueryString();
 
         return view('admin.stock-api-access.index', compact('ips'));

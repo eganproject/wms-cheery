@@ -69,10 +69,10 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th>Dokumen</th>
-                            <th>Penerima</th>
-                            <th class="text-right"><span class="inline-flex items-center gap-1">Total Unit <x-ui.hint text="Jumlah seluruh unit barang di dokumen ini." /></span></th>
-                            <th><span class="inline-flex items-center gap-1">Status <x-ui.hint text="Draft masih bisa diubah. Menunggu = perlu persetujuan. Disetujui = stok sudah berkurang." /></span></th>
+                            <th><x-ui.sort key="date" first="desc">Dokumen</x-ui.sort></th>
+                            <th><x-ui.sort key="recipient">Penerima</x-ui.sort></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="quantity" first="desc">Total Unit</x-ui.sort> <x-ui.hint text="Jumlah seluruh unit barang di dokumen ini." /></span></th>
+                            <th><span class="inline-flex items-center gap-1"><x-ui.sort key="status">Status</x-ui.sort> <x-ui.hint text="Draft masih bisa diubah. Menunggu = perlu persetujuan. Disetujui = stok sudah berkurang." /></span></th>
                             <th class="text-right">Aksi</th>
                         </tr>
                     </thead>

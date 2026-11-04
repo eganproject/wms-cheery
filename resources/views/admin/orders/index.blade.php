@@ -310,12 +310,9 @@
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2 lg:ml-auto">
-                    <label for="order-per-page" class="whitespace-nowrap text-xs text-ink-500">Tampilkan</label>
-                    <select id="order-per-page" name="per_page" class="form-control w-32" onchange="this.form.requestSubmit()">
-                        @foreach (OrderController::PER_PAGE as $size)
-                            <option value="{{ $loop->first ? '' : $size }}" @selected($perPage === $size)>{{ $size }} / halaman</option>
-                        @endforeach
-                    </select>
+                    @if (request()->filled('per_page'))
+                        <input type="hidden" name="per_page" value="{{ request('per_page') }}">
+                    @endif
                     <label for="order-sort" class="whitespace-nowrap text-xs text-ink-500">Urutkan</label>
                     <select id="order-sort" name="sort" class="form-control w-48" onchange="this.form.requestSubmit()">
                         @foreach (OrderController::SORTS as $value => $label)
@@ -535,13 +532,6 @@
             </table>
         </div>
 
-        @if ($orders->total() > 0)
-            <div class="flex flex-col gap-3 border-t border-ink-100 px-4 py-3 lg:flex-row lg:items-center">
-                <span class="text-sm text-ink-500">Total {{ number_format($orders->total(), 0, ',', '.') }} pesanan</span>
-                @if ($orders->hasPages())
-                    <div class="flex-1">{{ $orders->links() }}</div>
-                @endif
-            </div>
-        @endif
+        <x-ui.pagination :paginator="$orders" unit="pesanan" />
     </div>
 </x-app-layout>

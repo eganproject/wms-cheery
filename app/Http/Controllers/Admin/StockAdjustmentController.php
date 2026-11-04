@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\StockAdjustment;
 use App\Services\ApprovalService;
 use App\Services\TableExport;
+use App\Support\Listing;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -142,7 +143,13 @@ class StockAdjustmentController extends Controller implements HasMiddleware
         $adjustments = $this->filtered($request)
             ->with(['user', 'items'])
             ->withCount('items')
-            ->paginate(10)
+            ->tap(fn ($query) => Listing::sort($query, $request, [
+                'date' => fn ($query, $dir) => $query->orderBy('date', $dir)->orderBy('id', $dir),
+                'reason' => 'reason',
+                'items' => 'items_count',
+                'status' => 'status',
+            ], ['date', 'desc']))
+            ->paginate(Listing::perPage($request))
             ->withQueryString();
 
         return view('admin.adjustments.index', [

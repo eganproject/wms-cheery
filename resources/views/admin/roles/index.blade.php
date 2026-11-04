@@ -88,8 +88,6 @@
             @endforeach
         </div>
 
-        <div class="mt-6">
-            {{ $roles->links() }}
-        </div>
+        <x-ui.pagination :paginator="$roles" bare unit="role" class="mt-6" />
     @endif
 </x-app-layout>

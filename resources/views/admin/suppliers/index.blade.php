@@ -50,10 +50,10 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th>Pemasok</th>
-                            <th>Kontak</th>
-                            <th class="text-right"><span class="inline-flex items-center gap-1">Dokumen <x-ui.hint text="Jumlah dokumen penerimaan barang dari pemasok ini." /></span></th>
-                            <th>Status</th>
+                            <th><x-ui.sort key="name">Pemasok</x-ui.sort></th>
+                            <th><x-ui.sort key="contact">Kontak</x-ui.sort></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="inbounds" first="desc">Dokumen</x-ui.sort> <x-ui.hint text="Jumlah dokumen penerimaan barang dari pemasok ini." /></span></th>
+                            <th><x-ui.sort key="status" first="desc">Status</x-ui.sort></th>
                             <th class="text-right">Aksi</th>
                         </tr>
                     </thead>

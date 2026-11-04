@@ -19,11 +19,11 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th>Berkas</th>
-                            <th class="text-right"><span class="inline-flex items-center gap-1">Resi <x-ui.hint text="Jumlah resi yang terbaca dari berkas ini." /></span></th>
-                            <th class="text-right"><span class="inline-flex items-center gap-1">Baris <x-ui.hint text="Jumlah baris barang (SKU) dari berkas ini." /></span></th>
-                            <th><span class="inline-flex items-center gap-1">SKU <x-ui.hint text="Apakah semua SKU di berkas sudah terdaftar di master barang." /></span></th>
-                            <th>Diimport</th>
+                            <th><x-ui.sort key="file">Berkas</x-ui.sort></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="orders" first="desc">Resi</x-ui.sort> <x-ui.hint text="Jumlah resi yang terbaca dari berkas ini." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="items" first="desc">Baris</x-ui.sort> <x-ui.hint text="Jumlah baris barang (SKU) dari berkas ini." /></span></th>
+                            <th><span class="inline-flex items-center gap-1"><x-ui.sort key="unmatched" first="desc">SKU</x-ui.sort> <x-ui.hint text="Apakah semua SKU di berkas sudah terdaftar di master barang." /></span></th>
+                            <th><x-ui.sort key="date" first="desc">Diimport</x-ui.sort></th>
                             <th class="text-right">Aksi</th>
                         </tr>
                     </thead>

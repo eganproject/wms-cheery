@@ -65,11 +65,11 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th>Dokumen</th>
-                            <th>Pemasok</th>
-                            <th class="text-right"><span class="inline-flex items-center gap-1">Baris <x-ui.hint text="Jumlah jenis barang (baris) dalam dokumen." /></span></th>
-                            <th class="text-right"><span class="inline-flex items-center gap-1">Total Unit <x-ui.hint text="Jumlah seluruh unit yang diterima, termasuk yang rusak." /></span></th>
-                            <th><span class="inline-flex items-center gap-1">Status <x-ui.hint text="Draft masih bisa diubah. Menunggu = perlu persetujuan. Disetujui = stok sudah bertambah." /></span></th>
+                            <th><x-ui.sort key="date" first="desc">Dokumen</x-ui.sort></th>
+                            <th><x-ui.sort key="supplier">Pemasok</x-ui.sort></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="items" first="desc">Baris</x-ui.sort> <x-ui.hint text="Jumlah jenis barang (baris) dalam dokumen." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="quantity" first="desc">Total Unit</x-ui.sort> <x-ui.hint text="Jumlah seluruh unit yang diterima, termasuk yang rusak." /></span></th>
+                            <th><span class="inline-flex items-center gap-1"><x-ui.sort key="status">Status</x-ui.sort> <x-ui.hint text="Draft masih bisa diubah. Menunggu = perlu persetujuan. Disetujui = stok sudah bertambah." /></span></th>
                             <th class="text-right">Aksi</th>
                         </tr>
                     </thead>

@@ -52,12 +52,12 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th>Karyawan</th>
+                            <th><x-ui.sort key="name">Karyawan</x-ui.sort></th>
                             <th><span class="inline-flex items-center gap-1">Akun login <x-ui.hint text="Akun WMS yang terhubung. Wajib untuk absen lewat HP; boleh kosong untuk staf yang hanya tap di mesin." /></span></th>
-                            <th><span class="inline-flex items-center gap-1">Metode absen <x-ui.hint text="Mesin = tap jari di mesin fingerprint. HP = absen dari aplikasi Android dengan selfie dan lokasi." /></span></th>
-                            <th>Jam kerja</th>
-                            <th><span class="inline-flex items-center gap-1">PIN mesin <x-ui.hint text="Nomor ID karyawan yang didaftarkan di mesin fingerprint." /></span></th>
-                            <th>Status</th>
+                            <th><span class="inline-flex items-center gap-1"><x-ui.sort key="method">Metode absen</x-ui.sort> <x-ui.hint text="Mesin = tap jari di mesin fingerprint. HP = absen dari aplikasi Android dengan selfie dan lokasi." /></span></th>
+                            <th><x-ui.sort key="shift">Jam kerja</x-ui.sort></th>
+                            <th><span class="inline-flex items-center gap-1"><x-ui.sort key="pin">PIN mesin</x-ui.sort> <x-ui.hint text="Nomor ID karyawan yang didaftarkan di mesin fingerprint." /></span></th>
+                            <th><x-ui.sort key="status" first="desc">Status</x-ui.sort></th>
                             <th class="text-right">Aksi</th>
                         </tr>
                     </thead>

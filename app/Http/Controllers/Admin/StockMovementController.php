@@ -8,6 +8,7 @@ use App\Support\StockMovementSummary;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Services\StockMovementExportService;
+use App\Support\Listing;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -38,7 +39,16 @@ class StockMovementController extends Controller implements HasMiddleware
             ->with(['product', 'user'])
             ->latest('created_at')
             ->latest('id')
-            ->paginate(20)
+            ->tap(fn ($query) => Listing::sort($query, $request, [
+                'time' => fn ($query, $dir) => $query->orderBy('created_at', $dir)->orderBy('id', $dir),
+                'product' => fn ($query, $dir) => $query->orderBy(
+                    Product::select('name')->whereColumn('products.id', 'stock_movements.product_id'), $dir
+                ),
+                'type' => 'type',
+                'quantity' => 'quantity',
+                'balance' => 'balance_after',
+            ], ['time', 'desc']))
+            ->paginate(Listing::perPage($request))
             ->withQueryString();
 
         return view('admin.movements.index', [

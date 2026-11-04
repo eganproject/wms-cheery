@@ -84,15 +84,15 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th>Ekspedisi</th>
-                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Resi <x-ui.hint text="Jumlah resi hasil import untuk ekspedisi ini pada rentang tanggal terpilih." /></span></th>
-                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Unit <x-ui.hint text="Total unit barang di semua resi tersebut." /></span></th>
-                            @foreach ($stages as $meta)
+                            <th><x-ui.sort key="courier">Ekspedisi</x-ui.sort></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="total" first="desc">Resi</x-ui.sort> <x-ui.hint text="Jumlah resi hasil import untuk ekspedisi ini pada rentang tanggal terpilih." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="units" first="desc">Unit</x-ui.sort> <x-ui.hint text="Total unit barang di semua resi tersebut." /></span></th>
+                            @foreach ($stages as $key => $meta)
                                 <th class="px-4 text-right">
-                                    {{ $meta['label'] }}
+                                    <x-ui.sort :key="$key" first="desc">{{ $meta['label'] }}</x-ui.sort>
                                 </th>
                             @endforeach
-                            <th><span class="inline-flex items-center gap-1">Kesiapan <x-ui.hint text="Bagian resi yang sudah tidak menunggu packing: lolos QC, sudah dikirim, atau dibatalkan." /></span></th>
+                            <th><span class="inline-flex items-center gap-1"><x-ui.sort key="readiness">Kesiapan</x-ui.sort> <x-ui.hint text="Bagian resi yang sudah tidak menunggu packing: lolos QC, sudah dikirim, atau dibatalkan." /></span></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -187,6 +187,8 @@
                     </div>
                 @endforeach
             </div>
+
+            <x-ui.pagination :paginator="$couriers" unit="ekspedisi" />
         @endif
     </div>
 

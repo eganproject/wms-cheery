@@ -84,10 +84,10 @@
                     <table class="erp-table">
                         <thead>
                             <tr>
-                                <th>Barang</th>
-                                <th>Kategori</th>
-                                <th class="text-right">Stok Rusak</th>
-                                <th class="text-right">Stok Layak Jual</th>
+                                <th><x-ui.sort key="name" for="stok">Barang</x-ui.sort></th>
+                                <th><x-ui.sort key="category" for="stok">Kategori</x-ui.sort></th>
+                                <th class="text-right"><x-ui.sort key="damaged" for="stok" first="desc">Stok Rusak</x-ui.sort></th>
+                                <th class="text-right"><x-ui.sort key="stock" for="stok" first="desc">Stok Layak Jual</x-ui.sort></th>
                                 <th class="text-right">Aksi</th>
                             </tr>
                         </thead>
@@ -179,13 +179,13 @@
                     <table class="erp-table">
                         <thead>
                             <tr>
-                                <th>Dokumen</th>
-                                <th>Saldo Asal</th>
-                                <th>Tindakan</th>
-                                <th class="text-right">Barang</th>
-                                <th class="text-right">Total Unit</th>
+                                <th><x-ui.sort key="date" for="dokumen" first="desc">Dokumen</x-ui.sort></th>
+                                <th><x-ui.sort key="bucket" for="dokumen">Saldo Asal</x-ui.sort></th>
+                                <th><x-ui.sort key="action" for="dokumen">Tindakan</x-ui.sort></th>
+                                <th class="text-right"><x-ui.sort key="items" for="dokumen" first="desc">Barang</x-ui.sort></th>
+                                <th class="text-right"><x-ui.sort key="quantity" for="dokumen" first="desc">Total Unit</x-ui.sort></th>
                                 <th>Dibuat Oleh</th>
-                                <th>Status</th>
+                                <th><x-ui.sort key="status" for="dokumen">Status</x-ui.sort></th>
                                 <th class="text-right">Aksi</th>
                             </tr>
                         </thead>

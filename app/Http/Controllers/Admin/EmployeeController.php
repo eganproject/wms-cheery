@@ -7,6 +7,7 @@ use App\Models\AppSetting;
 use App\Models\Employee;
 use App\Models\User;
 use App\Models\WorkShift;
+use App\Support\Listing;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -36,7 +37,16 @@ class EmployeeController extends Controller implements HasMiddleware
             ->when($request->filled('status'), fn ($query) => $query->where('is_active', $request->input('status') === 'active'))
             ->orderByDesc('is_active')
             ->orderBy('name')
-            ->paginate(20)
+            ->tap(fn ($query) => Listing::sort($query, $request, [
+                'name' => 'name',
+                'method' => 'attendance_method',
+                'shift' => fn ($query, $dir) => $query->orderBy(
+                    WorkShift::select('name')->whereColumn('work_shifts.id', 'employees.work_shift_id'), $dir
+                ),
+                'pin' => 'machine_pin',
+                'status' => 'is_active',
+            ]))
+            ->paginate(Listing::perPage($request))
             ->withQueryString();
 
         return view('admin.employees.index', compact('employees'));

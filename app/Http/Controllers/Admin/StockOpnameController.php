@@ -9,6 +9,7 @@ use App\Models\StockOpname;
 use App\Models\StockOpnameItem;
 use App\Services\ApprovalService;
 use App\Services\OpnameExportService;
+use App\Support\Listing;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -61,7 +62,13 @@ class StockOpnameController extends Controller implements HasMiddleware
             ->dateBetween(DateRange::fromRequest($request))
             ->latest('date')
             ->latest('id')
-            ->paginate(10)
+            ->tap(fn ($query) => Listing::sort($query, $request, [
+                'date' => fn ($query, $dir) => $query->orderBy('date', $dir)->orderBy('id', $dir),
+                'scope' => 'scope',
+                'progress' => fn ($query, $dir) => $query->orderBy('counted_items_count', $dir)->orderBy('items_count', $dir),
+                'status' => 'status',
+            ], ['date', 'desc']))
+            ->paginate(Listing::perPage($request))
             ->withQueryString();
 
         return view('admin.opnames.index', compact('opnames'));
@@ -158,7 +165,18 @@ class StockOpnameController extends Controller implements HasMiddleware
             // akhir daftar supaya tidak menghadang yang punya rak.
             ->orderByRaw('products.location IS NULL, products.location, products.name')
             ->select('stock_opname_items.*')
-            ->paginate(self::PER_PAGE)
+            // Urutan menurut angka sistem / selisih ikut ditutup bagi yang tidak
+            // boleh melihat selisih, sebab urutannya sendiri membocorkan angka itu.
+            ->tap(fn ($query) => Listing::sort($query, $request, [
+                'product' => 'products.name',
+                'counted' => 'stock_opname_items.counted_quantity',
+            ] + ($maySeeVariance ? [
+                'system' => 'stock_opname_items.system_quantity',
+                'difference' => fn ($query, $dir) => $query->orderByRaw(
+                    '(stock_opname_items.counted_quantity - stock_opname_items.system_quantity) '.($dir === 'asc' ? 'asc' : 'desc')
+                ),
+            ] : [])))
+            ->paginate(Listing::perPage($request, self::PER_PAGE))
             ->withQueryString();
 
         return view('admin.opnames.show', compact('opname', 'items', 'maySeeVariance'));

@@ -57,9 +57,9 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th><span class="inline-flex items-center gap-1">Alamat IP <x-ui.hint text="Hanya alamat IP di daftar ini yang boleh membaca API stok." /></span></th>
-                            <th>Keterangan</th>
-                            <th>Status</th>
+                            <th><span class="inline-flex items-center gap-1"><x-ui.sort key="ip">Alamat IP</x-ui.sort> <x-ui.hint text="Hanya alamat IP di daftar ini yang boleh membaca API stok." /></span></th>
+                            <th><x-ui.sort key="label">Keterangan</x-ui.sort></th>
+                            <th><x-ui.sort key="status" first="desc">Status</x-ui.sort></th>
                             <th class="text-right">Aksi</th>
                         </tr>
                     </thead>

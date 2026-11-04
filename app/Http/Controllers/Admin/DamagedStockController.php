@@ -10,6 +10,7 @@ use App\Models\StockMovement;
 use App\Models\Supplier;
 use App\Services\ApprovalService;
 use App\Services\TableExport;
+use App\Support\Listing;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -65,14 +66,28 @@ class DamagedStockController extends Controller implements HasMiddleware
                 ->where('damaged_stock', '>', 0)
                 ->search($search)
                 ->orderByDesc('damaged_stock')
-                ->paginate(15, ['*'], 'stok')
+                ->tap(fn ($query) => Listing::sort($query, $request, [
+                    'name' => 'name',
+                    'category' => 'category',
+                    'damaged' => 'damaged_stock',
+                    'stock' => 'stock',
+                ], ['damaged', 'desc'], 'stok'))
+                ->paginate(Listing::perPage($request, pageName: 'stok'), ['*'], 'stok')
                 ->withQueryString();
         } else {
             $disposals = $this->filteredDisposals($request)
                 ->with('user')
                 ->withCount('items')
                 ->withSum('items', 'quantity')
-                ->paginate(15, ['*'], 'dokumen')
+                ->tap(fn ($query) => Listing::sort($query, $request, [
+                    'date' => fn ($query, $dir) => $query->orderBy('date', $dir)->orderBy('id', $dir),
+                    'bucket' => 'bucket',
+                    'action' => 'action',
+                    'items' => 'items_count',
+                    'quantity' => 'items_sum_quantity',
+                    'status' => 'status',
+                ], ['date', 'desc'], 'dokumen'))
+                ->paginate(Listing::perPage($request, pageName: 'dokumen'), ['*'], 'dokumen')
                 ->withQueryString();
         }
 

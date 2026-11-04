@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\Supplier;
 use App\Services\ApprovalService;
 use App\Services\InboundExportService;
+use App\Support\Listing;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -49,7 +50,17 @@ class InboundController extends Controller implements HasMiddleware
             ->withSum('items', 'quantity')
             ->latest('date')
             ->latest('id')
-            ->paginate(10)
+            ->tap(fn ($query) => Listing::sort($query, $request, [
+                'code' => 'code',
+                'date' => fn ($query, $dir) => $query->orderBy('date', $dir)->orderBy('id', $dir),
+                'supplier' => fn ($query, $dir) => $query->orderBy(
+                    Supplier::select('name')->whereColumn('suppliers.id', 'inbounds.supplier_id'), $dir
+                )->orderBy('supplier', $dir),
+                'items' => 'items_count',
+                'quantity' => 'items_sum_quantity',
+                'status' => 'status',
+            ], ['date', 'desc']))
+            ->paginate(Listing::perPage($request))
             ->withQueryString();
 
         return view('admin.inbounds.index', compact('inbounds'));

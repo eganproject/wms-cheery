@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreSupplierRequest;
 use App\Http\Requests\Admin\UpdateSupplierRequest;
 use App\Models\Supplier;
+use App\Support\Listing;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -31,7 +32,13 @@ class SupplierController extends Controller implements HasMiddleware
             ->search($request->string('search')->trim()->value())
             ->when($request->filled('status'), fn ($query) => $query->where('is_active', $request->input('status') === 'active'))
             ->orderBy('name')
-            ->paginate(10)
+            ->tap(fn ($query) => Listing::sort($query, $request, [
+                'name' => 'name',
+                'contact' => 'contact_name',
+                'inbounds' => 'inbounds_count',
+                'status' => 'is_active',
+            ], ['name', 'asc']))
+            ->paginate(Listing::perPage($request))
             ->withQueryString();
 
         return view('admin.suppliers.index', compact('suppliers'));
@@ -55,7 +62,7 @@ class SupplierController extends Controller implements HasMiddleware
     {
         return view('admin.suppliers.show', [
             'supplier' => $supplier,
-            'inbounds' => $supplier->inbounds()->withSum('items', 'quantity')->latest('date')->paginate(10),
+            'inbounds' => $supplier->inbounds()->withSum('items', 'quantity')->latest('date')->latest('id')->paginate(Listing::perPage(request())),
         ]);
     }
 

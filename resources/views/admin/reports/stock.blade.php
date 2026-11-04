@@ -183,13 +183,13 @@
                     <thead class="border-b border-ink-100 bg-ink-50/70">
                         <tr class="text-[11px] text-ink-500">
                             <th class="w-12 pl-6 pr-2 text-center">No</th>
-                            <th class="px-4">SKU / Item</th>
+                            <th class="px-4"><x-ui.sort key="nama">SKU / Item</x-ui.sort></th>
                             <th class="px-4"><span class="inline-flex items-center gap-1">Klasifikasi <x-ui.hint text="Fast Moving = penyumbang awal hingga 70% barang keluar, Medium = 70–90%, Slow = sisanya." /></span></th>
-                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Qty Keluar <x-ui.hint text="Total unit keluar selama periode." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="keluar">Qty Keluar</x-ui.sort> <x-ui.hint text="Total unit keluar selama periode." /></span></th>
                             <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Rata-rata/Hari <x-ui.hint text="Qty keluar dibagi jumlah hari periode." /></span></th>
                             <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Kontribusi <x-ui.hint text="Persentase barang ini terhadap seluruh qty keluar periode." /></span></th>
-                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Frequency <x-ui.hint text="Jumlah dokumen barang keluar yang memuat barang ini selama periode." /></span></th>
-                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Days Cover <x-ui.hint text="Perkiraan berapa hari stok akhir cukup: stok akhir dibagi rata-rata keluar per hari." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="frekuensi">Frequency</x-ui.sort> <x-ui.hint text="Jumlah dokumen barang keluar yang memuat barang ini selama periode." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="sisa">Days Cover</x-ui.sort> <x-ui.hint text="Perkiraan berapa hari stok akhir cukup: stok akhir dibagi rata-rata keluar per hari." /></span></th>
                             <th class="pl-4 pr-6 text-right">Terakhir Keluar</th>
                         </tr>
                     </thead>

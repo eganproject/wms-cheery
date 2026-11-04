@@ -1,6 +1,7 @@
 import './bootstrap';
 import './navigation';
 import './enhance';
+import './listing';
 
 import Alpine from 'alpinejs';
 import initHints from './hints';

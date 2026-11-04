@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Outbound;
 use App\Services\ApprovalService;
 use App\Services\TableExport;
+use App\Support\Listing;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -117,7 +118,7 @@ class OutboundHandoverController extends Controller implements HasMiddleware
             ->with('user', 'shipmentOrder')
             ->withCount('items')
             ->withSum('items', 'quantity')
-            ->paginate(20)
+            ->paginate(Listing::perPage($request))
             ->withQueryString();
 
         return view('admin.outbounds.handover', [

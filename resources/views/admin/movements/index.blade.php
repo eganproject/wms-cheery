@@ -95,11 +95,11 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th>Waktu</th>
-                            <th>Barang</th>
-                            <th><span class="inline-flex items-center gap-1">Sumber <x-ui.hint text="Dokumen yang menggerakkan stok: barang masuk, keluar, retur, opname, penyesuaian, atau barang rusak." /></span></th>
-                            <th class="text-right"><span class="inline-flex items-center gap-1">Mutasi <x-ui.hint text="Perubahan stok: plus (+) berarti stok bertambah, minus (−) berarti berkurang." /></span></th>
-                            <th class="text-right"><span class="inline-flex items-center gap-1">Saldo <x-ui.hint text="Sisa stok barang tersebut tepat setelah mutasi ini." /></span></th>
+                            <th><x-ui.sort key="time" first="desc">Waktu</x-ui.sort></th>
+                            <th><x-ui.sort key="product">Barang</x-ui.sort></th>
+                            <th><span class="inline-flex items-center gap-1"><x-ui.sort key="type">Sumber</x-ui.sort> <x-ui.hint text="Dokumen yang menggerakkan stok: barang masuk, keluar, retur, opname, penyesuaian, atau barang rusak." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="quantity" first="desc">Mutasi</x-ui.sort> <x-ui.hint text="Perubahan stok: plus (+) berarti stok bertambah, minus (−) berarti berkurang." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="balance" first="desc">Saldo</x-ui.sort> <x-ui.hint text="Sisa stok barang tersebut tepat setelah mutasi ini." /></span></th>
                             <th><span class="inline-flex items-center gap-1">Oleh <x-ui.hint text="Pengguna yang membuat atau menyetujui dokumennya." /></span></th>
                         </tr>
                     </thead>

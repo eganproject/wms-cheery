@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\StockReportExportService;
 use App\Services\StockReportService;
 use App\Support\StockReportFilters;
+use App\Support\Listing;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -37,9 +38,17 @@ class StockReportController extends Controller implements HasMiddleware
     {
         $filters = StockReportFilters::fromRequest($request);
 
+        // Judul kolom menjadi jalan pintas ke pilihan "Urut" yang sudah ada.
+        Listing::presetSort($request, $filters->sort, [
+            'nama' => 'asc',
+            'keluar' => 'desc',
+            'frekuensi' => 'desc',
+            'sisa' => 'asc',
+        ]);
+
         return view('admin.reports.stock', [
             'filters' => $filters,
-            'rows' => $this->report->paginate($filters),
+            'rows' => $this->report->paginate($filters, Listing::perPage($request)),
             'summary' => $this->report->summary($filters),
             'classes' => $this->report->classSummary($filters),
             'categories' => $this->report->categories(),

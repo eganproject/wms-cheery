@@ -49,9 +49,9 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th>Karyawan</th>
-                            <th>Jenis</th>
-                            <th>Tanggal</th>
+                            <th><x-ui.sort key="employee">Karyawan</x-ui.sort></th>
+                            <th><x-ui.sort key="type">Jenis</x-ui.sort></th>
+                            <th><x-ui.sort key="date" first="desc">Tanggal</x-ui.sort></th>
                             <th class="text-right">Lama</th>
                             <th>Keterangan</th>
                             <th>Lampiran</th>

@@ -8,6 +8,7 @@ use App\Models\ShipmentOrderItem;
 use App\Services\OrderPlanner;
 use App\Services\TableExport;
 use App\Support\DateRange;
+use App\Support\Listing;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -45,8 +46,6 @@ class OrderController extends Controller implements HasMiddleware
         'order_date_desc' => 'Tanggal pesanan terbaru',
         'order_date_asc' => 'Tanggal pesanan terlama',
     ];
-
-    public const PER_PAGE = [20, 50, 100];
 
     /** Saringan yang dibawa kembali setelah tandai batal / cabut batal. */
     public const FILTER_KEYS = [
@@ -98,7 +97,7 @@ class OrderController extends Controller implements HasMiddleware
         $stage = (string) ($request->input('stage') ?? $request->input('status'));
         $stage = ShipmentOrder::LEGACY_STAGES[$stage] ?? $stage;
         $stage = array_key_exists($stage, ShipmentOrder::STAGES) ? $stage : '';
-        $perPage = in_array($request->integer('per_page'), self::PER_PAGE, true) ? $request->integer('per_page') : self::PER_PAGE[0];
+        $perPage = Listing::perPage($request);
 
         $orders = $this->filtered($request)
             ->with([
@@ -133,7 +132,6 @@ class OrderController extends Controller implements HasMiddleware
             'stores' => $distinct('store_name'),
             'couriers' => $distinct('courier'),
             'searchTerms' => count($this->terms($request)),
-            'perPage' => $perPage,
         ]);
     }
 

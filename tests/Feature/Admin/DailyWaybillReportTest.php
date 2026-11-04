@@ -204,7 +204,7 @@ class DailyWaybillReportTest extends TestCase
      */
     protected function rows(array $query = [])
     {
-        return collect($this->response($query)->viewData('rows'));
+        return collect($this->response($query)->viewData('rows')->items());
     }
 
     protected function response(array $query = [])

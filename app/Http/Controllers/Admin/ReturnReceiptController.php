@@ -12,6 +12,7 @@ use App\Models\ReturnReceipt;
 use App\Models\ReturnReceiptItem;
 use App\Services\ApprovalService;
 use App\Services\TableExport;
+use App\Support\Listing;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -156,7 +157,15 @@ class ReturnReceiptController extends Controller implements HasMiddleware
             ->with('user')
             ->withCount('items')
             ->withSum('items', 'quantity')
-            ->paginate(10)
+            ->tap(fn ($query) => Listing::sort($query, $request, [
+                'date' => fn ($query, $dir) => $query->orderBy('date', $dir)->orderBy('id', $dir),
+                'sender' => 'sender',
+                'type' => 'type',
+                'reason' => 'reason',
+                'quantity' => 'items_sum_quantity',
+                'status' => 'status',
+            ], ['date', 'desc']))
+            ->paginate(Listing::perPage($request))
             ->withQueryString();
 
         return view('admin.returns.index', [

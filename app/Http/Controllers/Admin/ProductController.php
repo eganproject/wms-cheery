@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreProductRequest;
 use App\Http\Requests\Admin\UpdateProductRequest;
 use App\Models\Product;
+use App\Support\Listing;
 use App\Services\ProductExportService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -39,10 +40,14 @@ class ProductController extends Controller implements HasMiddleware
             ->with(['group' => fn ($query) => $query->withCount('variants')])
             // Varian satu produk selalu berurutan di bawah nama induknya,
             // supaya daftar bisa menampilkannya berkelompok.
-            ->orderByRaw('COALESCE((SELECT pg.name FROM product_groups pg WHERE pg.id = products.product_group_id), products.name)')
-            ->orderBy('product_group_id')
-            ->orderBy('name')
-            ->paginate(10)
+            ->tap(fn ($query) => $this->byName($query, 'asc'))
+            ->tap(fn ($query) => Listing::sort($query, $request, [
+                'name' => fn ($query, $dir) => $this->byName($query, $dir),
+                'category' => 'category',
+                'location' => 'location',
+                'stock' => 'stock',
+            ], ['name', 'asc']))
+            ->paginate(Listing::perPage($request))
             ->withQueryString();
 
         return view('admin.products.index', [
@@ -50,6 +55,16 @@ class ProductController extends Controller implements HasMiddleware
             'categories' => Product::query()->whereNotNull('category')->distinct()->orderBy('category')->pluck('category'),
             'summary' => $this->summary($request),
         ]);
+    }
+
+    /**
+     * Urut nama dengan varian satu produk tetap berurutan di bawah induknya.
+     */
+    protected function byName($query, string $dir): void
+    {
+        $query->orderByRaw('COALESCE((SELECT pg.name FROM product_groups pg WHERE pg.id = products.product_group_id), products.name) '.$dir)
+            ->orderBy('product_group_id', $dir)
+            ->orderBy('name', $dir);
     }
 
     /**
@@ -116,7 +131,7 @@ class ProductController extends Controller implements HasMiddleware
             // sekali — bukan dimuat lalu ditemukan kosong.
             'movements' => $product->isBundle()
                 ? null
-                : $product->movements()->with('user')->paginate(15),
+                : $product->movements()->with('user')->paginate(Listing::perPage(request())),
             // Unit tiap komponen yang sudah dijanjikan lewat dokumen yang
             // belum diproses. Ditampilkan supaya angka "masih bisa dijanjikan"
             // bisa ditelusuri sampai ke barang yang membatasinya.

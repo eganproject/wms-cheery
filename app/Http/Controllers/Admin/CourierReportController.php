@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ShipmentOrder;
 use App\Services\TableExport;
 use App\Support\DateRange;
+use App\Support\Listing;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -43,7 +44,16 @@ class CourierReportController extends Controller implements HasMiddleware
 
         return view('admin.imports.couriers', [
             'range' => $range,
-            'couriers' => $couriers,
+            'couriers' => Listing::collection($couriers, $request, [
+                'courier' => 'courier',
+                'total' => 'total',
+                'units' => 'units',
+                'awaiting' => 'awaiting',
+                'checked' => 'checked',
+                'shipped' => 'shipped',
+                'cancelled' => 'cancelled',
+                'readiness' => fn ($row) => $row->total > 0 ? ($row->total - $row->awaiting) / $row->total : 1,
+            ], ['total', 'desc']),
             'totals' => [
                 'couriers' => $couriers->count(),
                 'orders' => $couriers->sum('total'),

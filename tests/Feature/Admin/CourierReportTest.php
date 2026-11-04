@@ -241,7 +241,7 @@ class CourierReportTest extends TestCase
     {
         $response = $this->actingAs($this->admin)->get(route('admin.imports.couriers', $query))->assertOk();
 
-        return collect($response->viewData('couriers'));
+        return collect($response->viewData('couriers')->items());
     }
 
     protected function rowFor(string $courier, array $query = []): object

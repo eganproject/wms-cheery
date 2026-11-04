@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Employee;
 use App\Services\Attendance\AttendanceCalculator;
 use App\Services\TableExport;
+use App\Support\Listing;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -34,7 +35,18 @@ class AttendanceReportController extends Controller implements HasMiddleware
 
         return view('admin.attendance.report', [
             'month' => $month,
-            'rows' => $this->rows($month, $request),
+            'rows' => Listing::collection($this->rows($month, $request), $request, [
+                'name' => fn (array $row) => $row['employee']->name,
+                'workdays' => fn (array $row) => $row['summary']['workdays'],
+                'present' => fn (array $row) => $row['summary']['present'],
+                'late' => fn (array $row) => [$row['summary']['late'], $row['summary']['late_minutes']],
+                'early' => fn (array $row) => $row['summary']['early'],
+                'izin' => fn (array $row) => $row['summary']['izin'],
+                'sakit' => fn (array $row) => $row['summary']['sakit'],
+                'cuti' => fn (array $row) => $row['summary']['cuti'],
+                'absent' => fn (array $row) => $row['summary']['absent'],
+                'rate' => fn (array $row) => $row['summary']['rate'] ?? -1,
+            ], ['name', 'asc']),
         ]);
     }
 

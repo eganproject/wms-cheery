@@ -8,6 +8,7 @@ use App\Models\Employee;
 use App\Services\Attendance\AttendanceCalculator;
 use App\Services\Attendance\AttendanceDay;
 use App\Services\TableExport;
+use App\Support\Listing;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -48,7 +49,13 @@ class AttendanceController extends Controller implements HasMiddleware
 
         return view('admin.attendance.index', [
             'date' => $date,
-            'days' => $this->filter($all, $request),
+            'days' => Listing::collection($this->filter($all, $request), $request, [
+                'name' => fn (AttendanceDay $day) => $day->employee->name,
+                'shift' => fn (AttendanceDay $day) => $day->shift?->start_time,
+                'in' => fn (AttendanceDay $day) => $day->checkIn?->punched_at?->getTimestamp(),
+                'out' => fn (AttendanceDay $day) => $day->checkOut?->punched_at?->getTimestamp(),
+                'status' => fn (AttendanceDay $day) => $day->label,
+            ], ['name', 'asc']),
             'stats' => $this->stats($all),
             'statusFilters' => self::STATUS_FILTERS,
             'hasEmployees' => $all->isNotEmpty(),

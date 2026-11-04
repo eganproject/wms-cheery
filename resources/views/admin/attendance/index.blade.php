@@ -67,11 +67,11 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th>Karyawan</th>
-                            <th>Jam kerja</th>
-                            <th>Masuk</th>
-                            <th>Pulang</th>
-                            <th>Status</th>
+                            <th><x-ui.sort key="name">Karyawan</x-ui.sort></th>
+                            <th><x-ui.sort key="shift">Jam kerja</x-ui.sort></th>
+                            <th><x-ui.sort key="in">Masuk</x-ui.sort></th>
+                            <th><x-ui.sort key="out" first="desc">Pulang</x-ui.sort></th>
+                            <th><x-ui.sort key="status">Status</x-ui.sort></th>
                             <th>Keterangan</th>
                             <th class="text-right">Aksi</th>
                         </tr>
@@ -154,6 +154,8 @@
                     </a>
                 @endforeach
             </div>
+
+            <x-ui.pagination :paginator="$days" unit="karyawan" />
         @endif
     </div>
 </x-app-layout>

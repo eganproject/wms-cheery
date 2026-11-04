@@ -12,6 +12,7 @@ use App\Services\ApprovalService;
 use App\Services\BundleExploder;
 use App\Services\TableExport;
 use App\Support\BundledLines;
+use App\Support\Listing;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -155,7 +156,13 @@ class OutboundController extends Controller implements HasMiddleware
             // Progres scan dinilai dari jumlahnya, jadi baris barang tidak
             // perlu dimuat satu per satu hanya untuk menampilkan badge.
             ->withSum('items', 'scanned_quantity')
-            ->paginate(10)
+            ->tap(fn ($query) => Listing::sort($query, $request, [
+                'date' => fn ($query, $dir) => $query->orderBy('date', $dir)->orderBy('id', $dir),
+                'recipient' => 'recipient',
+                'quantity' => 'items_sum_quantity',
+                'status' => 'status',
+            ], ['date', 'desc']))
+            ->paginate(Listing::perPage($request))
             ->withQueryString();
 
         return view('admin.outbounds.index', [

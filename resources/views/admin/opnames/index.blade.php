@@ -60,10 +60,10 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th>Sesi</th>
-                            <th><span class="inline-flex items-center gap-1">Cakupan <x-ui.hint text="Barang yang dihitung di sesi ini: semua barang atau sebagian (mis. kategori tertentu)." /></span></th>
-                            <th><span class="inline-flex items-center gap-1">Progres Hitung <x-ui.hint text="Berapa barang yang sudah dihitung dibanding seluruh barang di sesi." /></span></th>
-                            <th>Status</th>
+                            <th><x-ui.sort key="date" first="desc">Sesi</x-ui.sort></th>
+                            <th><span class="inline-flex items-center gap-1"><x-ui.sort key="scope">Cakupan</x-ui.sort> <x-ui.hint text="Barang yang dihitung di sesi ini: semua barang atau sebagian (mis. kategori tertentu)." /></span></th>
+                            <th><span class="inline-flex items-center gap-1"><x-ui.sort key="progress" first="desc">Progres Hitung</x-ui.sort> <x-ui.hint text="Berapa barang yang sudah dihitung dibanding seluruh barang di sesi." /></span></th>
+                            <th><x-ui.sort key="status">Status</x-ui.sort></th>
                             <th class="text-right">Aksi</th>
                         </tr>
                     </thead>
