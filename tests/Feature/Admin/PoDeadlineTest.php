@@ -99,6 +99,9 @@ class PoDeadlineTest extends TestCase
         $this->actingAs($this->admin)->get(route('admin.orders.deadlines', ['kelompok' => 'overdue']))
             ->assertOk()->assertSee('JX01')->assertDontSee('JX03');
 
+        $this->actingAs($this->admin)->get(route('admin.orders.deadlines', ['sort' => 'lama', 'dir' => 'desc']))
+            ->assertOk()->assertSeeInOrder(['JX04', 'JX01']);
+
         $this->actingAs($this->admin)->get(route('admin.orders.deadlines', ['tanggal' => '2026-06-13']))
             ->assertOk()->assertSee('JX03')->assertDontSee('JX01');
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ShipmentOrder;
 use App\Services\OrderPlanner;
+use App\Support\Listing;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -47,8 +48,6 @@ class PoDeadlineController extends Controller implements HasMiddleware
     /** Status resi di halaman ini: kesiapan stok untuk Belum QC, atau Sudah QC. */
     public const DONE = 'qc';
 
-    public const PER_PAGE = [25, 50, 100];
-
     public static function middleware(): array
     {
         return [
@@ -68,7 +67,7 @@ class PoDeadlineController extends Controller implements HasMiddleware
         $poDays = $request->filled('lama') && ctype_digit((string) $request->input('lama')) ? (int) $request->input('lama') : null;
         $view = $request->input('tampilan') === 'daftar' ? 'daftar' : 'kalender';
         $month = $this->month($request, $date ?? $now);
-        $perPage = in_array($request->integer('per_page'), self::PER_PAGE, true) ? $request->integer('per_page') : self::PER_PAGE[0];
+        $perPage = Listing::perPage($request);
 
         [$bucketSql, $bucketBindings] = $this->bucketSql($now);
         $base = fn () => $this->base($request, $kind, $stage);
@@ -141,6 +140,14 @@ class PoDeadlineController extends Controller implements HasMiddleware
                 ? $query->whereNull('shipment_orders.po_days')
                 : $query->where('shipment_orders.po_days', $poDays))
             ->mostUrgentFirst()
+            ->tap(fn (Builder $query) => Listing::sort($query, $request, [
+                'resi' => 'shipment_orders.tracking_number',
+                'lama' => 'shipment_orders.po_days',
+                'dibayar' => 'shipment_orders.paid_at',
+                'batas' => fn (Builder $query, string $direction) => $direction === 'asc'
+                    ? $query->mostUrgentFirst()
+                    : $query->orderByDesc('shipment_orders.ship_by')->orderByDesc('shipment_orders.id'),
+            ], ['batas', 'asc']))
             ->paginate($perPage)
             ->withQueryString();
 

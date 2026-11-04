@@ -356,11 +356,11 @@
             <table class="erp-table">
                 <thead>
                     <tr>
-                        <th>No. Resi</th>
+                        <th><x-ui.sort key="resi">No. Resi</x-ui.sort></th>
                         <th>Barang</th>
-                        <th>Lama PO</th>
-                        <th>Dibayar</th>
-                        <th>Batas kirim</th>
+                        <th><x-ui.sort key="lama">Lama PO</x-ui.sort></th>
+                        <th><x-ui.sort key="dibayar">Dibayar</x-ui.sort></th>
+                        <th><x-ui.sort key="batas">Batas kirim</x-ui.sort></th>
                         <th>Status</th>
                     </tr>
                 </thead>
@@ -420,6 +420,6 @@
             </table>
         </div>
 
-        <x-ui.pagination :paginator="$orders" />
+        <x-ui.pagination :paginator="$orders" unit="resi" />
     </div>
 </x-app-layout>
