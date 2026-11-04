@@ -127,4 +127,24 @@ class PoDeadlineTest extends TestCase
         $this->actingAs($this->admin)->get(route('admin.orders.deadlines', ['tampilan' => 'daftar']))
             ->assertOk()->assertSee('data-deadline-days', false)->assertDontSee('data-deadline-calendar', false);
     }
+
+    public function test_day_detail_lists_products_quantities_and_orders(): void
+    {
+        $this->actingAs($this->admin)->get(route('admin.orders.deadlines'))
+            ->assertSee(route('admin.orders.deadlines.day', ['date' => '2026-06-13']), false);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.orders.deadlines.day', ['date' => '2026-06-08']))
+            ->assertOk()
+            ->assertSee('Helena 3')
+            ->assertSee('JX01')
+            ->assertDontSee('JX03');
+
+        $this->assertSame(1, $response->viewData('summary')['total']);
+        $this->assertSame(1, $response->viewData('summary')['overdue']);
+        $this->assertSame(1, $response->viewData('products')->first()['remaining']);
+        $this->assertSame(0, $response->viewData('products')->first()['stock']);
+
+        $this->actingAs($this->admin)->get(route('admin.orders.deadlines.day', ['date' => '2026-06-08', 'per' => 'sku']))->assertOk();
+        $this->actingAs($this->admin)->get('/admin/orders/po-deadlines/2026-99-99')->assertNotFound();
+    }
 }

@@ -13,6 +13,10 @@
     // Memilih kelompok, tanggal, atau lama PO saling menggantikan.
     $pick = fn (array $set) => route('admin.orders.deadlines', $keep(['kelompok', 'tanggal', 'lama'], $set)).'#daftar-resi';
 
+    // Klik tanggal membuka rinciannya: barang, jumlah, stok, kurir, dan resinya.
+    $dayLink = fn ($day) => route('admin.orders.deadlines.day', ['date' => $day->format('Y-m-d')]
+        + array_filter(request()->only(['jenis', 'tahap', 'store', 'courier']), fn ($value) => filled($value)));
+
     $pill = 'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs whitespace-nowrap transition';
     $pillOn = 'border-brand-500 bg-brand-50 font-medium text-brand-800';
     $pillOff = 'border-ink-200 bg-white text-ink-600 hover:border-ink-300 hover:text-ink-950';
@@ -139,7 +143,7 @@
 
     <div class="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <x-ui.card class="lg:col-span-2" padding="p-0" :title="$view === 'kalender' ? 'Kalender batas kirim' : 'Per tanggal batas kirim'"
-                   :subtitle="$num($total).' resi '.($kind === 'po' ? 'PO ' : '').'belum dikirim. Klik tanggal untuk melihat resinya.'">
+                   :subtitle="$num($total).' resi '.($kind === 'po' ? 'PO ' : '').'belum dikirim. Klik tanggal untuk melihat rincian barang dan resinya.'">
             <x-slot name="actions">
                 @if ($view === 'kalender')
                     <div class="flex items-center gap-1" data-calendar-nav>
@@ -203,7 +207,7 @@
                                 $outside = ! $cursor->isSameMonth($month);
                                 $heat = $count > 0 ? (int) ceil($count * 4 / $maxDay) : 0;
                             @endphp
-                            <a href="{{ $count === 0 ? '#' : ($isActive ? $pick([]) : $pick(['tanggal' => $cursor->format('Y-m-d')])) }}"
+                            <a href="{{ $count === 0 ? '#' : $dayLink($cursor) }}"
                                @if ($count === 0) aria-disabled="true" tabindex="-1" @endif
                                data-day="{{ $cursor->format('Y-m-d') }}"
                                @if ($count > 0)
@@ -265,7 +269,7 @@
                             @endphp
                             <tr @class(['bg-brand-50' => $isActive, 'bg-rose-50/40' => ! $isActive && ($past || $row['overdue'] > 0)])>
                                 <td>
-                                    <a href="{{ $isActive ? $pick([]) : $pick(['tanggal' => $row['day']->format('Y-m-d')]) }}" class="block hover:underline">
+                                    <a href="{{ $dayLink($row['day']) }}" class="block hover:underline">
                                         <span class="font-medium text-ink-950">{{ $row['day']->translatedFormat('D, d M Y') }}</span>
                                         <span @class(['ml-1 text-xs', 'text-rose-700 font-medium' => $past || $row['overdue'] > 0, 'text-amber-700 font-medium' => $isToday && ! $row['overdue'], 'text-ink-500' => ! $past && ! $isToday])>{{ $dayLabel($row['day']) }}</span>
                                     </a>

@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\ShipmentOrder;
 use App\Services\OrderPlanner;
 use App\Support\Listing;
+use App\Support\PackingList;
+use App\Models\Product;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -168,6 +170,94 @@ class PoDeadlineController extends Controller implements HasMiddleware
             'perPage' => $perPage,
             'view' => $view,
             'month' => $month,
+        ]);
+    }
+
+    /**
+     * Rincian satu tanggal batas kirim: barang dan jumlah yang harus
+     * dikemas, stok gudang, sebaran toko / kurir / lama PO, dan resinya.
+     */
+    public function day(Request $request, OrderPlanner $planner, string $date): View
+    {
+        $planner->refresh();
+
+        [$year, $month, $dayOfMonth] = array_map('intval', explode('-', $date));
+        abort_unless(checkdate($month, $dayOfMonth, $year), 404);
+        $day = Carbon::create($year, $month, $dayOfMonth)->startOfDay();
+
+        $now = now();
+        $kind = array_key_exists((string) $request->input('jenis'), self::KINDS) ? (string) $request->input('jenis') : 'po';
+        $stage = array_key_exists((string) $request->input('tahap'), self::STAGES) ? (string) $request->input('tahap') : '';
+        $base = fn () => $this->base($request, $kind, $stage)
+            ->whereBetween('shipment_orders.ship_by', [$day->copy()->startOfDay(), $day->copy()->endOfDay()]);
+
+        $summary = $base()->toBase()
+            ->selectRaw('COUNT(*) AS total')
+            ->selectRaw("SUM(CASE WHEN shipment_orders.stock_status = 'siap' THEN 1 ELSE 0 END) AS ready")
+            ->selectRaw("SUM(CASE WHEN shipment_orders.stock_status IN ('menunggu', 'sku') THEN 1 ELSE 0 END) AS waiting")
+            ->selectRaw('SUM(CASE WHEN shipment_orders.stock_status IS NULL THEN 1 ELSE 0 END) AS done')
+            ->selectRaw('SUM(CASE WHEN shipment_orders.ship_by < ? THEN 1 ELSE 0 END) AS overdue', [$now->toDateTimeString()])
+            ->selectRaw('SUM(CASE WHEN shipment_orders.is_priority = 1 THEN 1 ELSE 0 END) AS priority')
+            ->first();
+
+        // Barang di rak (paket dipecah jadi isinya), dengan stok gudang saat ini.
+        $mode = $request->input('per') === PackingList::BY_SKU ? PackingList::BY_SKU : PackingList::BY_PRODUCT;
+        $list = PackingList::for($base(), $mode);
+        $stocks = Product::query()
+            ->whereIn('id', $list->rows->pluck('product_id')->filter()->unique())
+            ->pluck('stock', 'id');
+        $products = $list->rows
+            ->map(fn (array $row) => $row + [
+                'stock' => $row['product_id'] !== null && $stocks->has($row['product_id']) ? (int) $stocks[$row['product_id']] : null,
+            ])
+            ->sortByDesc('remaining')
+            ->values();
+
+        $spread = fn (string $column) => $base()->toBase()
+            ->selectRaw("COALESCE(NULLIF(shipment_orders.{$column}, ''), '—') AS label, COUNT(*) AS total")
+            ->groupBy('label')
+            ->orderByDesc('total')
+            ->get();
+
+        $leadTimes = $base()->toBase()
+            ->selectRaw('shipment_orders.po_days AS po_days, COUNT(*) AS total')
+            ->groupBy('po_days')
+            ->get()
+            ->sortBy(fn ($row) => $row->po_days ?? PHP_INT_MAX)
+            ->values();
+
+        $orders = $base()
+            ->with('items:id,shipment_order_id,sku,quantity,product_name')
+            ->mostUrgentFirst()
+            ->tap(fn (Builder $query) => Listing::sort($query, $request, [
+                'resi' => 'shipment_orders.tracking_number',
+                'lama' => 'shipment_orders.po_days',
+                'dibayar' => 'shipment_orders.paid_at',
+                'batas' => 'shipment_orders.ship_by',
+            ], ['batas', 'asc']))
+            ->paginate(Listing::perPage($request))
+            ->withQueryString();
+
+        return view('admin.orders.deadline-day', [
+            'day' => $day,
+            'now' => $now,
+            'kind' => $kind,
+            'stage' => $stage,
+            'mode' => $mode,
+            'summary' => [
+                'total' => (int) ($summary->total ?? 0),
+                'ready' => (int) ($summary->ready ?? 0),
+                'waiting' => (int) ($summary->waiting ?? 0),
+                'done' => (int) ($summary->done ?? 0),
+                'overdue' => (int) ($summary->overdue ?? 0),
+                'priority' => (int) ($summary->priority ?? 0),
+            ],
+            'totals' => $list->totals,
+            'products' => $products,
+            'stores' => $spread('store_name'),
+            'couriers' => $spread('courier'),
+            'leadTimes' => $leadTimes,
+            'orders' => $orders,
         ]);
     }
 

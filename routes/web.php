@@ -174,6 +174,8 @@ Route::middleware('auth')
         Route::put('po-periods/settings', [PoPeriodController::class, 'settings'])->name('po-periods.settings');
         Route::delete('po-periods/{period}', [PoPeriodController::class, 'destroy'])->name('po-periods.destroy');
         Route::get('orders/po-deadlines', [PoDeadlineController::class, 'index'])->name('orders.deadlines');
+        Route::get('orders/po-deadlines/{date}', [PoDeadlineController::class, 'day'])
+            ->where('date', '\d{4}-\d{2}-\d{2}')->name('orders.deadlines.day');
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
         Route::get('orders/packing-list/excel', [PackingListController::class, 'excel'])->name('orders.packing.excel');
         Route::get('orders/packing-list/pdf', [PackingListController::class, 'pdf'])->name('orders.packing.pdf');
