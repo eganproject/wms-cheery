@@ -31,6 +31,7 @@ use App\Http\Controllers\Admin\StockReportController;
 use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\OrderPriorityController;
+use App\Http\Controllers\Admin\PoDeadlineController;
 use App\Http\Controllers\Admin\PoPeriodController;
 use App\Http\Controllers\Admin\ShipmentOrderDeadlineController;
 use App\Http\Controllers\Admin\OrderController;
@@ -172,6 +173,7 @@ Route::middleware('auth')
         Route::post('po-periods', [PoPeriodController::class, 'store'])->name('po-periods.store');
         Route::put('po-periods/settings', [PoPeriodController::class, 'settings'])->name('po-periods.settings');
         Route::delete('po-periods/{period}', [PoPeriodController::class, 'destroy'])->name('po-periods.destroy');
+        Route::get('orders/po-deadlines', [PoDeadlineController::class, 'index'])->name('orders.deadlines');
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
         Route::get('orders/packing-list/excel', [PackingListController::class, 'excel'])->name('orders.packing.excel');
         Route::get('orders/packing-list/pdf', [PackingListController::class, 'pdf'])->name('orders.packing.pdf');
