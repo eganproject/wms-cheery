@@ -11,6 +11,7 @@ use App\Services\OrderPlanner;
 use App\Services\TableExport;
 use App\Support\DateRange;
 use App\Support\PackingList;
+use App\Support\Listing;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -51,7 +52,6 @@ class PackingListController extends Controller implements HasMiddleware
     ];
 
     /** Banyaknya resi yang ditampilkan di layar; Excel memuat semuanya. */
-    public const RESI_ON_SCREEN = 300;
 
     public const SHOW = [
         '' => 'Semua barang',
@@ -70,7 +70,26 @@ class PackingListController extends Controller implements HasMiddleware
     {
         $planner->refresh();
         $data = $this->build($request);
-        $data['resi'] = $data['type'] === self::BY_UPLOAD ? collect() : $this->resiQuery($request, $data)->limit(self::RESI_ON_SCREEN)->get();
+
+        // Dua tabel di satu halaman, jadi masing-masing punya parameter
+        // halaman, urutan, dan jumlah barisnya sendiri (sku_*, resi_*).
+        $data['skuRows'] = Listing::collection($data['rows'], $request, [
+            'sku' => 'sku',
+            'orders' => 'orders',
+            'ordered' => 'ordered',
+            'scanned' => 'scanned',
+            'remaining' => 'remaining',
+            'progress' => fn (array $row) => $row['ordered'] > 0 ? $row['scanned'] / $row['ordered'] : 0,
+        ], perPage: 50, pageName: 'sku');
+
+        $data['resi'] = $data['type'] === self::BY_UPLOAD ? collect() : $this->resiQuery($request, $data)
+            ->tap(fn ($query) => Listing::sort($query, $request, [
+                'resi' => 'shipment_orders.tracking_number',
+                'deadline' => 'shipment_orders.ship_by',
+                'order_date' => 'shipment_orders.order_date',
+            ], pageName: 'resi'))
+            ->paginate(Listing::perPage($request, 50, 'resi'), ['*'], 'resi')
+            ->withQueryString();
 
         $distinct = fn (string $column) => ShipmentOrder::filterOptions($column);
 

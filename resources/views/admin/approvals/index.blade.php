@@ -46,7 +46,7 @@
                             <x-icon :name="$group['icon']" class="h-4 w-4" />
                         </span>
                         <h2 class="text-sm font-semibold text-ink-950">{{ $group['label'] }}</h2>
-                        <span class="text-xs text-ink-400">({{ $group['documents']->count() }})</span>
+                        <span class="text-xs text-ink-400">({{ $group['documents']->total() }})</span>
                     </div>
 
                     <div class="space-y-3">
@@ -132,6 +132,8 @@
                             </div>
                         @endforeach
                     </div>
+
+                    <x-ui.pagination :paginator="$group['documents']" bare unit="dokumen" />
                 </div>
             @endforeach
         </div>

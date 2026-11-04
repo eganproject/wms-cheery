@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Holiday;
 use App\Models\WorkShift;
+use App\Support\Listing;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -31,8 +32,20 @@ class WorkShiftController extends Controller implements HasMiddleware
 
         return view('admin.work-shifts.index', [
             'shifts' => WorkShift::query()->withCount(['employees' => fn ($query) => $query->where('is_active', true)])
-                ->orderByDesc('is_active')->orderBy('start_time')->get(),
-            'holidays' => Holiday::query()->whereYear('date', $year)->orderBy('date')->get(),
+                ->orderByDesc('is_active')->orderBy('start_time')
+                ->tap(fn ($query) => Listing::sort($query, $request, [
+                    'name' => 'name',
+                    'start' => 'start_time',
+                    'end' => 'end_time',
+                    'tolerance' => 'late_tolerance_minutes',
+                    'employees' => 'employees_count',
+                    'status' => 'is_active',
+                ]))
+                ->paginate(Listing::perPage($request))
+                ->withQueryString(),
+            'holidays' => Holiday::query()->whereYear('date', $year)->orderBy('date')
+                ->paginate(Listing::perPage($request, pageName: 'libur'), ['*'], 'libur')
+                ->withQueryString(),
             'year' => $year,
         ]);
     }

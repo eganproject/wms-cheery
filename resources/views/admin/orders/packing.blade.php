@@ -219,19 +219,19 @@
                 <thead>
                     <tr>
                         <th class="w-10 text-right">#</th>
-                        <th>SKU</th>
-                        <th class="text-right" title="Jumlah resi yang memuat barang ini">Resi</th>
-                        <th class="text-right" title="Jumlah SKU ini dari semua resi, dijumlahkan">Total Qty</th>
-                        <th class="text-right" title="Unit yang sudah discan di QC Kemas">Sudah QC</th>
-                        <th class="text-right" title="Unit yang belum discan di QC Kemas">Sisa</th>
-                        <th class="w-40">Progres</th>
+                        <th><x-ui.sort key="sku" for="sku">SKU</x-ui.sort></th>
+                        <th class="text-right" title="Jumlah resi yang memuat barang ini"><x-ui.sort key="orders" for="sku" first="desc">Resi</x-ui.sort></th>
+                        <th class="text-right" title="Jumlah SKU ini dari semua resi, dijumlahkan"><x-ui.sort key="ordered" for="sku" first="desc">Total Qty</x-ui.sort></th>
+                        <th class="text-right" title="Unit yang sudah discan di QC Kemas"><x-ui.sort key="scanned" for="sku" first="desc">Sudah QC</x-ui.sort></th>
+                        <th class="text-right" title="Unit yang belum discan di QC Kemas"><x-ui.sort key="remaining" for="sku" first="desc">Sisa</x-ui.sort></th>
+                        <th class="w-40"><x-ui.sort key="progress" for="sku">Progres</x-ui.sort></th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse ($rows as $row)
+                    @forelse ($skuRows as $row)
                         @php $rowPercent = $row['ordered'] > 0 ? (int) floor($row['scanned'] * 100 / $row['ordered']) : 0; @endphp
                         <tr class="align-top" x-data="{ open: false }">
-                            <td class="text-right tabular-nums text-ink-400">{{ $loop->iteration }}</td>
+                            <td class="text-right tabular-nums text-ink-400">{{ $skuRows->firstItem() + $loop->index }}</td>
                             <td>
                                 <div class="flex items-start gap-3">
                                 @if ($row['image_url'])
@@ -310,6 +310,8 @@
                 @endif
             </table>
         </div>
+
+        <x-ui.pagination :paginator="$skuRows" unit="SKU" />
     </div>
 
     @if ($resi->isNotEmpty())
@@ -318,9 +320,7 @@
             <div class="flex flex-wrap items-center justify-between gap-2 border-b border-ink-100 px-4 py-3">
                 <div>
                     <h2 class="text-sm font-semibold text-ink-950">Daftar resi {{ $type === PackingListController::DAILY ? 'yang dikerjakan' : 'belum diproses' }}</h2>
-                    <p class="mt-0.5 text-xs text-ink-500">Urut prioritas lalu batas kirim terdekat. Ambil labelnya dari rak tunggu sesuai tanggal pesanan.
-                        @if ($totals['orders'] > $resi->count()) Tampil {{ $num($resi->count()) }} dari {{ $num($totals['orders']) }} resi; Export Excel memuat semuanya. @endif
-                    </p>
+                    <p class="mt-0.5 text-xs text-ink-500">Bawaannya urut prioritas lalu batas kirim terdekat. Ambil labelnya dari rak tunggu sesuai tanggal pesanan.</p>
                 </div>
             </div>
             <div class="overflow-x-auto">
@@ -328,9 +328,9 @@
                     <thead>
                         <tr>
                             <th class="w-10 text-right">#</th>
-                            <th>No. Resi</th>
-                            <th>Batas kirim</th>
-                            <th>Tanggal pesanan</th>
+                            <th><x-ui.sort key="resi" for="resi">No. Resi</x-ui.sort></th>
+                            <th><x-ui.sort key="deadline" for="resi">Batas kirim</x-ui.sort></th>
+                            <th><x-ui.sort key="order_date" for="resi" first="desc">Tanggal pesanan</x-ui.sort></th>
                             <th>Isi</th>
                             @if ($type === PackingListController::ALL)
                                 <th>Stok</th>
@@ -341,7 +341,7 @@
                         @foreach ($resi as $order)
                             @php $state = $order->deadlineState(); @endphp
                             <tr class="align-top">
-                                <td class="text-right tabular-nums text-ink-400">{{ $loop->iteration }}</td>
+                                <td class="text-right tabular-nums text-ink-400">{{ $resi->firstItem() + $loop->index }}</td>
                                 <td>
                                     <span class="font-mono text-[13px] font-medium text-ink-950">{{ $order->tracking_number }}</span>
                                     <div class="mt-0.5 flex flex-wrap gap-1">
@@ -379,6 +379,8 @@
                     </tbody>
                 </table>
             </div>
+
+            <x-ui.pagination :paginator="$resi" unit="resi" />
         </div>
     @endif
 </x-app-layout>

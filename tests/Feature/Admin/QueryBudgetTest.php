@@ -63,7 +63,8 @@ class QueryBudgetTest extends TestCase
             'pesanan' => ['admin.orders.index', 32],
             'resi per hari' => ['admin.imports.daily', 16],
             'per ekspedisi' => ['admin.imports.couriers', 16],
-            'persetujuan' => ['admin.approvals.index', 22],
+            // Tiap jenis dokumen berhalaman sendiri, jadi ada satu query hitung per jenis.
+            'persetujuan' => ['admin.approvals.index', 26],
             'pengguna' => ['admin.users.index', 14],
             'role' => ['admin.roles.index', 14],
             'hak akses' => ['admin.permissions.index', 14],

@@ -23,14 +23,14 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th>Nama</th>
-                            <th>Masuk</th>
-                            <th>Pulang</th>
+                            <th><x-ui.sort key="name">Nama</x-ui.sort></th>
+                            <th><x-ui.sort key="start">Masuk</x-ui.sort></th>
+                            <th><x-ui.sort key="end">Pulang</x-ui.sort></th>
                             <th>Istirahat</th>
                             <th>Hari kerja</th>
-                            <th class="text-right"><span class="inline-flex items-center gap-1">Toleransi telat <x-ui.hint text="Masuk sampai sekian menit setelah jam masuk masih dihitung tepat waktu. Lewat dari itu, telatnya dihitung dari jam masuk." /></span></th>
-                            <th class="text-right">Karyawan</th>
-                            <th>Status</th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="tolerance" first="desc">Toleransi telat</x-ui.sort> <x-ui.hint text="Masuk sampai sekian menit setelah jam masuk masih dihitung tepat waktu. Lewat dari itu, telatnya dihitung dari jam masuk." /></span></th>
+                            <th class="text-right"><x-ui.sort key="employees" first="desc">Karyawan</x-ui.sort></th>
+                            <th><x-ui.sort key="status" first="desc">Status</x-ui.sort></th>
                             <th class="text-right">Aksi</th>
                         </tr>
                     </thead>
@@ -68,6 +68,8 @@
                     </tbody>
                 </table>
             </div>
+
+            <x-ui.pagination :paginator="$shifts" unit="jam kerja" />
         @endif
     </div>
 
@@ -115,6 +117,8 @@
                     </div>
                 @endforeach
             </div>
+
+            <x-ui.pagination :paginator="$holidays" bare unit="hari libur" />
         @endif
     </x-ui.card>
 </x-app-layout>

@@ -9,6 +9,7 @@ use App\Models\ProductGroup;
 use App\Models\ProductPoPeriod;
 use App\Models\ShipmentOrder;
 use App\Services\OrderPlanner;
+use App\Support\Listing;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -48,15 +49,24 @@ class PoPeriodController extends Controller implements HasMiddleware
         $open = ShipmentOrder::query()->whereNull('cancelled_at')
             ->whereDoesntHave('outbounds', fn ($query) => $query->where('status', \App\Models\Outbound::STATUS_POSTED));
 
+        $now = now();
+        $missing = $this->missingOwners();
+        $currentDays = fn (array $owner) => $periods->get($owner['key'], collect())
+            ->filter(fn (ProductPoPeriod $period) => $period->starts_at->lte($now))->last()?->days;
+
         return view('admin.po-periods.index', [
-            'owners' => $owners,
+            'owners' => Listing::collection($owners, $request, [
+                'name' => 'name',
+                // Yang belum punya lama PO (null) dianggap paling pendek.
+                'current' => fn (array $owner) => $currentDays($owner) ?? -1,
+            ], ['name', 'asc'], 50),
             'periods' => $periods,
             'search' => $search,
             'normalDays' => AppSetting::normalShipDays(),
-            'missing' => $this->missingOwners(),
+            'missing' => $missing,
             'missingOrders' => (clone $open)->whereNull('computed_ship_by')->count(),
             'oldestOpen' => (clone $open)->min(\Illuminate\Support\Facades\DB::raw('COALESCE(paid_at, order_date, created_at)')),
-            'now' => now(),
+            'now' => $now,
         ]);
     }
 

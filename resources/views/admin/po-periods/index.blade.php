@@ -102,8 +102,8 @@
                                         <th class="w-8"><input type="checkbox" class="rounded border-ink-300" aria-label="Pilih semua"
                                                                @change="all = $event.target.checked; $root.querySelectorAll('[data-owner]').forEach(el => el.checked = all)"></th>
                                     @endif
-                                    <th>Produk</th>
-                                    <th><span class="inline-flex items-center gap-1">Berlaku sekarang <x-ui.hint text="Lama PO untuk pesanan yang dibayar saat ini." /></span></th>
+                                    <th><x-ui.sort key="name">Produk</x-ui.sort></th>
+                                    <th><span class="inline-flex items-center gap-1"><x-ui.sort key="current" first="desc">Berlaku sekarang</x-ui.sort> <x-ui.hint text="Lama PO untuk pesanan yang dibayar saat ini." /></span></th>
                                     <th><span class="inline-flex items-center gap-1">Riwayat <x-ui.hint text="Setiap periode berlaku mulai waktunya sampai periode berikutnya dimulai. Resi memakai periode yang berlaku pada waktu bayarnya." /></span></th>
                                 </tr>
                             </thead>
@@ -178,6 +178,8 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <x-ui.pagination :paginator="$owners" unit="produk" />
                 </form>
 
                 @if ($canEdit)

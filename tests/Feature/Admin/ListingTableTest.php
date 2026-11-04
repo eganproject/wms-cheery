@@ -193,4 +193,29 @@ class ListingTableTest extends TestCase
             ->assertOk()
             ->assertViewHas('rows', fn ($p) => $p->total() === 1);
     }
+
+    public function test_packing_list_and_settings_lists_are_paginated_and_sortable(): void
+    {
+        $this->products(3);
+        $this->actingAs($this->admin);
+
+        foreach (['sku', 'orders', 'ordered', 'scanned', 'remaining', 'progress'] as $key) {
+            $this->get(route('admin.orders.packing', ['sku_sort' => $key, 'sku_dir' => 'desc', 'sku_per_page' => 100]))->assertOk();
+        }
+        foreach (['resi', 'deadline', 'order_date'] as $key) {
+            foreach (['harian', 'semua'] as $type) {
+                $this->get(route('admin.orders.packing', ['jenis' => $type, 'resi_sort' => $key, 'resi_dir' => 'asc', 'resi_per_page' => 25]))->assertOk();
+            }
+        }
+
+        $this->get(route('admin.po-periods.index', ['sort' => 'current', 'dir' => 'desc']))
+            ->assertOk()
+            ->assertViewHas('owners', fn ($p) => $p->total() === 3);
+
+        foreach (['name', 'start', 'end', 'tolerance', 'employees', 'status'] as $key) {
+            $this->get(route('admin.work-shifts.index', ['sort' => $key, 'dir' => 'asc']))->assertOk();
+        }
+
+        $this->get(route('admin.approvals.index', ['inbound' => 2, 'inbound_per_page' => 25]))->assertOk();
+    }
 }

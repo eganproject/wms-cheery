@@ -10,6 +10,7 @@ use App\Models\ReturnReceipt;
 use App\Models\StockAdjustment;
 use App\Models\StockOpname;
 use App\Services\ApprovalService;
+use App\Support\Listing;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -91,23 +92,25 @@ class ApprovalController extends Controller implements HasMiddleware
 
         $groups = collect(self::TYPES)
             ->when($filter, fn ($types) => $types->only($filter))
-            ->map(function (array $config, string $key) {
+            ->map(function (array $config, string $key) use ($request) {
                 /** @var class-string<Model> $model */
                 $model = $config['model'];
 
                 return $config + [
                     'key' => $key,
+                    // Tiap jenis dokumen punya halamannya sendiri (?inbounds=2).
                     'documents' => $model::query()
                         ->pending()
                         ->with(['items.product', 'submitter'])
                         ->oldest('submitted_at')
-                        ->get(),
+                        ->paginate(Listing::perPage($request, 10, $key), ['*'], $key)
+                        ->withQueryString(),
                 ];
             });
 
         return view('admin.approvals.index', [
             'groups' => $groups,
-            'total' => $groups->sum(fn (array $group) => $group['documents']->count()),
+            'total' => $groups->sum(fn (array $group) => $group['documents']->total()),
         ]);
     }
 
