@@ -49,6 +49,8 @@ class TikTokImportService
         'variation' => ['variation'],
         'product_name' => ['productname'],
         'quantity' => ['quantity'],
+        // Nilai jual baris itu setelah diskon: dasar omzet di Laporan Owner.
+        'amount' => ['skusubtotalafterdiscount'],
         'order_status' => ['orderstatus'],
         'courier' => ['shippingprovidername'],
         'shipping_method' => ['deliveryoption'],
@@ -390,6 +392,7 @@ class TikTokImportService
                 'sku' => $sku,
                 'product_name' => $this->productName($this->value($row, $header, 'product_name'), $variation),
                 'quantity' => $this->parseQuantity($this->value($row, $header, 'quantity')),
+                'amount' => $this->parseMoney($this->value($row, $header, 'amount')),
             ];
 
             if (blank($tracking)) {
@@ -436,11 +439,16 @@ class TikTokImportService
             // SKU yang sama dalam satu resi dijumlahkan.
             if (isset($order['items'][$skuKey])) {
                 $order['items'][$skuKey]['quantity'] += $line['quantity'];
+
+                if ($line['amount'] !== null) {
+                    $order['items'][$skuKey]['amount'] = ($order['items'][$skuKey]['amount'] ?? 0) + $line['amount'];
+                }
             } else {
                 $order['items'][$skuKey] = [
                     'sku' => trim($sku),
                     'product_name' => $line['product_name'],
                     'quantity' => $line['quantity'],
+                    'amount' => $line['amount'],
                 ];
             }
 
@@ -465,6 +473,38 @@ class TikTokImportService
         }
 
         return max(1, (int) preg_replace('/[^0-9]/', '', $value));
+    }
+
+    /**
+     * Nilai rupiah dari eksport TikTok, mis. "IDR 59.000", "59,000", "59000.00".
+     * Kosong atau tak terbaca menjadi null, bukan nol: nol berarti gratis.
+     */
+    protected function parseMoney(?string $value): ?float
+    {
+        $value = preg_replace('/[^0-9.,\-]/', '', (string) $value);
+
+        if ($value === '' || $value === '-') {
+            return null;
+        }
+
+        // Pemisah ribuan lebih dulu: "59.000" adalah lima puluh sembilan ribu
+        // rupiah, bukan 59 — padahal PHP menganggapnya angka desimal.
+        if (preg_match('/^-?\d{1,3}([.,]\d{3})+$/', $value)) {
+            return (float) preg_replace('/[.,]/', '', $value);
+        }
+
+        if (is_numeric($value)) {
+            return round((float) $value, 2);
+        }
+
+        // Pemisah terakhir dengan 1–2 angka di belakangnya adalah desimal.
+        if (preg_match('/^(-?[\d.,]*?)[.,](\d{1,2})$/', $value, $match)) {
+            return round((float) (preg_replace('/[.,]/', '', $match[1]).'.'.$match[2]), 2);
+        }
+
+        $digits = preg_replace('/[.,]/', '', $value);
+
+        return is_numeric($digits) ? (float) $digits : null;
     }
 
     protected function key(string $tracking): string
@@ -555,7 +595,16 @@ class TikTokImportService
                 'paid_at' => $old->paid_at === null ? $order['paid_at'] : null,
             ], fn ($value) => $value !== null);
 
-            $skipped->push(['order' => $old, 'fill' => $fill]);
+            $skipped->push([
+                'order' => $old,
+                'fill' => $fill,
+                // Nilai jual per SKU, untuk melengkapi resi lama yang
+                // diimport sebelum kolom harga dibaca.
+                'amounts' => collect($order['items'])
+                    ->filter(fn (array $item) => $item['amount'] !== null)
+                    ->map(fn (array $item) => $item['amount'])
+                    ->all(),
+            ]);
             $orders->forget($key);
         }
 
@@ -749,6 +798,8 @@ class TikTokImportService
                 }
             }
 
+            $this->fillMissingAmounts($skipped);
+
             $import->update([
                 'skipped_count' => $skipped->count(),
                 'order_count' => $orders->count(),
@@ -764,6 +815,33 @@ class TikTokImportService
         ShipmentOrder::forgetFilterOptions();
 
         return $import;
+    }
+
+    /**
+     * Lengkapi nilai jual barang pada resi lama yang belum punya harga.
+     * Hanya baris yang masih kosong yang diisi; angka lama tidak ditimpa.
+     *
+     * @param  Collection<int, array<string, mixed>>  $skipped
+     */
+    protected function fillMissingAmounts(Collection $skipped): void
+    {
+        $amounts = $skipped
+            ->filter(fn (array $entry) => ($entry['amounts'] ?? []) !== [])
+            ->mapWithKeys(fn (array $entry) => [$entry['order']->id => $entry['amounts']]);
+
+        foreach ($amounts->keys()->chunk(1000) as $ids) {
+            ShipmentOrderItem::query()
+                ->whereIn('shipment_order_id', $ids->all())
+                ->whereNull('amount')
+                ->get(['id', 'shipment_order_id', 'sku'])
+                ->each(function (ShipmentOrderItem $item) use ($amounts) {
+                    $amount = $amounts[$item->shipment_order_id][strtoupper(trim($item->sku))] ?? null;
+
+                    if ($amount !== null) {
+                        ShipmentOrderItem::whereKey($item->id)->update(['amount' => $amount]);
+                    }
+                });
+        }
     }
 
     /**

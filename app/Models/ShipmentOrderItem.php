@@ -12,6 +12,7 @@ class ShipmentOrderItem extends Model
         'sku',
         'product_name',
         'quantity',
+        'amount',
         'product_id',
     ];
 
@@ -19,6 +20,7 @@ class ShipmentOrderItem extends Model
     {
         return [
             'quantity' => 'integer',
+            'amount' => 'decimal:2',
         ];
     }
 

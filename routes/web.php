@@ -36,6 +36,7 @@ use App\Http\Controllers\Admin\PoDeadlineController;
 use App\Http\Controllers\Admin\PoPeriodController;
 use App\Http\Controllers\Admin\ShipmentOrderDeadlineController;
 use App\Http\Controllers\Admin\OrderController;
+use App\Http\Controllers\Admin\OwnerReportController;
 use App\Http\Controllers\Admin\PackingListController;
 use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\AttendanceLeaveController;
@@ -89,6 +90,8 @@ Route::middleware('auth')
         Route::get('movements/export', [StockMovementController::class, 'export'])->name('movements.export');
         Route::get('movements', [StockMovementController::class, 'index'])->name('movements.index');
 
+        Route::get('reports/owner/export', [OwnerReportController::class, 'export'])->name('reports.owner.export');
+        Route::get('reports/owner', [OwnerReportController::class, 'index'])->name('reports.owner');
         Route::get('reports/stock/export', [StockReportController::class, 'export'])->name('reports.stock.export');
         Route::get('reports/stock', [StockReportController::class, 'index'])->name('reports.stock');
         Route::get('reports/restock/export', [RestockReportController::class, 'export'])->name('reports.restock.export');

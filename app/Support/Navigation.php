@@ -154,6 +154,9 @@ class Navigation
                 'label' => 'Laporan',
                 'icon' => 'report',
                 'items' => [
+                    ['label' => 'Laporan Owner', 'icon' => 'trending-up', 'route' => 'admin.reports.owner',
+                        'match' => 'admin.reports.owner*', 'can' => 'owner-reports.view',
+                        'keywords' => 'owner omzet penjualan pendapatan terlaris tidak laku retur ketepatan kirim telat penalti umur stok kinerja tim produktivitas'],
                     ['label' => 'Laporan Stok', 'icon' => 'chart', 'route' => 'admin.reports.stock',
                         'match' => 'admin.reports.stock', 'can' => 'reports.view',
                         'keywords' => 'stock balance saldo laporan'],
