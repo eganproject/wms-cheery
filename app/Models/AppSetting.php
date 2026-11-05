@@ -22,6 +22,9 @@ class AppSetting extends Model
     /** Metode absen yang terpilih saat menambah karyawan baru. */
     public const ATTENDANCE_DEFAULT_METHOD = 'attendance.default_method';
 
+    /** Potongan marketplace dalam persen, JSON {"TikTok Shop": 8.5}. */
+    public const MARKETPLACE_FEES = 'reports.marketplace_fees';
+
     public const DEFAULTS = [
         self::NORMAL_SHIP_DAYS => '2',
         self::ATTENDANCE_REQUIRE_SELFIE => '1',
@@ -58,5 +61,19 @@ class AppSetting extends Model
     public static function flag(string $key): bool
     {
         return static::get($key) === '1';
+    }
+
+    /**
+     * Persen potongan per marketplace untuk laba kotor.
+     *
+     * @return array<string, float>
+     */
+    public static function marketplaceFees(): array
+    {
+        $fees = json_decode((string) static::get(self::MARKETPLACE_FEES), true);
+
+        return is_array($fees)
+            ? array_map(fn ($value) => max(0, min(100, (float) $value)), array_filter($fees, 'is_numeric'))
+            : [];
     }
 }

@@ -43,10 +43,17 @@ class ProductExportService
         ['Nama Induk', 'parent_name', 'text'],
         ['Varian 1', 'option1', 'text'],
         ['Varian 2', 'option2', 'text'],
+        // HPP di ujung juga, dengan judul yang sama seperti template import.
+        ['HPP', 'cost', 'number'],
     ];
 
     public function download(Builder $query, string $filename): StreamedResponse
     {
+        // HPP hanya ikut bagi yang boleh membuka Laporan Owner.
+        if (! auth()->user()?->can('owner-reports.view')) {
+            $this->columns = array_values(array_filter($this->columns, fn (array $column) => $column[1] !== 'cost'));
+        }
+
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Stok Barang');
@@ -103,6 +110,7 @@ class ProductExportService
             // berkasnya, padahal komponennya bisa saja menumpuk penuh di rak.
             'stock' => $product->availableStock(),
             'min_stock' => (int) $product->{$field},
+            'cost' => $product->cost !== null ? (int) round((float) $product->cost) : '',
             default => (string) ($product->{$field} ?? '-'),
         };
     }

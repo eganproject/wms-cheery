@@ -5,11 +5,14 @@
 @endphp
 
 <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
-    <x-ui.stat-card label="Barang Berstok" :value="$n($t['products'])" icon="box" accent hint="Barang satuan dengan stok lebih dari 0" />
-    <x-ui.stat-card label="Total Unit" :value="$n($t['units'])" icon="layers" />
-    <x-ui.stat-card label="Stok Diam > 60 Hari" :value="$n($t['idle_units'])" icon="warning"
-                    info="Unit dari barang yang terakhir terjual lebih dari 60 hari lalu, atau belum pernah terjual. Ini modal yang tertahan."
-                    :hint="$t['units'] > 0 ? $pct($t['idle_units'] / $t['units'] * 100).' dari total unit' : null" />
+    <x-ui.stat-card label="Nilai Stok" :value="$rp($t['value'])" icon="box" accent
+                    info="Stok × HPP dari barang yang sudah punya HPP."
+                    :hint="$n($t['units']).' unit di '.$n($t['products']).' barang'" />
+    <x-ui.stat-card label="Barang Tanpa HPP" :value="$n($t['missing_cost'])" icon="layers"
+                    :hint="$t['missing_cost'] ? 'Belum masuk nilai stok' : 'Semua sudah ada HPP'" :href="route('admin.products.index')" />
+    <x-ui.stat-card label="Stok Diam > 60 Hari" :value="$rp($t['idle_value'])" icon="warning"
+                    info="Nilai barang yang terakhir terjual lebih dari 60 hari lalu, atau belum pernah terjual. Ini modal yang tertahan."
+                    :hint="$n($t['idle_units']).' unit'.($t['units'] > 0 ? ' · '.$pct($t['idle_units'] / $t['units'] * 100).' dari total unit' : '')" />
     <x-ui.stat-card label="Stok Rusak" :value="$n($t['damaged'])" icon="damaged" :href="route('admin.disposals.index')" />
 </div>
 
@@ -19,7 +22,7 @@
            @class(['frappe-card block px-4 py-3 transition hover:bg-ink-50', 'ring-2 ring-brand-500' => $active === $bucket->key])>
             <p class="text-xs text-ink-500">{{ $bucket->label }}</p>
             <p class="mt-1 text-lg font-semibold tabular-nums {{ $tones[$bucket->key] }}">{{ $n($bucket->units) }} <span class="text-xs font-normal text-ink-400">unit</span></p>
-            <p class="text-xs text-ink-500">{{ $n($bucket->products) }} barang</p>
+            <p class="text-xs text-ink-500">{{ $n($bucket->products) }} barang · {{ $rp($bucket->value) }}</p>
         </a>
     @endforeach
 </div>
@@ -38,6 +41,7 @@
                     <tr>
                         <th>Barang</th>
                         <th class="px-4 text-right">Stok</th>
+                        <th class="px-4 text-right">Nilai</th>
                         <th>Terakhir Terjual</th>
                         <th class="px-4 text-right">Diam</th>
                     </tr>
@@ -50,6 +54,7 @@
                                 <p class="font-mono text-xs text-ink-500">{{ $row->product->sku }}</p>
                             </td>
                             <td class="px-4 text-right text-sm font-semibold tabular-nums">{{ $n($row->stock) }}</td>
+                            <td class="whitespace-nowrap px-4 text-right text-sm tabular-nums text-ink-600">{{ $row->value !== null ? $rp($row->value) : '—' }}</td>
                             <td class="whitespace-nowrap text-sm text-ink-600">{{ $row->last_out?->format('d/m/Y') ?? 'Belum pernah' }}</td>
                             <td class="whitespace-nowrap px-4 text-right text-sm font-semibold tabular-nums {{ $tones[$row->bucket] }}">{{ $row->age !== null ? $n($row->age).' hari' : '—' }}</td>
                         </tr>
@@ -60,8 +65,3 @@
         <x-ui.pagination :paginator="$data['rows']" unit="barang" />
     @endif
 </div>
-
-<p class="mt-4 text-xs leading-relaxed text-ink-400">
-    Nilai stok dalam rupiah belum bisa dihitung karena data barang belum punya HPP (harga pokok). Begitu HPP diisi,
-    tab ini bisa menampilkan total nilai stok dan nilai stok yang tertahan.
-</p>

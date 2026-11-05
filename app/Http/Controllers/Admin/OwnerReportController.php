@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
+use Illuminate\Http\RedirectResponse;
 use App\Services\OwnerReportService;
 use App\Services\TableExport;
 use App\Support\DateRange;
@@ -25,6 +27,7 @@ class OwnerReportController extends Controller implements HasMiddleware
 {
     public const TABS = [
         'penjualan' => ['label' => 'Penjualan', 'icon' => 'chart'],
+        'laba' => ['label' => 'Laba Kotor', 'icon' => 'trending-up'],
         'kirim' => ['label' => 'Ketepatan Kirim', 'icon' => 'clock'],
         'barang' => ['label' => 'Terlaris & Tidak Laku', 'icon' => 'box'],
         'retur' => ['label' => 'Retur', 'icon' => 'return'],
@@ -59,7 +62,31 @@ class OwnerReportController extends Controller implements HasMiddleware
             'per' => $this->per($request),
             'periods' => self::PERIODS,
             'options' => $this->reports->filterOptions(),
+        ] : []) + ($tab === 'laba' ? [
+            'marketplaces' => $this->reports->filterOptions()['marketplaces'],
         ] : []));
+    }
+
+    /**
+     * Simpan persen potongan tiap marketplace untuk tab Laba Kotor.
+     */
+    public function fees(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'fees' => ['array'],
+            'fees.*' => ['nullable', 'numeric', 'min:0', 'max:100'],
+        ], [], ['fees.*' => 'potongan']);
+
+        $fees = collect($data['fees'] ?? [])
+            ->filter(fn ($value) => $value !== null && $value !== '')
+            ->map(fn ($value) => round((float) $value, 2))
+            ->all();
+
+        AppSetting::put(AppSetting::MARKETPLACE_FEES, json_encode($fees));
+
+        return redirect()->route('admin.reports.owner', array_filter([
+            'tab' => 'laba', 'from' => $request->input('from'), 'to' => $request->input('to'),
+        ]))->with('success', 'Potongan marketplace disimpan.');
     }
 
     public function export(Request $request): StreamedResponse
@@ -81,6 +108,16 @@ class OwnerReportController extends Controller implements HasMiddleware
                 ->sheet('Per Toko', [
                     ['Marketplace', 'text'], ['Toko', 'text'], ['Pesanan', 'sum'], ['Unit', 'sum'], ['Omzet (Rp)', 'sum'],
                 ], $data['stores']->map(fn ($r) => [$r->marketplace, $r->store, $r->orders, $r->units, $money($r->revenue)])),
+            'laba' => $export
+                ->sheet('Laba per Barang', [
+                    ['SKU', 'text'], ['Nama Barang', 'text'], ['Unit', 'sum'], ['Omzet (Rp)', 'sum'],
+                    ['Potongan Marketplace (Rp)', 'sum'], ['HPP per Unit (Rp)', 'number'], ['Total HPP (Rp)', 'sum'],
+                    ['Laba Kotor (Rp)', 'sum'], ['Margin %', 'number'],
+                ], $data['rows']->map(fn ($r) => [
+                    $r->product->sku, $r->product->name, $r->units, $money($r->revenue), $money($r->fee),
+                    $r->unit_cost !== null ? $money($r->unit_cost) : null, $r->cost !== null ? $money($r->cost) : null,
+                    $r->profit !== null ? $money($r->profit) : null, $r->margin !== null ? round($r->margin, 1) : null,
+                ])),
             'kirim' => $export
                 ->sheet('Per Hari', [
                     ['Batas Kirim', 'text'], ['Resi', 'sum'], ['Tepat Waktu', 'sum'], ['Telat Dikirim', 'sum'],
@@ -109,8 +146,9 @@ class OwnerReportController extends Controller implements HasMiddleware
                 ->sheet('Alasan', [['Alasan', 'text'], ['Dokumen Retur', 'sum']], $data['reasons']->map(fn ($r) => [$r->reason, (int) $r->receipts])),
             'stok' => $export
                 ->sheet('Umur Stok', [
-                    ['SKU', 'text'], ['Nama Barang', 'text'], ['Stok', 'sum'], ['Terakhir Terjual', 'date'], ['Hari Sejak Terjual', 'number'],
-                ], $data['rows']->map(fn ($r) => [$r->product->sku, $r->product->name, $r->stock, $r->last_out, $r->age])),
+                    ['SKU', 'text'], ['Nama Barang', 'text'], ['Stok', 'sum'], ['HPP (Rp)', 'number'], ['Nilai Stok (Rp)', 'sum'],
+                    ['Terakhir Terjual', 'date'], ['Hari Sejak Terjual', 'number'],
+                ], $data['rows']->map(fn ($r) => [$r->product->sku, $r->product->name, $r->stock, $r->cost !== null ? $money($r->cost) : null, $r->value !== null ? $money($r->value) : null, $r->last_out, $r->age])),
             'tim' => $export
                 ->sheet('Per Orang', [
                     ['Nama', 'text'], ['Akun', 'text'], ['Paket Dikemas', 'sum'], ['Unit', 'sum'],
@@ -131,6 +169,15 @@ class OwnerReportController extends Controller implements HasMiddleware
             : $rows;
 
         switch ($tab) {
+            case 'laba':
+                $data = $this->reports->profit($range);
+                $data['rows'] = $page($data['rows'], 'page', [
+                    'units' => 'units', 'revenue' => 'revenue', 'profit' => fn ($r) => $r->profit ?? PHP_INT_MIN,
+                    'margin' => fn ($r) => $r->margin ?? PHP_INT_MIN,
+                ], ['profit', 'desc']);
+
+                return $data;
+
             case 'kirim':
                 $data = $this->reports->shipping($range, $request->input('jenis'));
                 $data['late'] = $page($data['late'], 'telat');

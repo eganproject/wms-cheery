@@ -131,6 +131,79 @@ class OwnerReportTest extends TestCase
         $this->assertEquals(59000, ShipmentOrder::where('tracking_number', 'SPX2')->firstOrFail()->items->first()->amount);
     }
 
+    public function test_gross_profit_subtracts_cost_and_marketplace_fee(): void
+    {
+        $this->product->forceFill(['cost' => 30000])->save();
+        $this->makeOrder('RESI1', quantity: 2, amount: 100000);
+        \App\Models\AppSetting::put(\App\Models\AppSetting::MARKETPLACE_FEES, json_encode(['TikTok Shop' => 10]));
+
+        $report = app(OwnerReportService::class)->profit($this->month());
+
+        // 100.000 − 10% potongan − 2 × 30.000 = 30.000
+        $this->assertEquals(30000, $report['totals']['profit']);
+        $this->assertEqualsWithDelta(30.0, $report['totals']['margin'], 0.01);
+        $this->assertSame(0, $report['totals']['missing_cost']);
+    }
+
+    public function test_products_without_cost_are_listed_but_not_summed(): void
+    {
+        $this->makeOrder('RESI1', quantity: 1, amount: 50000);
+
+        $report = app(OwnerReportService::class)->profit($this->month());
+
+        $this->assertSame(1, $report['totals']['missing_cost']);
+        $this->assertNull($report['rows']->first()->profit);
+        $this->assertEquals(0, $report['totals']['profit']);
+    }
+
+    public function test_marketplace_fees_are_saved_from_the_profit_tab(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('admin.reports.owner.fees'), ['fees' => ['TikTok Shop' => '8.5', 'Shopee' => '']])
+            ->assertRedirect();
+
+        $this->assertSame(['TikTok Shop' => 8.5], \App\Models\AppSetting::marketplaceFees());
+    }
+
+    public function test_stock_value_uses_cost(): void
+    {
+        $this->product->forceFill(['cost' => 20000, 'stock' => 5])->save();
+
+        $report = app(OwnerReportService::class)->stockAging();
+
+        $this->assertEquals(100000, $report['totals']['value']);
+    }
+
+    public function test_cost_is_saved_from_the_product_form_only_by_owner_report_users(): void
+    {
+        $this->actingAs($this->admin)->put(route('admin.products.update', $this->product), [
+            'sku' => 'BAJU-1', 'name' => 'Baju Satu', 'unit' => 'pcs', 'min_stock' => 0, 'is_active' => 1, 'cost' => '45000',
+        ])->assertSessionHasNoErrors();
+        $this->assertEquals(45000, $this->product->fresh()->cost);
+
+        $staff = User::factory()->create();
+        $staff->forceFill(['role_id' => Role::where('slug', 'staff-gudang')->value('id')])->save();
+
+        $this->actingAs($staff)->put(route('admin.products.update', $this->product), [
+            'sku' => 'BAJU-1', 'name' => 'Baju Satu', 'unit' => 'pcs', 'min_stock' => 0, 'is_active' => 1, 'cost' => '1',
+        ]);
+        $this->assertEquals(45000, $this->product->fresh()->cost);
+    }
+
+    public function test_product_import_reads_the_cost_column(): void
+    {
+        $csv = "SKU,Nama Barang,HPP\nBAJU-1,Baju Satu,\"35.000\"\nBAJU-2,Baju Dua,\n";
+        $path = tempnam(sys_get_temp_dir(), 'brg').'.csv';
+        file_put_contents($path, $csv);
+
+        $this->actingAs($this->admin)->post(route('admin.products.import.store'), [
+            'file' => new UploadedFile($path, 'barang.csv', 'text/csv', null, true),
+        ]);
+
+        $this->assertEquals(35000, $this->product->fresh()->cost);
+        $this->assertNull(Product::where('sku', 'BAJU-2')->value('cost'));
+    }
+
     /* ------------------------------------------------------- helpers --- */
 
     protected function month(): DateRange

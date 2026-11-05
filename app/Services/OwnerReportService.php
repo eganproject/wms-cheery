@@ -377,6 +377,111 @@ class OwnerReportService
         return $result;
     }
 
+    /* ------------------------------------------------------- laba kotor --- */
+
+    /**
+     * Laba kotor per barang: omzet − HPP × unit − potongan marketplace.
+     *
+     * Hanya baris yang punya harga jual yang dihitung, supaya omzet dan HPP
+     * selalu atas unit yang sama. Barang tanpa HPP tetap tampil, tetapi
+     * labanya kosong dan tidak ikut dijumlahkan.
+     *
+     * @return array<string, mixed>
+     */
+    public function profit(DateRange $range): array
+    {
+        $fees = \App\Models\AppSetting::marketplaceFees();
+
+        $lines = $this->salesOrders($range)
+            ->join('shipment_order_items as soi', 'soi.shipment_order_id', '=', 'shipment_orders.id')
+            ->whereNotNull('soi.product_id')
+            ->whereNotNull('soi.amount')
+            ->select('soi.product_id')
+            ->selectRaw("COALESCE(shipment_orders.marketplace, '') as marketplace")
+            ->selectRaw('COALESCE(SUM(soi.quantity), 0) as units')
+            ->selectRaw('COALESCE(SUM(soi.amount), 0) as revenue')
+            ->groupBy('soi.product_id', 'marketplace')
+            ->get();
+
+        $unpriced = (int) $this->salesOrders($range)
+            ->join('shipment_order_items as soi', 'soi.shipment_order_id', '=', 'shipment_orders.id')
+            ->whereNull('soi.amount')
+            ->sum('soi.quantity');
+
+        $products = Product::with('bundleComponents.component:id,cost')
+            ->whereIn('id', $lines->pluck('product_id')->unique())
+            ->get(['id', 'sku', 'name', 'type', 'cost', 'image_path'])
+            ->keyBy('id');
+
+        $rows = $lines->groupBy('product_id')->map(function (Collection $group, $productId) use ($products, $fees) {
+            $product = $products->get($productId);
+            $units = (int) $group->sum('units');
+            $revenue = (float) $group->sum('revenue');
+            $fee = (float) $group->sum(fn ($line) => $line->revenue * (($fees[$line->marketplace] ?? 0) / 100));
+            $unitCost = $product ? $this->unitCost($product) : null;
+            $cost = $unitCost !== null ? $unitCost * $units : null;
+            $profit = $cost !== null ? $revenue - $fee - $cost : null;
+
+            return (object) [
+                'product' => $product,
+                'units' => $units,
+                'revenue' => $revenue,
+                'fee' => $fee,
+                'unit_cost' => $unitCost,
+                'cost' => $cost,
+                'profit' => $profit,
+                'margin' => $profit !== null && $revenue > 0 ? $profit / $revenue * 100 : null,
+            ];
+        })->filter(fn ($row) => $row->product)->values();
+
+        $costed = $rows->whereNotNull('cost');
+        $revenue = (float) $costed->sum('revenue');
+        $profit = (float) $costed->sum('profit');
+
+        return [
+            'rows' => $rows->sortByDesc(fn ($row) => $row->profit ?? PHP_INT_MIN)->values(),
+            'fees' => $fees,
+            'totals' => [
+                'revenue' => (float) $rows->sum('revenue'),
+                'costed_revenue' => $revenue,
+                'fee' => (float) $costed->sum('fee'),
+                'cost' => (float) $costed->sum('cost'),
+                'profit' => $profit,
+                'margin' => $revenue > 0 ? $profit / $revenue * 100 : null,
+                'missing_cost' => $rows->whereNull('cost')->count(),
+                'missing_cost_revenue' => (float) $rows->whereNull('cost')->sum('revenue'),
+                'unpriced_units' => $unpriced,
+            ],
+        ];
+    }
+
+    /**
+     * HPP satu unit. Paket tanpa HPP sendiri memakai jumlah HPP isinya,
+     * asalkan semua isinya sudah punya HPP.
+     */
+    public function unitCost(Product $product): ?float
+    {
+        if ($product->cost !== null) {
+            return (float) $product->cost;
+        }
+
+        if (! $product->isBundle() || $product->bundleComponents->isEmpty()) {
+            return null;
+        }
+
+        $total = 0.0;
+
+        foreach ($product->bundleComponents as $line) {
+            if ($line->component?->cost === null) {
+                return null;
+            }
+
+            $total += (float) $line->component->cost * $line->quantity;
+        }
+
+        return $total;
+    }
+
     /* ------------------------------------------------------------ retur --- */
 
     /**
@@ -477,7 +582,7 @@ class OwnerReportService
     {
         $products = Product::singles()
             ->where('stock', '>', 0)
-            ->get(['id', 'sku', 'name', 'stock', 'damaged_stock', 'type', 'image_path', 'is_active']);
+            ->get(['id', 'sku', 'name', 'stock', 'damaged_stock', 'type', 'image_path', 'is_active', 'cost']);
 
         $lastOut = $this->lastOutgoing($products->pluck('id'));
         $today = now()->startOfDay();
@@ -489,6 +594,8 @@ class OwnerReportService
             return (object) [
                 'product' => $product,
                 'stock' => (int) $product->stock,
+                'cost' => $product->cost !== null ? (float) $product->cost : null,
+                'value' => $product->cost !== null ? (float) $product->cost * $product->stock : null,
                 'last_out' => $last,
                 'age' => $age,
                 'bucket' => $this->ageBucket($age),
@@ -500,6 +607,7 @@ class OwnerReportService
             'label' => $meta[2],
             'products' => $rows->where('bucket', $key)->count(),
             'units' => $rows->where('bucket', $key)->sum('stock'),
+            'value' => (float) $rows->where('bucket', $key)->sum('value'),
         ]);
 
         return [
@@ -513,6 +621,9 @@ class OwnerReportService
                 'units' => $rows->sum('stock'),
                 'damaged' => (int) Product::singles()->sum('damaged_stock'),
                 'idle_units' => $rows->whereIn('bucket', ['61-90', '90+', 'never'])->sum('stock'),
+                'value' => (float) $rows->sum('value'),
+                'idle_value' => (float) $rows->whereIn('bucket', ['61-90', '90+', 'never'])->sum('value'),
+                'missing_cost' => $rows->whereNull('cost')->count(),
             ],
         ];
     }

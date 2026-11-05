@@ -41,6 +41,7 @@ class Product extends Model
         'unit',
         'location',
         'min_stock',
+        'cost',
         'is_active',
         'type',
         'product_group_id',

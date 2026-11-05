@@ -35,6 +35,7 @@ class ProductImportService
         'unit' => ['satuan', 'unit', 'uom', 'satuanbarang'],
         'location' => ['lokasirak', 'lokasi', 'rak', 'location', 'binlocation', 'shelf'],
         'min_stock' => ['stokminimum', 'stokmin', 'minstock', 'minimumstock', 'batasminimum', 'minimal'],
+        'cost' => ['hpp', 'hargapokok', 'hargapokokpenjualan', 'hargamodal', 'modal', 'cost', 'costprice'],
         'stock' => ['stok', 'stock', 'stokawal', 'jumlahstok', 'qty', 'quantity', 'saldostok', 'stokakhir'],
         'is_active' => ['status', 'statusbarang', 'aktif', 'isactive'],
         // Varian (opsional): baris dengan nama induk yang sama dikelompokkan
@@ -90,6 +91,7 @@ class ProductImportService
         'parent' => 'Nama Induk',
         'option1' => 'Varian 1',
         'option2' => 'Varian 2',
+        'cost' => 'HPP',
     ];
 
     public function __construct(protected StockService $stock)
@@ -355,6 +357,9 @@ class ProductImportService
     {
         $entries = collect();
 
+        // HPP hanya ditulis oleh yang boleh membuka Laporan Owner.
+        $canSetCost = (bool) auth()->user()?->can('owner-reports.view');
+
         foreach ($rows as $row) {
             $sku = $this->value($row, $header, 'sku');
             $name = $this->value($row, $header, 'name');
@@ -381,6 +386,8 @@ class ProductImportService
                 'location' => $this->optional($row, $header, 'location'),
                 // Kolom ini tidak boleh null di database, jadi kosong berarti 0.
                 'min_stock' => $this->number($this->value($row, $header, 'min_stock')) ?? 0,
+                // HPP kosong berarti tidak diubah, bukan dihapus.
+                'cost' => \App\Support\Money::parse($this->value($row, $header, 'cost')),
                 'stock' => isset($header['stock'])
                     ? $this->number($this->value($row, $header, 'stock'))
                     : null,
@@ -389,7 +396,7 @@ class ProductImportService
                 'option1' => $this->optional($row, $header, 'option1'),
                 'option2' => $this->optional($row, $header, 'option2'),
             ], fn ($value, string $field) => in_array($field, ['sku', 'name', 'stock', 'parent', 'option1', 'option2'], true)
-                || isset($header[$field]), ARRAY_FILTER_USE_BOTH));
+                || (isset($header[$field]) && ($field !== 'cost' || ($value !== null && $canSetCost))), ARRAY_FILTER_USE_BOTH));
         }
 
         return $entries;

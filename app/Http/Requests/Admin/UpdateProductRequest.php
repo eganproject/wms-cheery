@@ -46,6 +46,9 @@ class UpdateProductRequest extends FormRequest
             'unit' => ['required', 'string', 'max:20'],
             'location' => ['nullable', 'string', 'max:100'],
             'min_stock' => ['required', 'integer', 'min:0', 'max:1000000'],
+            // HPP hanya ditulis oleh yang boleh melihat Laporan Owner; bagi yang
+            // lain kolomnya tidak ada, dan HPP lama tidak boleh ikut terhapus.
+            ...($this->user()?->can('owner-reports.view') ? ['cost' => ['nullable', 'numeric', 'min:0', 'max:9999999999']] : []),
             'is_active' => ['boolean'],
             // Foto dari HP biasanya 2–5 MB; batas 4 MB cukup tanpa membebani hosting.
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
@@ -129,6 +132,7 @@ class UpdateProductRequest extends FormRequest
             'sku' => Str::upper(trim((string) $this->input('sku'))),
             'barcode' => filled($this->input('barcode')) ? trim((string) $this->input('barcode')) : null,
             'min_stock' => $this->input('min_stock', 0),
+            'cost' => filled($this->input('cost')) ? \App\Support\Money::parse($this->input('cost')) : null,
             'is_active' => $this->boolean('is_active'),
             'remove_image' => $this->boolean('remove_image'),
             // Jenis yang tidak dikirim berarti tidak diubah — form lama dan
@@ -161,6 +165,7 @@ class UpdateProductRequest extends FormRequest
             'unit' => 'satuan',
             'location' => 'lokasi rak',
             'min_stock' => 'stok minimum',
+            'cost' => 'HPP',
             'option1' => $this->route('product')->group?->option1_name ?? 'atribut varian',
             'option2' => $this->route('product')->group?->option2_name ?? 'atribut kedua',
             'image' => 'gambar barang',

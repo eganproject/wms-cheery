@@ -271,6 +271,16 @@
                     --}}
                     <input type="hidden" name="min_stock" value="0" x-bind:disabled="! isBundle || isVariant">
 
+                    {{-- HPP adalah angka owner: hanya tampil bagi yang boleh membuka Laporan Owner. --}}
+                    @can('owner-reports.view')
+                    <x-ui.field label="HPP (Harga Pokok)" for="cost" :error="$errors->get('cost')"
+                                info="Modal per satuan barang ini. Dipakai Laporan Owner untuk menghitung nilai stok dan laba kotor."
+                                hint="Rupiah per satuan. Boleh dikosongkan; paket tanpa HPP dihitung dari HPP isinya.">
+                        <x-text-input id="cost" name="cost" type="number" min="0" step="1" placeholder="mis. 45000"
+                                      :value="old('cost', $product?->cost !== null ? (int) round($product->cost) : null)" />
+                    </x-ui.field>
+                    @endcan
+
                     <template x-if="isBundle">
                         <div class="rounded-xl border border-ink-100 bg-ink-50/50 p-4">
                             <p class="text-xs text-ink-400">Bisa dirakit sekarang</p>

@@ -92,6 +92,7 @@ Route::middleware('auth')
 
         Route::get('reports/owner/export', [OwnerReportController::class, 'export'])->name('reports.owner.export');
         Route::get('reports/owner', [OwnerReportController::class, 'index'])->name('reports.owner');
+        Route::post('reports/owner/fees', [OwnerReportController::class, 'fees'])->name('reports.owner.fees');
         Route::get('reports/stock/export', [StockReportController::class, 'export'])->name('reports.stock.export');
         Route::get('reports/stock', [StockReportController::class, 'index'])->name('reports.stock');
         Route::get('reports/restock/export', [RestockReportController::class, 'export'])->name('reports.restock.export');
