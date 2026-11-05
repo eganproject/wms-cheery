@@ -50,15 +50,15 @@ class StockAdjustmentTest extends TestCase
     }
 
     /**
-     * Penyesuaian satu kelompok dengan stok opname di menu Transaksi Stok,
-     * dan halamannya saling terhubung lewat tab.
+     * Penyesuaian satu menu (Koreksi Stok) dengan stok opname, dan
+     * halamannya saling terhubung lewat tab.
      */
     public function test_the_menu_reaches_the_adjustment_page(): void
     {
-        $this->actingAs($this->admin)->get(route('admin.dashboard'))
+        $this->actingAs($this->admin)->get(route('admin.opnames.index'))
             ->assertOk()
-            ->assertSee('Penyesuaian Stok')
-            ->assertSee(route('admin.adjustments.index'), false);
+            ->assertSee('Koreksi Stok')
+            ->assertSee('href="'.route('admin.adjustments.index').'"', false);
 
         $this->actingAs($this->admin)->get(route('admin.adjustments.index'))
             ->assertOk()

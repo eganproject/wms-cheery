@@ -11,7 +11,7 @@
         <template data-fragment="breadcrumbs">@include('layouts.breadcrumbs', ['pageTitle' => $pageTitle])</template>
         <template data-fragment="notifications">@include('layouts.notifications')</template>
         <template data-fragment="flash"><x-ui.flash /></template>
-        <div data-fragment="content">{{ $slot }}</div>
+        <div data-fragment="content">@include('layouts.page-tabs'){{ $slot }}</div>
     </div>
 @else
 <!DOCTYPE html>
@@ -84,6 +84,7 @@
 
         <main data-app-main class="px-4 pb-28 pt-5 sm:px-6 lg:pb-10">
             <div id="page-content" class="mx-auto w-full max-w-7xl">
+                @include('layouts.page-tabs')
                 {{ $slot }}
             </div>
         </main>

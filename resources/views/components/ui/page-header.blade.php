@@ -4,8 +4,8 @@
     Kepala halaman ala wmsxshopee: judul 20px dengan keterangan singkat di
     bawahnya, dan tombol aksi di kanan.
 
-    Tidak ada lagi bilah tab ke halaman sekelompok: setiap halaman itu sudah
-    punya menunya sendiri di menu samping, jadi tab hanya mengulang menu.
+    Tab ke halaman sekelompok tidak dipasang di sini: layout menampilkannya
+    otomatis di atas halaman (layouts/page-tabs) dari App\Support\Navigation.
 --}}
 <div {{ $attributes->merge(['class' => 'mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between']) }}>
     <div data-page-head class="flex min-w-0 items-start gap-2">

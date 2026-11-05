@@ -35,7 +35,6 @@
                          title="Unduh pesanan dan isi barangnya sesuai tab dan saringan yang aktif">
                 Export Excel
             </x-ui.button>
-            <x-ui.button :href="route('admin.orders.packing', request()->only(['marketplace', 'store', 'courier', 'from', 'to', 'range']))" variant="secondary" icon="list">Packing List</x-ui.button>
             <x-ui.button :href="route('admin.orders.priority')" variant="secondary" icon="clock"
                          title="Unggah pesanan yang di TikTok harus dikirim hari ini">Harus Dikirim TikTok</x-ui.button>
             @can('imports.create')
