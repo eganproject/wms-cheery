@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -36,9 +37,11 @@ object Updater {
         data object Checking : State
         data object UpToDate : State
         data class Available(val release: AppRelease, val forced: Boolean) : State
-        data class Downloading(val release: AppRelease, val forced: Boolean, val progress: Float?) : State
+        /** [silent]: unduhan otomatis di latar belakang, tanpa jendela. */
+        data class Downloading(val release: AppRelease, val forced: Boolean, val progress: Float?, val silent: Boolean = false) : State
         data class NeedPermission(val release: AppRelease, val forced: Boolean, val file: File) : State
-        data class ReadyToInstall(val release: AppRelease, val forced: Boolean, val file: File) : State
+        /** [launch]: langsung buka penginstal (operator sudah menekan Perbarui/Pasang). */
+        data class ReadyToInstall(val release: AppRelease, val forced: Boolean, val file: File, val launch: Boolean) : State
         data class Failed(val message: String, val release: AppRelease?, val forced: Boolean) : State
     }
 
@@ -58,8 +61,14 @@ object Updater {
 
     fun init(context: Context) {
         app = context.applicationContext
-        // APK lama sisa pembaruan sebelumnya tidak perlu disimpan.
-        runCatching { updateDir().listFiles()?.forEach { it.delete() } }
+        // APK sisa pembaruan yang sudah terpasang tidak perlu disimpan.
+        runCatching {
+            val installed = versionCode
+            updateDir().listFiles()?.forEach { file ->
+                val code = Regex("""wms-cheery-scan-(\d+)\.apk""").matchEntire(file.name)?.groupValues?.get(1)?.toLongOrNull()
+                if (code == null || code <= installed) file.delete()
+            }
+        }
     }
 
     val versionCode: Long
@@ -78,8 +87,14 @@ object Updater {
     fun check(manual: Boolean = false) {
         val server = Session.serverUrl
         if (server.isBlank()) return
+        val current = _state.value
+        // Cek manual saat unduhan latar berjalan: tampilkan progresnya.
+        if (manual && current is State.Downloading && current.silent) {
+            _state.value = current.copy(silent = false)
+            return
+        }
         if (job?.isActive == true) return
-        when (_state.value) {
+        when (current) {
             is State.Downloading, is State.NeedPermission, is State.ReadyToInstall -> return
             else -> Unit
         }
@@ -116,35 +131,56 @@ object Updater {
                 _state.value = State.Idle
                 return@launch
             }
-            _state.value = State.Available(latest, forced)
+            // Wi-Fi: unduh diam-diam dulu, operator tinggal menekan Pasang.
+            // Data seluler: tanya dulu (APK puluhan MB).
+            if (!manual && !isMetered()) {
+                startDownload(latest, forced, silent = true)
+            } else {
+                _state.value = State.Available(latest, forced)
+            }
         }
     }
+
+    private fun isMetered(): Boolean = runCatching {
+        val manager = app.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        manager.isActiveNetworkMetered
+    }.getOrDefault(true)
 
     /** "Nanti": tidak ditanya lagi untuk versi ini sampai aplikasi dibuka ulang. */
     fun dismiss() {
         val current = _state.value
         if (current is State.Available) snoozed = current.release.versionCode
+        if (current is State.ReadyToInstall) snoozed = current.release.versionCode
         if (current is State.Downloading) job?.cancel()
         _state.value = State.Idle
     }
 
+    /** Operator menekan "Perbarui". */
     fun download(release: AppRelease, forced: Boolean) {
         if (job?.isActive == true) return
-        job = scope.launch {
-            _state.value = State.Downloading(release, forced, null)
-            try {
-                val file = fetchApk(release) { progress ->
-                    _state.value = State.Downloading(release, forced, progress)
-                }
-                _state.value = if (canInstall()) {
-                    State.ReadyToInstall(release, forced, file)
-                } else {
-                    State.NeedPermission(release, forced, file)
-                }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _state.value = State.Failed(
+        job = scope.launch { startDownload(release, forced, silent = false) }
+    }
+
+    private suspend fun startDownload(release: AppRelease, forced: Boolean, silent: Boolean) {
+        _state.value = State.Downloading(release, forced, null, silent)
+        try {
+            val file = fetchApk(release) { progress ->
+                _state.value = State.Downloading(release, forced, progress, isSilent())
+            }
+            _state.value = when {
+                // Unduhan latar: tampilkan "siap dipasang", jangan menyela kerja.
+                isSilent() -> State.ReadyToInstall(release, forced, file, launch = false)
+                canInstall() -> State.ReadyToInstall(release, forced, file, launch = true)
+                else -> State.NeedPermission(release, forced, file)
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            _state.value = if (isSilent()) {
+                // Gagal diam-diam: tawarkan lewat jendela biasa.
+                State.Available(release, forced)
+            } else {
+                State.Failed(
                     e.message?.takeIf { e is ApiException } ?: "Unduhan gagal. Periksa internet lalu coba lagi.",
                     release,
                     forced,
@@ -153,11 +189,24 @@ object Updater {
         }
     }
 
+    /** Masih unduhan latar (operator belum membuka jendelanya)? */
+    private fun isSilent(): Boolean = (_state.value as? State.Downloading)?.silent ?: false
+
+    /** Operator menekan "Pasang" pada APK yang sudah terunduh. */
+    fun installNow(context: Context) {
+        val current = _state.value as? State.ReadyToInstall ?: return
+        if (canInstall()) {
+            install(context, current.file)
+        } else {
+            _state.value = State.NeedPermission(current.release, current.forced, current.file)
+        }
+    }
+
     /** Dipanggil saat aplikasi kembali tampil (mis. selesai dari layar izin). */
     fun onResume() {
         val current = _state.value
         if (current is State.NeedPermission && canInstall()) {
-            _state.value = State.ReadyToInstall(current.release, current.forced, current.file)
+            _state.value = State.ReadyToInstall(current.release, current.forced, current.file, launch = true)
         }
     }
 
@@ -212,6 +261,17 @@ object Updater {
         val dir = updateDir().apply { mkdirs() }
         val part = File(dir, "wms-cheery-scan.apk.part")
         val target = File(dir, "wms-cheery-scan-${release.versionCode}.apk")
+
+        // Sudah terunduh sebelumnya (mis. ditunda "Nanti"): pakai lagi.
+        if (target.exists()) {
+            val cached = app.packageManager.getPackageArchiveInfo(target.path, 0)
+            val code = cached?.let {
+                if (Build.VERSION.SDK_INT >= 28) it.longVersionCode else @Suppress("DEPRECATION") it.versionCode.toLong()
+            }
+            if (cached?.packageName == app.packageName && code == release.versionCode) return@withContext target
+            target.delete()
+        }
+        dir.listFiles()?.forEach { if (it != target) it.delete() }
 
         try {
             client.newCall(request).execute().use { response ->

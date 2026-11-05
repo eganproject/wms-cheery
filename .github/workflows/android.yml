@@ -62,3 +62,41 @@ jobs:
             Cara pasang: buka halaman ini dari HP, unduh `wms-cheery-scan.apk`, lalu buka berkasnya.
             Bila diminta, izinkan "Instal aplikasi tidak dikenal" untuk browser/Files.
             Versi baru cukup dipasang menimpa yang lama (data login tetap).
+
+      # Kirim APK ke server WMS (VPS) supaya HP langsung ditawari pembaruan
+      # tanpa unggah manual. Isi secret WMS_PUBLISH_URL (alamat WMS, boleh
+      # beberapa dipisah spasi/baris) dan WMS_PUBLISH_TOKEN (sama dengan
+      # MOBILE_APP_PUBLISH_TOKEN di .env server).
+      - name: Kirim APK ke server WMS
+        if: github.ref == 'refs/heads/main'
+        env:
+          WMS_PUBLISH_URL: ${{ secrets.WMS_PUBLISH_URL }}
+          WMS_PUBLISH_TOKEN: ${{ secrets.WMS_PUBLISH_TOKEN }}
+          WMS_KEYSTORE_BASE64: ${{ secrets.WMS_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$WMS_PUBLISH_URL" ] || [ -z "$WMS_PUBLISH_TOKEN" ]; then
+            echo "::notice::Secret WMS_PUBLISH_URL / WMS_PUBLISH_TOKEN belum diisi, APK tidak dikirim ke server WMS."
+            exit 0
+          fi
+          # APK berkunci debug acak tidak bisa menimpa aplikasi di HP; jangan dikirim.
+          if [ -z "$WMS_KEYSTORE_BASE64" ]; then
+            echo "::warning::APK memakai kunci debug sementara, tidak dikirim ke server WMS. Isi secret WMS_KEYSTORE_BASE64 dulu."
+            exit 0
+          fi
+          NOTES="$(git log -1 --format=%s)"
+          for base in $WMS_PUBLISH_URL; do
+            url="${base%/}/api/mobile/app-releases"
+            echo "Mengirim ke $url"
+            ok=""
+            for attempt in 1 2 3; do
+              if curl --fail-with-body -sS --max-time 600 -X POST "$url" \
+                  -H "Authorization: Bearer $WMS_PUBLISH_TOKEN" \
+                  -H "Accept: application/json" \
+                  -F "apk=@wms-cheery-scan.apk;type=application/vnd.android.package-archive" \
+                  -F "notes=$NOTES"; then
+                ok=1; echo; break
+              fi
+              echo; echo "Percobaan $attempt gagal, mencoba lagi..."; sleep $((attempt * 10))
+            done
+            [ -n "$ok" ] || { echo "::error::Gagal mengirim APK ke $base"; exit 1; }
+          done

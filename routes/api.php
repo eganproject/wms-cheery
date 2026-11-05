@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\OutboundHandoverController;
 use App\Http\Controllers\Admin\OutboundMarketplaceController;
 use App\Http\Controllers\Admin\ReturnMarketplaceController;
 use App\Http\Controllers\Admin\OutboundScanController;
+use App\Http\Controllers\Api\Mobile\AppReleaseController;
 use App\Http\Controllers\Api\Mobile\AppVersionController;
 use App\Http\Controllers\Api\Mobile\AttendanceController as MobileAttendanceController;
 use App\Http\Controllers\Api\Mobile\AuthController as MobileAuthController;
@@ -41,6 +42,11 @@ Route::prefix('mobile')
             Route::get('/app-version', [AppVersionController::class, 'show'])->name('app-version');
             Route::get('/app-download', [AppVersionController::class, 'download'])->name('app-download');
         });
+
+        // GitHub Actions mengirim APK baru ke sini (token MOBILE_APP_PUBLISH_TOKEN).
+        Route::post('/app-releases', [AppReleaseController::class, 'store'])
+            ->middleware('throttle:10,1')
+            ->name('app-releases.store');
 
         Route::middleware(['auth:mobile', 'throttle:240,1'])->group(function (): void {
             Route::get('/me', [MobileAuthController::class, 'me'])->name('me');

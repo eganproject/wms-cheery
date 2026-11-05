@@ -9,7 +9,7 @@
                 @csrf
                 <div class="mb-4">
                     <h2 class="text-sm font-semibold text-ink-950">Unggah versi baru</h2>
-                    <p class="mt-1 text-xs text-ink-400">Nomor versi dibaca otomatis dari APK.</p>
+                    <p class="mt-1 text-xs text-ink-400">Nomor versi dibaca otomatis dari APK. Bila kiriman otomatis GitHub sudah diatur (DEPLOY.md bagian 9), APK baru masuk sendiri dan unggah manual tidak perlu.</p>
                 </div>
 
                 <div class="space-y-4">
@@ -125,7 +125,7 @@
                                 <td class="text-right text-sm tabular-nums text-ink-700">{{ number_format($release->file_size / 1048576, 1, ',', '.') }} MB</td>
                                 <td class="text-sm text-ink-700">
                                     {{ $release->created_at?->translatedFormat('d M Y H:i') }}
-                                    <div class="text-xs text-ink-400">{{ $release->uploader?->name ?? '—' }}</div>
+                                    <div class="text-xs text-ink-400">{{ $release->uploader?->name ?? 'Otomatis (GitHub)' }}</div>
                                 </td>
                                 @can('mobile-app.update')
                                     <td>

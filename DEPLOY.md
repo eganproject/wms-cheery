@@ -221,3 +221,28 @@ Pemegang role Super Admin tidak perlu menunggu seeder — role itu melewati
 seluruh pemeriksaan izin, jadi halaman barunya langsung terbuka. Yang
 membutuhkannya adalah role lain, dan setelah seeder dijalankan izinnya bisa
 diatur seperti biasa lewat *Pengaturan → Pengguna & Akses → Hak Akses*.
+
+## 9. Update aplikasi Android otomatis (VPS)
+
+Setiap perubahan aplikasi Android yang masuk `main` dibangun GitHub Actions,
+lalu APK-nya dikirim langsung ke server WMS. HP ditawari pembaruan tanpa ada
+yang mengunggah APK manual. Sekali atur:
+
+1. Buat token acak, mis. `openssl rand -hex 32`.
+2. `.env` server: `MOBILE_APP_PUBLISH_TOKEN=<token itu>`, lalu
+   `php artisan config:clear` (atau `config:cache`).
+3. GitHub repo → *Settings → Secrets and variables → Actions*:
+   - `WMS_PUBLISH_URL` = alamat WMS, mis. `https://wms.domain.com`
+     (boleh beberapa server, dipisah spasi)
+   - `WMS_PUBLISH_TOKEN` = token yang sama
+   - secret kunci tanda tangan `WMS_KEYSTORE_*` (lihat `android/README.md`).
+     Tanpa itu APK tidak dikirim, karena APK berkunci debug tidak bisa
+     menimpa aplikasi di HP.
+4. Batas unggah (APK ± 30 MB):
+   - Nginx: `client_max_body_size 100M;` di blok `server`, lalu `nginx -s reload`.
+   - PHP-FPM: `public/.user.ini` sudah menaikkan ke 100 MB; bila tidak terbaca,
+     atur `upload_max_filesize = 100M` dan `post_max_size = 110M` di php.ini.
+5. `php artisan migrate` (tabel `mobile_app_releases`).
+
+Hasilnya terlihat di *Pengaturan → Aplikasi Android*. Versi yang bermasalah
+bisa dinonaktifkan di sana; HP lalu ditawari versi aktif sebelumnya.

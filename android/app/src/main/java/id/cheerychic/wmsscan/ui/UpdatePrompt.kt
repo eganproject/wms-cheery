@@ -51,7 +51,7 @@ fun UpdatePrompt() {
     // Begitu APK siap (dan izin sudah ada), langsung buka penginstal.
     LaunchedEffect(state) {
         val ready = state as? State.ReadyToInstall ?: return@LaunchedEffect
-        Updater.install(context, ready.file)
+        if (ready.launch) Updater.install(context, ready.file)
     }
 
     when (val s = state) {
@@ -81,7 +81,8 @@ fun UpdatePrompt() {
             onDismissRequest = { if (!s.forced) Updater.dismiss() },
         )
 
-        is State.Downloading -> UpdateDialog(
+        // Unduhan otomatis di latar: tidak menyela kerja.
+        is State.Downloading -> if (!s.silent) UpdateDialog(
             title = "Mengunduh pembaruan…",
             body = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -113,14 +114,21 @@ fun UpdatePrompt() {
         )
 
         is State.ReadyToInstall -> UpdateDialog(
-            title = "Siap dipasang",
+            title = if (s.launch) "Siap dipasang" else "Versi baru siap dipasang",
             body = {
-                Text(
-                    "Tekan \"Perbarui\" / \"Instal\" di layar Android yang muncul. Data login tetap tersimpan.",
-                    color = InkMuted,
-                )
+                if (s.launch) {
+                    Text(
+                        "Tekan \"Perbarui\" / \"Instal\" di layar Android yang muncul. Data login tetap tersimpan.",
+                        color = InkMuted,
+                    )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ReleaseInfo(s.release, s.forced)
+                        Text("Sudah terunduh. Tekan Pasang, lalu Instal di layar Android. Data login tetap tersimpan.", color = InkMuted, fontSize = 13.sp)
+                    }
+                }
             },
-            confirm = "Pasang" to { Updater.install(context, s.file) },
+            confirm = "Pasang" to { Updater.installNow(context) },
             dismiss = if (s.forced) null else "Nanti" to { Updater.dismiss() },
             onDismissRequest = {},
         )
@@ -142,7 +150,7 @@ private fun ReleaseInfo(release: AppRelease, forced: Boolean) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            "Versi ${release.versionName} siap dipasang (sekarang ${Updater.versionName})." +
+            "Versi ${release.versionName} tersedia (sekarang ${Updater.versionName})." +
                 (release.size?.let { " Ukuran %.1f MB.".format(it / 1_048_576.0) } ?: ""),
             color = Ink,
         )

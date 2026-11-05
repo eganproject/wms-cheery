@@ -140,4 +140,39 @@ class MobileAppReleaseTest extends TestCase
         $this->actingAs($staff)->get(route('admin.mobile-app.index'))->assertForbidden();
         $this->actingAs($staff)->post(route('admin.mobile-app.store'), ['apk' => $this->apk()])->assertForbidden();
     }
+
+    public function test_github_actions_publishes_apk_with_token(): void
+    {
+        config(['services.mobile_app.publish_token' => 'rahasia-123']);
+        $json = ['Accept' => 'application/json'];
+
+        $this->post('/api/mobile/app-releases', ['apk' => $this->apk()], $json)->assertUnauthorized();
+        $this->post('/api/mobile/app-releases', ['apk' => $this->apk()], $json + ['Authorization' => 'Bearer salah'])
+            ->assertUnauthorized();
+
+        $this->post('/api/mobile/app-releases', ['apk' => $this->apk(), 'notes' => 'Perbaikan scan'], $json + ['Authorization' => 'Bearer rahasia-123'])
+            ->assertCreated()
+            ->assertJsonPath('version_code', 16)
+            ->assertJsonPath('created', true);
+
+        $release = MobileAppRelease::sole();
+        $this->assertSame('Perbaikan scan', $release->notes);
+        $this->assertNull($release->uploaded_by);
+        Storage::disk('local')->assertExists($release->file_path);
+
+        // Workflow dijalankan ulang: tidak gagal, tidak dobel.
+        $this->post('/api/mobile/app-releases', ['apk' => $this->apk()], $json + ['Authorization' => 'Bearer rahasia-123'])
+            ->assertOk()
+            ->assertJsonPath('created', false);
+        $this->assertSame(1, MobileAppRelease::count());
+    }
+
+    public function test_publish_endpoint_is_off_without_token(): void
+    {
+        config(['services.mobile_app.publish_token' => null]);
+
+        $this->post('/api/mobile/app-releases', ['apk' => $this->apk()], ['Accept' => 'application/json', 'Authorization' => 'Bearer apa-saja'])
+            ->assertNotFound();
+        $this->assertSame(0, MobileAppRelease::count());
+    }
 }

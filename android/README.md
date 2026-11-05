@@ -26,7 +26,13 @@ tulisan **Periksa pembaruan** di bawah Beranda.
 - Hanya berjalan bila APK lama dan baru ditandatangani **kunci yang sama**
   (lihat *Kunci tanda tangan*). Tanpa secret keystore, tiap build memakai kunci
   debug acak, sehingga update selalu ditolak Android.
-- **Cara utama:** unggah APK di web admin **Pengaturan > Aplikasi Android**
+- **Otomatis:** setiap build di `main`, GitHub Actions mengirim APK ke server
+  WMS (`POST /api/mobile/app-releases`, secret `WMS_PUBLISH_URL` +
+  `WMS_PUBLISH_TOKEN`, lihat `DEPLOY.md` bagian 9). Di HP, bila tersambung
+  Wi-Fi, APK diunduh diam-diam lalu muncul "Versi baru siap dipasang";
+  operator tinggal menekan **Pasang** lalu **Instal**. Di data seluler,
+  aplikasi bertanya dulu sebelum mengunduh.
+- **Manual:** unggah APK di web admin **Pengaturan > Aplikasi Android**
   (hak akses `mobile-app.*`). Nomor versi dibaca otomatis dari APK, bisa diberi
   catatan "Yang baru" dan tanda **Wajib diperbarui**. HP mengunduh APK langsung
   dari server WMS (`/api/mobile/app-download`, alamat ini juga dipakai untuk

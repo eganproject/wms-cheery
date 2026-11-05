@@ -4,16 +4,14 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\MobileAppRelease;
-use App\Support\ApkInfo;
+use App\Services\MobileAppPublisher;
 use App\Support\Listing;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -53,7 +51,7 @@ class MobileAppReleaseController extends Controller implements HasMiddleware
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, MobileAppPublisher $publisher): RedirectResponse
     {
         $request->validate([
             'apk' => ['required', 'file', 'max:'.(200 * 1024)],
@@ -65,40 +63,12 @@ class MobileAppReleaseController extends Controller implements HasMiddleware
             'apk.max' => 'APK maksimal 200 MB.',
         ]);
 
-        $file = $request->file('apk');
-
-        try {
-            $info = ApkInfo::read($file->getRealPath());
-        } catch (RuntimeException $e) {
-            throw ValidationException::withMessages(['apk' => $e->getMessage()]);
-        }
-
-        $package = config('services.mobile_app.package', 'id.cheerychic.wmsscan');
-        if ($info->package !== $package) {
-            throw ValidationException::withMessages([
-                'apk' => "APK ini milik aplikasi lain ({$info->package}), bukan WMS Cheery Scan ({$package}).",
-            ]);
-        }
-
-        if (MobileAppRelease::where('version_code', $info->versionCode)->exists()) {
-            throw ValidationException::withMessages([
-                'apk' => "Versi {$info->versionName} (kode {$info->versionCode}) sudah pernah diunggah.",
-            ]);
-        }
-
-        $path = $file->storeAs('mobile-app', "wms-cheery-scan-{$info->versionCode}.apk", MobileAppRelease::DISK);
-
-        $release = MobileAppRelease::create([
-            'version_code' => $info->versionCode,
-            'version_name' => $info->versionName ?: (string) $info->versionCode,
-            'notes' => $request->input('notes') ?: null,
-            'is_required' => $request->boolean('is_required'),
-            'is_active' => true,
-            'file_path' => $path,
-            'file_size' => $file->getSize(),
-            'sha256' => hash_file('sha256', $file->getRealPath()),
-            'uploaded_by' => $request->user()->id,
-        ]);
+        $release = $publisher->publish(
+            $request->file('apk'),
+            $request->input('notes'),
+            $request->boolean('is_required'),
+            $request->user()->id,
+        );
 
         $latest = MobileAppRelease::latestActive();
         $message = "Versi {$release->version_name} berhasil diunggah.";
