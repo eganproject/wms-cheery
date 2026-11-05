@@ -71,6 +71,18 @@ class OwnerReportTest extends TestCase
         $this->assertSame('TikTok Shop', $sales['stores']->first()->marketplace);
     }
 
+    public function test_blank_and_missing_marketplace_share_one_store_row(): void
+    {
+        $this->makeOrder('RESI1')->forceFill(['marketplace' => null, 'store_name' => null])->save();
+        $this->makeOrder('RESI2')->forceFill(['marketplace' => '', 'store_name' => ''])->save();
+
+        $stores = app(OwnerReportService::class)->sales($this->month(), 'hari')['stores'];
+
+        $this->assertCount(1, $stores);
+        $this->assertSame('Lainnya', $stores->first()->marketplace);
+        $this->assertSame(2, $stores->first()->orders);
+    }
+
     public function test_shipping_punctuality_splits_on_time_late_and_overdue(): void
     {
         $this->travelTo(Carbon::parse('2026-11-10 12:00'));

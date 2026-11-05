@@ -125,16 +125,19 @@ class OwnerReportService
 
         $stores = $this->salesOrders($range, $filters)
             ->leftJoin('shipment_order_items as soi', 'soi.shipment_order_id', '=', 'shipment_orders.id')
-            ->selectRaw("COALESCE(NULLIF(shipment_orders.marketplace, ''), 'Lainnya') as marketplace")
-            ->selectRaw("COALESCE(NULLIF(shipment_orders.store_name, ''), '') as store")
+            ->selectRaw("COALESCE(NULLIF(shipment_orders.marketplace, ''), 'Lainnya') as marketplace_label")
+            ->selectRaw("COALESCE(NULLIF(shipment_orders.store_name, ''), '') as store_label")
             ->selectRaw('COUNT(DISTINCT shipment_orders.id) as orders')
             ->selectRaw('COALESCE(SUM(soi.quantity), 0) as units')
             ->selectRaw('COALESCE(SUM(soi.amount), 0) as revenue')
-            ->groupBy('marketplace', 'store')
+            // Alias yang tidak sama dengan nama kolom: di MySQL "GROUP BY
+            // marketplace" memakai kolom aslinya, jadi kosong dan NULL
+            // menjadi dua baris "Lainnya".
+            ->groupBy('marketplace_label', 'store_label')
             ->get()
             ->map(fn ($row) => (object) [
-                'marketplace' => $row->marketplace,
-                'store' => $row->store,
+                'marketplace' => $row->marketplace_label,
+                'store' => $row->store_label,
                 'orders' => (int) $row->orders,
                 'units' => (int) $row->units,
                 'revenue' => (float) $row->revenue,
@@ -540,11 +543,12 @@ class OwnerReportService
         ])->filter(fn ($row) => $row->product)->sortByDesc('units')->values();
 
         $reasons = $receipts()
-            ->selectRaw("COALESCE(NULLIF(return_receipts.reason, ''), 'Tanpa alasan') as reason")
+            ->selectRaw("COALESCE(NULLIF(return_receipts.reason, ''), 'Tanpa alasan') as reason_label")
             ->selectRaw('COUNT(*) as receipts')
-            ->groupBy('reason')
+            ->groupBy('reason_label')
             ->orderByDesc('receipts')
-            ->get();
+            ->get()
+            ->map(fn ($row) => (object) ['reason' => $row->reason_label, 'receipts' => (int) $row->receipts]);
 
         $foreign = $receipts()
             ->join('return_receipt_foreign_items as rfi', 'rfi.return_receipt_id', '=', 'return_receipts.id')

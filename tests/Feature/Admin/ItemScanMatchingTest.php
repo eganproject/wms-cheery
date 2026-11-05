@@ -88,7 +88,7 @@ class ItemScanMatchingTest extends TestCase
         $this->scan(' flt-oli-std ')->assertOk()->assertJsonPath('matched_by', 'sku');
         $this->scan('8991 2345 00035')->assertOk()->assertJsonPath('matched_by', 'barcode');
 
-        $this->assertSame(2, $this->outbound->items()->sum('scanned_quantity'));
+        $this->assertSame(2, (int) $this->outbound->items()->sum('scanned_quantity'));
     }
 
     public function test_a_whitespace_only_code_is_rejected_by_the_request(): void

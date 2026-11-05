@@ -153,7 +153,7 @@ class ReturnForeignItemTest extends TestCase
             ->assertOk()
             ->assertJsonCount(2, 'candidates');
 
-        $this->assertSame(1, $return->items()->sum('quantity'));
+        $this->assertSame(1, (int) $return->items()->sum('quantity'));
 
         $this->actingAs($this->admin)
             ->postJson(route('admin.returns.marketplace.item', $return), ['code' => 'tidak ada sama sekali'])

@@ -79,7 +79,9 @@ class OrderController extends Controller implements HasMiddleware
             'antrean_per_kurir' => ShipmentOrder::query()->qualityChecked()
                 ->toBase()
                 ->selectRaw("COALESCE(NULLIF(courier, ''), ?) as courier_name, COUNT(*) as total", [self::NO_COURIER])
-                ->groupByRaw("COALESCE(NULLIF(courier, ''), ?)", [self::NO_COURIER])
+                // Kelompokkan lewat alias: MySQL/MariaDB menolak ekspresi yang
+                // sama bila nilainya dikirim sebagai parameter terpisah.
+                ->groupBy('courier_name')
                 ->orderByDesc('total')
                 ->get()
                 ->map(fn ($row) => ['courier' => $row->courier_name, 'total' => (int) $row->total])

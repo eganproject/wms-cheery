@@ -235,7 +235,7 @@ class BundleOutboundTest extends TestCase
             ->postJson(route('admin.outbounds.marketplace.store'), ['code' => 'SPXID111'])
             ->assertStatus(422);
 
-        $this->assertSame(3, $outbound->refresh()->items()->sum('scanned_quantity'));
+        $this->assertSame(3, (int) $outbound->refresh()->items()->sum('scanned_quantity'));
     }
 
     /* ------------------------------------------------- halaman ----------- */
