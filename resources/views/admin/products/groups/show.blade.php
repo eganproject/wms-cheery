@@ -139,7 +139,7 @@
                           x-data="variantBuilder({{ Js::from([
                               'option1Name' => $group->option1_name,
                               'option2Name' => $group->option2_name ?? '',
-                              'rows' => collect(old('variants', [['option1' => '', 'option2' => '', 'sku' => '', 'barcode' => '', 'location' => '', 'min_stock' => 0]]))->map(fn ($row) => collect($row)->except('image')->all())->values()->all(),
+                              'rows' => collect(old('variants', [['option1' => '', 'option2' => '', 'sku' => '', 'barcode' => '', 'location' => '', 'min_stock' => 0, 'cost' => '']]))->map(fn ($row) => collect($row)->except('image')->all())->values()->all(),
                           ]) }})">
                         @csrf
                         <x-input-error :messages="$errors->get('variants')" class="mb-3" />
@@ -156,6 +156,9 @@
                                         <th>Barcode</th>
                                         <th>Lokasi</th>
                                         <th class="w-24">Stok Min.</th>
+                                        @can('owner-reports.view')
+                                            <th class="w-28">HPP</th>
+                                        @endcan
                                         <th class="w-10"></th>
                                     </tr>
                                 </thead>
@@ -178,6 +181,9 @@
                                             <td><input type="text" class="form-control min-w-[8rem] font-mono" :name="`variants[${index}][barcode]`" x-model="row.barcode"></td>
                                             <td><input type="text" class="form-control min-w-[6rem] font-mono" :name="`variants[${index}][location]`" x-model="row.location"></td>
                                             <td><input type="number" min="0" class="form-control min-w-[4.5rem]" :name="`variants[${index}][min_stock]`" x-model="row.min_stock"></td>
+@can('owner-reports.view')
+                                            <td><input type="number" min="0" step="1" class="form-control min-w-[6rem]" placeholder="opsional" :name="`variants[${index}][cost]`" x-model="row.cost"></td>
+                                            @endcan
                                             <td>
                                                 <button type="button" class="btn btn-ghost btn-icon text-ink-400" title="Hapus baris" x-on:click="removeRow(index)">
                                                     <x-icon name="trash" class="h-4 w-4" />

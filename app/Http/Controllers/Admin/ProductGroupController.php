@@ -223,6 +223,8 @@ class ProductGroupController extends Controller implements HasMiddleware
             'unit' => $group->unit,
             'location' => filled($row['location'] ?? null) ? trim($row['location']) : null,
             'min_stock' => (int) ($row['min_stock'] ?? 0),
+            // HPP opsional, hanya dari yang boleh membuka Ringkasan Bisnis.
+            'cost' => auth()->user()?->can('owner-reports.view') && isset($row['cost']) ? $row['cost'] : null,
             'is_active' => $group->is_active,
             'type' => Product::TYPE_SINGLE,
             'option1' => trim($row['option1']),

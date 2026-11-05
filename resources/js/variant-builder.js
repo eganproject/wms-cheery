@@ -70,12 +70,13 @@ export default function variantBuilder(initial = {}) {
                     barcode: '',
                     location: '',
                     min_stock: this.minStock,
+                    cost: '',
                 };
             }));
         },
 
         addRow() {
-            this.rows.push({ uid: ++uid, option1: '', option2: '', sku: '', barcode: '', location: '', min_stock: this.minStock });
+            this.rows.push({ uid: ++uid, option1: '', option2: '', sku: '', barcode: '', location: '', min_stock: this.minStock, cost: '' });
         },
 
         removeRow(index) {

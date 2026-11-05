@@ -232,6 +232,22 @@ class OwnerReportTest extends TestCase
             ->assertRedirect(route('admin.reports.owner', ['tab' => 'laba']));
     }
 
+    public function test_each_variant_gets_its_own_optional_cost(): void
+    {
+        $this->actingAs($this->admin)->post(route('admin.products.groups.store'), [
+            'name' => 'Kaos', 'unit' => 'pcs', 'option1_name' => 'Ukuran', 'is_active' => 1,
+            'variants' => [
+                ['option1' => 'M', 'sku' => 'KAOS-M', 'cost' => '30000'],
+                ['option1' => 'XL', 'sku' => 'KAOS-XL', 'cost' => '35.000'],
+                ['option1' => 'L', 'sku' => 'KAOS-L'],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertEquals(30000, Product::where('sku', 'KAOS-M')->value('cost'));
+        $this->assertEquals(35000, Product::where('sku', 'KAOS-XL')->value('cost'));
+        $this->assertNull(Product::where('sku', 'KAOS-L')->value('cost'));
+    }
+
     /* ------------------------------------------------------- helpers --- */
 
     protected function month(): DateRange

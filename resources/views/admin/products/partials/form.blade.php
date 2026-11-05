@@ -273,12 +273,14 @@
 
                     {{-- HPP adalah angka owner: hanya tampil bagi yang boleh membuka Ringkasan Bisnis. --}}
                     @can('owner-reports.view')
+                    <div x-show="! isVariant || {{ $isEdit ? 'true' : 'false' }}">
                     <x-ui.field label="HPP (Harga Pokok)" for="cost" :error="$errors->get('cost')"
                                 info="Modal per satuan barang ini. Dipakai Ringkasan Bisnis untuk menghitung nilai stok dan laba kotor."
                                 hint="Rupiah per satuan. Boleh dikosongkan; paket tanpa HPP dihitung dari HPP isinya.">
                         <x-text-input id="cost" name="cost" type="number" min="0" step="1" placeholder="mis. 45000"
                                       :value="old('cost', $product?->cost !== null ? (int) round($product->cost) : null)" />
                     </x-ui.field>
+                    </div>
                     @endcan
 
                     <template x-if="isBundle">

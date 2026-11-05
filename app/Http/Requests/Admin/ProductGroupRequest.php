@@ -62,6 +62,7 @@ class ProductGroupRequest extends FormRequest
             "{$key}.*.barcode" => ['nullable', 'string', 'max:64', 'distinct', 'unique:products,barcode'],
             "{$key}.*.location" => ['nullable', 'string', 'max:100'],
             "{$key}.*.min_stock" => ['nullable', 'integer', 'min:0', 'max:1000000'],
+            "{$key}.*.cost" => ['nullable', 'numeric', 'min:0', 'max:9999999999'],
             "{$key}.*.image" => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ];
     }
@@ -79,6 +80,7 @@ class ProductGroupRequest extends FormRequest
             'variants.*.barcode' => 'barcode varian',
             'variants.*.location' => 'lokasi rak',
             'variants.*.min_stock' => 'stok minimum',
+            'variants.*.cost' => 'HPP varian',
             'variants.*.image' => 'gambar varian',
         ];
     }
@@ -95,6 +97,7 @@ class ProductGroupRequest extends FormRequest
                     'sku' => Str::upper(trim((string) ($row['sku'] ?? ''))),
                     'barcode' => filled($row['barcode'] ?? null) ? trim((string) $row['barcode']) : null,
                     'min_stock' => $row['min_stock'] ?? 0,
+                    'cost' => filled($row['cost'] ?? null) ? \App\Support\Money::parse($row['cost']) : null,
                 ]) : $row)
                 ->values()
                 ->all();

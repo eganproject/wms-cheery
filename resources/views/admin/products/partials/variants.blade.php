@@ -56,6 +56,9 @@
                         <th>Barcode</th>
                         <th>Lokasi Rak</th>
                         <th class="w-24">Stok Min.</th>
+                        @can('owner-reports.view')
+                            <th class="w-28"><span class="inline-flex items-center gap-1">HPP <x-ui.hint text="Harga pokok per satuan untuk varian ini, dalam rupiah. Opsional; dipakai Ringkasan Bisnis untuk laba dan nilai stok." /></span></th>
+                        @endcan
                         <th class="w-10"></th>
                     </tr>
                 </thead>
@@ -77,6 +80,9 @@
                             <td><input type="text" class="form-control min-w-[8rem] font-mono" :name="`variants[${index}][barcode]`" x-model="row.barcode" :disabled="! isVariant"></td>
                             <td><input type="text" class="form-control min-w-[6rem] font-mono" :name="`variants[${index}][location]`" x-model="row.location" :disabled="! isVariant"></td>
                             <td><input type="number" min="0" class="form-control min-w-[4.5rem]" :name="`variants[${index}][min_stock]`" x-model="row.min_stock" :disabled="! isVariant"></td>
+@can('owner-reports.view')
+                            <td><input type="number" min="0" step="1" class="form-control min-w-[6rem]" placeholder="opsional" :name="`variants[${index}][cost]`" x-model="row.cost" :disabled="! isVariant"></td>
+                            @endcan
                             <td>
                                 <button type="button" class="btn btn-ghost btn-icon text-ink-400" title="Hapus baris" x-on:click="removeRow(index)">
                                     <x-icon name="trash" class="h-4 w-4" />
