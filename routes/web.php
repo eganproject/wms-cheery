@@ -90,9 +90,10 @@ Route::middleware('auth')
         Route::get('movements/export', [StockMovementController::class, 'export'])->name('movements.export');
         Route::get('movements', [StockMovementController::class, 'index'])->name('movements.index');
 
-        Route::get('reports/owner/export', [OwnerReportController::class, 'export'])->name('reports.owner.export');
-        Route::get('reports/owner', [OwnerReportController::class, 'index'])->name('reports.owner');
-        Route::post('reports/owner/fees', [OwnerReportController::class, 'fees'])->name('reports.owner.fees');
+        Route::get('reports/ringkasan-bisnis/export', [OwnerReportController::class, 'export'])->name('reports.owner.export');
+        Route::get('reports/ringkasan-bisnis', [OwnerReportController::class, 'index'])->name('reports.owner');
+        Route::get('reports/owner', fn () => redirect()->route('admin.reports.owner', request()->query()));
+        Route::post('reports/ringkasan-bisnis/potongan', [OwnerReportController::class, 'fees'])->name('reports.owner.fees');
         Route::get('reports/stock/export', [StockReportController::class, 'export'])->name('reports.stock.export');
         Route::get('reports/stock', [StockReportController::class, 'index'])->name('reports.stock');
         Route::get('reports/restock/export', [RestockReportController::class, 'export'])->name('reports.restock.export');

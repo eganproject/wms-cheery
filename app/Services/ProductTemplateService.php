@@ -41,7 +41,7 @@ class ProductTemplateService
         ['Nama Induk', 'Tidak', 'Isi untuk barang bervarian. Baris dengan Nama Induk yang sama dikelompokkan menjadi satu Produk Varian; nama barangnya dibentuk otomatis, mis. "Kaos Polos - Merah / L".'],
         ['Varian 1', 'Tidak', 'Nilai atribut pertama, mis. Merah. Judul kolom boleh diganti nama atributnya, mis. "Warna".'],
         ['Varian 2', 'Tidak', 'Nilai atribut kedua, mis. L. Judul kolom boleh diganti, mis. "Ukuran". Kosongkan bila hanya satu atribut.'],
-        ['HPP', 'Tidak', 'Harga pokok per satuan dalam rupiah, mis. 45000. Dipakai Laporan Owner untuk nilai stok dan laba. Kosong berarti HPP lama tidak diubah.'],
+        ['HPP', 'Tidak', 'Harga pokok per satuan dalam rupiah, mis. 45000. Dipakai Ringkasan Bisnis untuk nilai stok dan laba. Kosong berarti HPP lama tidak diubah.'],
         ['', '', ''],
         ['Catatan', '', 'Judul kolom berlatar hitam wajib diisi, yang berlatar abu-abu boleh dikosongkan.'],
         ['', '', 'Hapus dua baris contoh sebelum berkas diimport.'],

@@ -58,6 +58,7 @@ class Outbound extends Model
         'tracking_number',
         'shipment_order_id',
         'note',
+        'sale_amount',
         'status',
         'resi_verified_at',
         'posted_at',

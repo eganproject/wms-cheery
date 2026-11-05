@@ -16,7 +16,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Angka-angka untuk Laporan Owner.
+ * Angka-angka untuk Ringkasan Bisnis.
  *
  * Semua dibaca dari data yang sudah ada di gudang: resi hasil import,
  * dokumen keluar, retur, kartu stok, dan absensi. Tidak ada yang disimpan
@@ -97,7 +97,7 @@ class OwnerReportService
             ->groupBy('day')
             ->pluck('orders', 'day');
 
-        // Penjualan manual tidak punya harga; dihitung pesanan dan unitnya saja.
+        // Penjualan manual memakai Total Harga Jual di dokumennya (bila diisi).
         $manual = array_filter($filters) === [] ? $this->manualSales($range) : collect();
 
         $days = $daily->keys()->concat($dailyCancelled->keys())->concat($manual->keys())->unique()->sort()->values();
@@ -114,6 +114,7 @@ class OwnerReportService
                     'cancelled' => $group->sum(fn ($d) => (int) ($dailyCancelled[$d] ?? 0)),
                     'manual_orders' => $group->sum(fn ($d) => (int) ($manual[$d]->orders ?? 0)),
                     'manual_units' => $group->sum(fn ($d) => (int) ($manual[$d]->units ?? 0)),
+                    'manual_revenue' => $group->sum(fn ($d) => (float) ($manual[$d]->revenue ?? 0)),
                 ];
             })
             ->sortKeysDesc()
@@ -145,7 +146,7 @@ class OwnerReportService
                 'store' => '',
                 'orders' => $manual->sum('orders'),
                 'units' => $manual->sum('units'),
-                'revenue' => 0.0,
+                'revenue' => (float) $manual->sum('revenue'),
             ]);
         }
 
@@ -165,6 +166,8 @@ class OwnerReportService
                 'cancel_rate' => ($orders + $cancelled) > 0 ? $cancelled / ($orders + $cancelled) * 100 : 0,
                 'manual_orders' => (int) $manual->sum('orders'),
                 'manual_units' => (int) $manual->sum('units'),
+                'manual_revenue' => (float) $manual->sum('revenue'),
+                'total_revenue' => $revenue + (float) $manual->sum('revenue'),
                 'priced_lines' => $priced,
                 'lines' => $lines,
             ],
@@ -178,15 +181,26 @@ class OwnerReportService
      */
     protected function manualSales(DateRange $range): Collection
     {
-        return DateRange::constrain(DB::table('outbounds'), 'outbounds.posted_at', $range->from, $range->to)
+        $documents = fn () => DateRange::constrain(DB::table('outbounds'), 'outbounds.posted_at', $range->from, $range->to)
             ->where('outbounds.type', Outbound::TYPE_REGULAR)
-            ->where('outbounds.status', Outbound::STATUS_POSTED)
+            ->where('outbounds.status', Outbound::STATUS_POSTED);
+
+        // Harga dijumlahkan tanpa join ke baris barang, supaya tidak
+        // terhitung sekali per baris.
+        $revenue = $documents()
+            ->selectRaw('DATE(outbounds.posted_at) as day')
+            ->selectRaw('COALESCE(SUM(outbounds.sale_amount), 0) as revenue')
+            ->groupBy('day')
+            ->pluck('revenue', 'day');
+
+        return $documents()
             ->leftJoin('outbound_items as oi', 'oi.outbound_id', '=', 'outbounds.id')
             ->selectRaw('DATE(outbounds.posted_at) as day')
             ->selectRaw('COUNT(DISTINCT outbounds.id) as orders')
             ->selectRaw('COALESCE(SUM(oi.quantity), 0) as units')
             ->groupBy('day')
             ->get()
+            ->each(fn ($row) => $row->revenue = (float) ($revenue[$row->day] ?? 0))
             ->keyBy('day');
     }
 

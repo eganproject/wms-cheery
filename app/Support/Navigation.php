@@ -193,10 +193,10 @@ class Navigation
                             'keywords' => 'restock reorder menipis pembelian'],
                     ]],
                     ['label' => 'Laporan Penjualan', 'icon' => 'trending-up', 'tabs' => [
-                        // Laporan Owner punya tab isi sendiri (?tab=) di dalam halamannya.
-                        ['label' => 'Laporan Owner', 'icon' => 'trending-up', 'route' => 'admin.reports.owner',
+                        // Ringkasan Bisnis punya tab isi sendiri (?tab=) di dalam halamannya.
+                        ['label' => 'Ringkasan Bisnis', 'icon' => 'trending-up', 'route' => 'admin.reports.owner',
                             'match' => 'admin.reports.owner*', 'can' => 'owner-reports.view',
-                            'keywords' => 'owner omzet penjualan pendapatan terlaris tidak laku retur ketepatan kirim telat penalti umur stok kinerja tim produktivitas'],
+                            'keywords' => 'ringkasan bisnis laporan owner pemilik omzet laba hpp penjualan pendapatan terlaris tidak laku retur ketepatan kirim telat penalti umur stok kinerja tim produktivitas'],
                         ['label' => 'Resi per Hari', 'icon' => 'calendar-days', 'route' => 'admin.imports.daily',
                             'match' => 'admin.imports.daily*', 'can' => 'imports.view',
                             'keywords' => 'resi harian rekap'],

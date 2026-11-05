@@ -17,7 +17,7 @@ use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Laporan Owner: satu halaman, satu menu, isinya dipisah dengan tab.
+ * Ringkasan Bisnis: satu halaman, satu menu, isinya dipisah dengan tab.
  *
  * Owner tidak perlu enam menu laporan; ia perlu satu tempat untuk melihat
  * jualan, ketepatan kirim, barang laku dan tidak laku, retur, umur stok, dan
@@ -97,14 +97,14 @@ class OwnerReportController extends Controller implements HasMiddleware
         $note = 'Periode: '.$range->label();
         $money = fn ($value) => round((float) $value);
 
-        $export = TableExport::make('Laporan Owner — '.self::TABS[$tab]['label'])->note($note);
+        $export = TableExport::make('Ringkasan Bisnis — '.self::TABS[$tab]['label'])->note($note);
 
         match ($tab) {
             'penjualan' => $export
                 ->sheet('Per Periode', [
                     ['Periode', 'text'], ['Pesanan', 'sum'], ['Unit', 'sum'], ['Omzet (Rp)', 'sum'],
-                    ['Batal', 'sum'], ['Penjualan Manual', 'sum'], ['Unit Manual', 'sum'],
-                ], $data['periods']->map(fn ($r) => [$r->label, $r->orders, $r->units, $money($r->revenue), $r->cancelled, $r->manual_orders, $r->manual_units]))
+                    ['Batal', 'sum'], ['Penjualan Manual', 'sum'], ['Unit Manual', 'sum'], ['Omzet Manual (Rp)', 'sum'],
+                ], $data['periods']->map(fn ($r) => [$r->label, $r->orders, $r->units, $money($r->revenue), $r->cancelled, $r->manual_orders, $r->manual_units, $money($r->manual_revenue)]))
                 ->sheet('Per Toko', [
                     ['Marketplace', 'text'], ['Toko', 'text'], ['Pesanan', 'sum'], ['Unit', 'sum'], ['Omzet (Rp)', 'sum'],
                 ], $data['stores']->map(fn ($r) => [$r->marketplace, $r->store, $r->orders, $r->units, $money($r->revenue)])),
@@ -156,7 +156,7 @@ class OwnerReportController extends Controller implements HasMiddleware
                 ], $data['rows']->map(fn ($r) => [$r->name, $r->user, $r->packages, $r->units, $r->days, $r->present, $r->late, round($r->per_day, 1)])),
         };
 
-        return $export->download('laporan-owner-'.$tab.'-'.now()->format('Y-m-d-Hi').'.xlsx');
+        return $export->download('ringkasan-bisnis-'.$tab.'-'.now()->format('Y-m-d-Hi').'.xlsx');
     }
 
     /**

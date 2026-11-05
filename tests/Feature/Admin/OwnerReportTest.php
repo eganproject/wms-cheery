@@ -204,6 +204,34 @@ class OwnerReportTest extends TestCase
         $this->assertNull(Product::where('sku', 'BAJU-2')->value('cost'));
     }
 
+    public function test_manual_sale_amount_is_saved_and_counted_as_revenue(): void
+    {
+        $outbound = Outbound::create([
+            'code' => Outbound::nextCode(), 'date' => now(), 'type' => Outbound::TYPE_REGULAR,
+            'recipient' => 'Toko A', 'status' => Outbound::STATUS_DRAFT,
+        ]);
+        $outbound->items()->create(['product_id' => $this->product->id, 'quantity' => 3]);
+
+        $this->actingAs($this->admin)->put(route('admin.outbounds.update', $outbound), [
+            'date' => now()->toDateString(), 'recipient' => 'Toko A', 'sale_amount' => '150000',
+            'items' => [['product_id' => $this->product->id, 'quantity' => 3]],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertEquals(150000, $outbound->fresh()->sale_amount);
+
+        $outbound->fresh()->forceFill(['status' => Outbound::STATUS_POSTED, 'posted_at' => now()])->save();
+        $sales = app(OwnerReportService::class)->sales($this->month(), 'hari');
+
+        $this->assertEquals(150000, $sales['totals']['manual_revenue']);
+        $this->assertEquals(150000, $sales['totals']['total_revenue']);
+    }
+
+    public function test_old_owner_url_redirects_to_the_business_summary(): void
+    {
+        $this->actingAs($this->admin)->get('/admin/reports/owner?tab=laba')
+            ->assertRedirect(route('admin.reports.owner', ['tab' => 'laba']));
+    }
+
     /* ------------------------------------------------------- helpers --- */
 
     protected function month(): DateRange

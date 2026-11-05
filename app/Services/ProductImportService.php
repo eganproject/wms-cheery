@@ -357,7 +357,7 @@ class ProductImportService
     {
         $entries = collect();
 
-        // HPP hanya ditulis oleh yang boleh membuka Laporan Owner.
+        // HPP hanya ditulis oleh yang boleh membuka Ringkasan Bisnis.
         $canSetCost = (bool) auth()->user()?->can('owner-reports.view');
 
         foreach ($rows as $row) {

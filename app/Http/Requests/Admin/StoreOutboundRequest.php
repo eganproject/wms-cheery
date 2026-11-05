@@ -38,6 +38,7 @@ class StoreOutboundRequest extends FormRequest
             ],
 
             'note' => ['nullable', 'string', 'max:1000'],
+            'sale_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999'],
 
             // Baris barang boleh dikosongkan bila resinya sudah ada di data
             // import — isinya diambil otomatis saat scan resi — atau bila
@@ -120,6 +121,12 @@ class StoreOutboundRequest extends FormRequest
 
         $payload = ['items' => $items, 'bundles' => $bundles, 'type' => $type];
 
+        // Harga jual hanya untuk penjualan manual; pesanan marketplace
+        // membawa harganya sendiri dari data import TikTok.
+        $payload['sale_amount'] = $type === Outbound::TYPE_REGULAR && filled($this->input('sale_amount'))
+            ? \App\Support\Money::parse($this->input('sale_amount'))
+            : null;
+
         // Data marketplace tidak relevan untuk pengiriman reguler.
         if ($type !== Outbound::TYPE_MARKETPLACE) {
             $payload['tracking_number'] = null;
@@ -155,6 +162,7 @@ class StoreOutboundRequest extends FormRequest
             'recipient' => 'penerima',
             'tracking_number' => 'nomor resi',
             'note' => 'catatan',
+            'sale_amount' => 'total harga jual',
         ];
     }
 }

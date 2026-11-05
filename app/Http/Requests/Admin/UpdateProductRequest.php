@@ -46,7 +46,7 @@ class UpdateProductRequest extends FormRequest
             'unit' => ['required', 'string', 'max:20'],
             'location' => ['nullable', 'string', 'max:100'],
             'min_stock' => ['required', 'integer', 'min:0', 'max:1000000'],
-            // HPP hanya ditulis oleh yang boleh melihat Laporan Owner; bagi yang
+            // HPP hanya ditulis oleh yang boleh melihat Ringkasan Bisnis; bagi yang
             // lain kolomnya tidak ada, dan HPP lama tidak boleh ikut terhapus.
             ...($this->user()?->can('owner-reports.view') ? ['cost' => ['nullable', 'numeric', 'min:0', 'max:9999999999']] : []),
             'is_active' => ['boolean'],

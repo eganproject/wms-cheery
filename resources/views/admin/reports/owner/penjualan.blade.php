@@ -6,17 +6,17 @@
 @endphp
 
 <div class="grid grid-cols-2 gap-4 xl:grid-cols-5">
-    <x-ui.stat-card label="Omzet" :value="$rp($t['revenue'])" icon="chart" accent
-                    info="Jumlah harga jual setelah diskon (kolom SKU Subtotal After Discount di eksport TikTok) dari pesanan yang tidak batal."
-                    :hint="'Rata-rata '.$rp($t['average']).' per pesanan'" />
+    <x-ui.stat-card label="Omzet" :value="$rp($t['total_revenue'])" icon="chart" accent
+                    info="Marketplace: harga jual setelah diskon dari import TikTok (pesanan yang tidak batal). Penjualan manual: Total Harga Jual di dokumennya."
+                    :hint="'Marketplace '.$rp($t['revenue']).' · manual '.$rp($t['manual_revenue'])" />
     <x-ui.stat-card label="Pesanan Marketplace" :value="$n($t['orders'])" icon="shopping-cart"
                     info="Resi yang tanggal pesanannya masuk periode ini, tidak termasuk yang dibatalkan sebelum dikirim." />
     <x-ui.stat-card label="Unit Terjual" :value="$n($t['units'])" icon="box" hint="Dari pesanan marketplace" />
     <x-ui.stat-card label="Dibatalkan" :value="$n($t['cancelled'])" icon="close"
                     :hint="$pct($t['cancel_rate']).' dari semua pesanan'" />
     <x-ui.stat-card label="Penjualan Manual" :value="$n($t['manual_orders'])" icon="outbound"
-                    :hint="$n($t['manual_units']).' unit, tanpa harga'"
-                    info="Dokumen Penjualan Manual yang disetujui pada periode ini. Belum punya harga, jadi tidak masuk omzet." />
+                    :hint="$n($t['manual_units']).' unit · '.$rp($t['manual_revenue'])"
+                    info="Dokumen Penjualan Manual yang disetujui pada periode ini. Omzetnya dari kolom Total Harga Jual di dokumen." />
 </div>
 
 @if ($t['lines'] > 0 && $coverage < 100)
@@ -66,7 +66,7 @@
                             <th class="px-4 text-right">Unit</th>
                             <th class="px-4 text-right">Omzet</th>
                             <th class="px-4 text-right">Batal</th>
-                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Manual <x-ui.hint text="Dokumen Penjualan Manual yang disetujui (jumlah dokumen)." /></span></th>
+                            <th class="px-4 text-right"><span class="inline-flex items-center gap-1">Manual <x-ui.hint text="Dokumen Penjualan Manual yang disetujui: jumlah dokumen dan Total Harga Jual-nya." /></span></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -77,7 +77,14 @@
                                 <td class="px-4 text-right text-sm tabular-nums text-ink-600">{{ $n($row->units) }}</td>
                                 <td class="whitespace-nowrap px-4 text-right text-sm tabular-nums text-ink-950">{{ $rp($row->revenue) }}</td>
                                 <td class="px-4 text-right text-sm tabular-nums {{ $row->cancelled ? 'text-red-600' : 'text-ink-300' }}">{{ $row->cancelled ? $n($row->cancelled) : '—' }}</td>
-                                <td class="px-4 text-right text-sm tabular-nums text-ink-600">{{ $row->manual_orders ? $n($row->manual_orders) : '—' }}</td>
+                                <td class="whitespace-nowrap px-4 text-right text-sm tabular-nums text-ink-600">
+                                    @if ($row->manual_orders)
+                                        {{ $n($row->manual_orders) }}
+                                        @if ($row->manual_revenue > 0)<span class="block text-xs text-ink-400">{{ $rp($row->manual_revenue) }}</span>@endif
+                                    @else
+                                        —
+                                    @endif
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>

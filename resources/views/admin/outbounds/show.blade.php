@@ -198,6 +198,12 @@
                 </div>
             </x-ui.card>
 
+            @if ($outbound->sale_amount !== null)
+                <x-ui.card title="Total Harga Jual">
+                    <p class="text-lg font-semibold tabular-nums text-ink-950">Rp {{ number_format((float) $outbound->sale_amount, 0, ',', '.') }}</p>
+                </x-ui.card>
+            @endif
+
             @if ($outbound->note)
                 <x-ui.card title="Catatan">
                     <p class="whitespace-pre-line text-sm text-ink-600">{{ $outbound->note }}</p>

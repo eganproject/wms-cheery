@@ -1,5 +1,5 @@
 {{--
-    Laporan Owner: satu menu, isinya dipisah tab.
+    Ringkasan Bisnis: satu menu, isinya dipisah tab.
 
     Tab di sini bukan halaman lain yang punya menu sendiri — semuanya hanya
     ada di sini, jadi aturan "tab tidak boleh mengulang menu" tetap terjaga.
@@ -15,9 +15,9 @@
     $current = $tabs[$tab];
 @endphp
 
-<x-app-layout title="Laporan Owner">
-    <x-ui.page-header title="Laporan Owner" icon="report"
-                      subtitle="Jualan, ketepatan kirim, barang laku dan tidak laku, retur, umur stok, dan kinerja tim dalam satu halaman.">
+<x-app-layout title="Ringkasan Bisnis">
+    <x-ui.page-header title="Ringkasan Bisnis" icon="report"
+                      subtitle="Omzet, laba, ketepatan kirim, barang laku dan tidak laku, retur, nilai stok, dan kinerja tim dalam satu halaman.">
         <x-slot name="actions">
             <x-ui.button :href="route('admin.reports.owner.export', request()->query() + ['tab' => $tab])"
                          variant="secondary" icon="document" data-no-ajax

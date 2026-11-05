@@ -49,7 +49,7 @@ class ProductExportService
 
     public function download(Builder $query, string $filename): StreamedResponse
     {
-        // HPP hanya ikut bagi yang boleh membuka Laporan Owner.
+        // HPP hanya ikut bagi yang boleh membuka Ringkasan Bisnis.
         if (! auth()->user()?->can('owner-reports.view')) {
             $this->columns = array_values(array_filter($this->columns, fn (array $column) => $column[1] !== 'cost'));
         }

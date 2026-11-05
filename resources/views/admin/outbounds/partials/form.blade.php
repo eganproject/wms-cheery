@@ -68,6 +68,16 @@
                         </div>
                     </template>
 
+                    {{-- Harga jual hanya untuk penjualan manual; pesanan marketplace membawa harganya dari import TikTok. --}}
+                    <template x-if="type === 'regular'">
+                        <x-ui.field label="Total Harga Jual" for="sale_amount" :error="$errors->get('sale_amount')" class="sm:col-span-2"
+                                    info="Nilai seluruh barang di dokumen ini, dalam rupiah. Masuk ke omzet di Ringkasan Bisnis."
+                                    hint="Rupiah. Boleh dikosongkan bila harganya belum diketahui.">
+                            <x-text-input id="sale_amount" name="sale_amount" type="number" min="0" step="1" placeholder="mis. 450000"
+                                          :value="old('sale_amount', $outbound?->sale_amount !== null ? (int) round($outbound->sale_amount) : null)" />
+                        </x-ui.field>
+                    </template>
+
                     <x-ui.field label="Catatan" for="note" :error="$errors->get('note')" class="sm:col-span-2">
                         <textarea id="note" name="note" rows="2" placeholder="Catatan tambahan (opsional)"
                                   class="form-control">{{ old('note', $outbound?->note) }}</textarea>

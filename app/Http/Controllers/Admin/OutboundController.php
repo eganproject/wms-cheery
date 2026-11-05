@@ -67,6 +67,7 @@ class OutboundController extends Controller implements HasMiddleware
                     $outbound->items_count,
                     $outbound->totalQuantity(),
                     $outbound->totalScanned(),
+                    $outbound->sale_amount !== null ? (int) round((float) $outbound->sale_amount) : null,
                     $outbound->posted_at,
                     $outbound->user?->name,
                     $outbound->approver?->name,
@@ -111,6 +112,7 @@ class OutboundController extends Controller implements HasMiddleware
                 ['Jumlah Baris', 'number'],
                 ['Total Qty', 'sum'],
                 ['Sudah Discan', 'sum'],
+                ['Total Harga Jual (Rp)', 'sum'],
                 ['Dikirim', 'datetime'],
                 ['Dibuat Oleh', 'text'],
                 ['Disetujui Oleh', 'text'],
@@ -194,6 +196,7 @@ class OutboundController extends Controller implements HasMiddleware
                 'recipient' => $data['recipient'],
                 'tracking_number' => $data['tracking_number'] ?? null,
                 'note' => $data['note'] ?? null,
+                'sale_amount' => $data['sale_amount'] ?? null,
                 'status' => Outbound::STATUS_DRAFT,
                 'user_id' => auth()->id(),
             ]);
@@ -275,6 +278,7 @@ class OutboundController extends Controller implements HasMiddleware
                 'recipient' => $data['recipient'],
                 'tracking_number' => $data['tracking_number'] ?? null,
                 'note' => $data['note'] ?? null,
+                'sale_amount' => $data['sale_amount'] ?? null,
             ]);
 
             // Baris barang selalu ditulis ulang seluruhnya, jadi hasil scan yang

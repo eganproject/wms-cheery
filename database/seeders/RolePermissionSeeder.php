@@ -33,7 +33,7 @@ class RolePermissionSeeder extends Seeder
         'Laporan' => [
             'reports.view' => 'Melihat laporan stok & perputaran barang',
             'reports.export' => 'Export laporan stok ke Excel',
-            'owner-reports.view' => 'Melihat Laporan Owner (omzet, ketepatan kirim, retur, kinerja tim)',
+            'owner-reports.view' => 'Melihat Ringkasan Bisnis (omzet, laba, HPP, ketepatan kirim, retur, kinerja tim)',
         ],
         'Barang Rusak' => [
             'disposals.view' => 'Melihat stok & penanganan barang rusak',

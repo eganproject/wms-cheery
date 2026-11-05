@@ -49,7 +49,7 @@ class TikTokImportService
         'variation' => ['variation'],
         'product_name' => ['productname'],
         'quantity' => ['quantity'],
-        // Nilai jual baris itu setelah diskon: dasar omzet di Laporan Owner.
+        // Nilai jual baris itu setelah diskon: dasar omzet di Ringkasan Bisnis.
         'amount' => ['skusubtotalafterdiscount'],
         'order_status' => ['orderstatus'],
         'courier' => ['shippingprovidername'],
