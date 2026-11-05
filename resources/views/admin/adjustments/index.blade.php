@@ -32,6 +32,13 @@
                 @endforeach
             </x-ui.select>
 
+            <x-ui.select name="bucket" class="sm:w-44">
+                <option value="">Semua saldo</option>
+                @foreach (App\Models\StockAdjustment::buckets() as $value => $label)
+                    <option value="{{ $value }}" @selected(request('bucket') === $value)>{{ $label }}</option>
+                @endforeach
+            </x-ui.select>
+
             <x-ui.select name="status" class="sm:w-40">
                 <option value="">Semua status</option>
                 <option value="draft" @selected(request('status') === 'draft')>Draft</option>
@@ -48,7 +55,7 @@
 
             <div class="flex items-center gap-2">
                 <x-ui.button type="submit" variant="secondary" icon="filter" class="flex-1 sm:flex-none">Terapkan</x-ui.button>
-                @if (request()->hasAny(['search', 'status', 'reason', 'from', 'to']))
+                @if (request()->hasAny(['search', 'status', 'reason', 'bucket', 'from', 'to']))
                     <x-ui.button :href="route('admin.adjustments.index')" variant="ghost" size="icon" title="Reset filter">
                         <x-icon name="refresh" class="h-4 w-4" />
                     </x-ui.button>
@@ -88,7 +95,12 @@
                                     <p class="text-xs text-ink-400">{{ $adjustment->date->translatedFormat('d M Y') }}</p>
                                 </td>
                                 <td>
-                                    <p class="text-sm text-ink-800">{{ $adjustment->reason }}</p>
+                                    <p class="flex flex-wrap items-center gap-1.5 text-sm text-ink-800">
+                                        {{ $adjustment->reason }}
+                                        @if ($adjustment->isForDamaged())
+                                            <x-ui.badge variant="danger">Stok rusak</x-ui.badge>
+                                        @endif
+                                    </p>
                                     @if ($adjustment->note)
                                         <p class="max-w-xs truncate text-[11px] text-ink-400">{{ $adjustment->note }}</p>
                                     @endif
@@ -141,6 +153,7 @@
                                 <p class="font-mono text-sm font-semibold text-ink-950">{{ $adjustment->code }}</p>
                                 <p class="truncate text-xs text-ink-400">
                                     {{ $adjustment->date->translatedFormat('d M Y') }} &middot; {{ $adjustment->reason }}
+                                    @if ($adjustment->isForDamaged()) &middot; <span class="text-red-600">Stok rusak</span> @endif
                                 </p>
                             </div>
                             <x-ui.badge :variant="$adjustment->statusVariant()">{{ $adjustment->statusLabel() }}</x-ui.badge>

@@ -20,6 +20,8 @@
         'sku' => $product->sku,
         'unit' => $product->unit,
         'stock' => $product->availableStock(),
+        // Penyesuaian stok bisa mengoreksi saldo rusak.
+        'damaged' => (int) $product->damaged_stock,
         'is_bundle' => $product->isBundle(),
     ])->values();
 
@@ -34,7 +36,8 @@
     ])->all()))->values();
 @endphp
 
-<div x-data="lineItems({{ Js::from($initial) }}, {{ Js::from($catalog) }})"
+<div x-data="lineItems({{ Js::from($initial) }}, {{ Js::from($catalog) }}, {{ Js::from($bucket ?? 'good') }})"
+     x-on:adjustment-bucket.window="bucket = $event.detail"
      class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
 
     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-ink-100 px-5 py-4 sm:px-6">

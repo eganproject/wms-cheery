@@ -54,6 +54,7 @@ class StockAdjustmentController extends Controller implements HasMiddleware
                     ++$number,
                     $adjustment->date,
                     $adjustment->code,
+                    $adjustment->bucketLabel(),
                     $adjustment->reason,
                     $adjustment->statusLabel(),
                     $adjustment->items_count,
@@ -73,6 +74,7 @@ class StockAdjustmentController extends Controller implements HasMiddleware
                     yield [
                         $adjustment->date,
                         $adjustment->code,
+                        $adjustment->bucketLabel(),
                         $adjustment->reason,
                         $adjustment->statusLabel(),
                         $item->product?->sku,
@@ -92,12 +94,14 @@ class StockAdjustmentController extends Controller implements HasMiddleware
                 'Tanggal: '.DateRange::fromRequest($request)->label(),
                 $request->filled('status') ? 'Status: '.$request->string('status') : null,
                 $request->filled('reason') ? 'Alasan: '.$request->string('reason') : null,
+                $request->filled('bucket') ? 'Saldo: '.(StockAdjustment::buckets()[$request->string('bucket')->value()] ?? '') : null,
                 $request->filled('search') ? 'Cari: '.$request->string('search')->trim() : null,
             ])->filter()->implode(' · '))
             ->sheet('Dokumen', [
                 ['No', 'number'],
                 ['Tanggal', 'date'],
                 ['No. Dokumen', 'text'],
+                ['Saldo', 'text'],
                 ['Alasan', 'text'],
                 ['Status', 'text'],
                 ['Jumlah Barang', 'number'],
@@ -111,6 +115,7 @@ class StockAdjustmentController extends Controller implements HasMiddleware
             ->sheet('Detail Barang', [
                 ['Tanggal', 'date'],
                 ['No. Dokumen', 'text'],
+                ['Saldo', 'text'],
                 ['Alasan', 'text'],
                 ['Status', 'text'],
                 ['SKU', 'text'],
@@ -133,6 +138,8 @@ class StockAdjustmentController extends Controller implements HasMiddleware
             ->search($request->string('search')->trim()->value())
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->when($request->filled('reason'), fn ($query) => $query->where('reason', $request->string('reason')))
+            ->when(array_key_exists($request->string('bucket')->value(), StockAdjustment::buckets()),
+                fn ($query) => $query->where('bucket', $request->string('bucket')->value()))
             ->dateBetween(DateRange::fromRequest($request))
             ->latest('date')
             ->latest('id');
@@ -176,13 +183,14 @@ class StockAdjustmentController extends Controller implements HasMiddleware
             $adjustment = StockAdjustment::create([
                 'code' => StockAdjustment::nextCode(),
                 'date' => $data['date'],
+                'bucket' => $data['bucket'],
                 'reason' => $data['reason'],
                 'note' => $data['note'] ?? null,
                 'status' => StockAdjustment::STATUS_DRAFT,
                 'user_id' => auth()->id(),
             ]);
 
-            $adjustment->items()->createMany($this->buildLines($data['items'] ?? []));
+            $adjustment->items()->createMany($this->buildLines($data['items'] ?? [], $data['bucket']));
 
             return $adjustment;
         });
@@ -237,12 +245,13 @@ class StockAdjustmentController extends Controller implements HasMiddleware
 
             $adjustment->update([
                 'date' => $data['date'],
+                'bucket' => $data['bucket'],
                 'reason' => $data['reason'],
                 'note' => $data['note'] ?? null,
             ]);
 
             $adjustment->items()->delete();
-            $adjustment->items()->createMany($this->buildLines($data['items'] ?? []));
+            $adjustment->items()->createMany($this->buildLines($data['items'] ?? [], $data['bucket']));
 
             return true;
         });
@@ -333,9 +342,10 @@ class StockAdjustmentController extends Controller implements HasMiddleware
      * @param  array<int, array<string, mixed>>  $lines
      * @return array<int, array<string, mixed>>
      */
-    protected function buildLines(array $lines): array
+    protected function buildLines(array $lines, string $bucket): array
     {
-        $stock = Product::whereIn('id', collect($lines)->pluck('product_id'))->pluck('stock', 'id');
+        $stock = Product::whereIn('id', collect($lines)->pluck('product_id'))
+            ->pluck(StockAdjustment::columnFor($bucket), 'id');
 
         return collect($lines)
             ->groupBy('product_id')

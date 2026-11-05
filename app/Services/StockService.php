@@ -221,7 +221,11 @@ class StockService
                     $difference > 0 ? 'in' : 'out',
                     abs($difference),
                     $adjustment,
-                    "Penyesuaian stok {$adjustment->code} — {$adjustment->reason}",
+                    $adjustment->isForDamaged()
+                        ? "Penyesuaian stok rusak {$adjustment->code} — {$adjustment->reason}"
+                        : "Penyesuaian stok {$adjustment->code} — {$adjustment->reason}",
+                    // Saldo yang dikoreksi disebut dokumennya: layak jual atau rusak.
+                    $adjustment->stockBucket(),
                 );
 
                 $item->update(['applied_difference' => $difference]);

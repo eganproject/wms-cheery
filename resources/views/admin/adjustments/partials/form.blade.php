@@ -23,6 +23,20 @@
                                   :value="old('date', $adjustment?->date?->format('Y-m-d') ?? now()->format('Y-m-d'))" required />
                 </x-ui.field>
 
+                {{--
+                    Saldo yang dikoreksi. Kolom "Tercatat" pada baris barang
+                    langsung mengikuti pilihan ini.
+                --}}
+                <x-ui.field label="Saldo yang Dikoreksi" info="Stok layak jual, atau stok rusak bila angka barang rusak yang tercatat tidak sesuai kenyataan." for="bucket" :error="$errors->get('bucket')" required
+                            class="sm:col-span-2">
+                    <x-ui.select id="bucket" name="bucket"
+                                 x-data x-on:change="$dispatch('adjustment-bucket', $event.target.value)">
+                        @foreach (App\Models\StockAdjustment::buckets() as $value => $label)
+                            <option value="{{ $value }}" @selected(old('bucket', $adjustment?->stockBucket() ?? 'good') === $value)>{{ $label }}</option>
+                        @endforeach
+                    </x-ui.select>
+                </x-ui.field>
+
                 <x-ui.field label="Alasan Penyesuaian" info="Penyebab stok perlu dikoreksi, mis. salah hitung atau barang hilang." for="reason" :error="$errors->get('reason')" required
                             class="sm:col-span-2">
                     <x-ui.select id="reason" name="reason">
@@ -68,5 +82,6 @@
         'products' => $products,
         'items' => $adjustment?->items,
         'mode' => 'adjustment',
+        'bucket' => old('bucket', $adjustment?->stockBucket() ?? 'good'),
     ])
 </form>

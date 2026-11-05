@@ -297,11 +297,79 @@ class StockAdjustmentTest extends TestCase
     /**
      * @param  array<int, array{0: Product, 1: int, 2: int}>  $lines
      */
-    protected function makeAdjustment(array $lines): StockAdjustment
+    /* --------------------------------------------------- saldo rusak ----- */
+
+    public function test_a_draft_for_the_damaged_balance_records_the_damaged_stock(): void
+    {
+        $this->giveStock($this->filter, 20);
+        $this->filter->forceFill(['damaged_stock' => 6])->save();
+
+        $this->actingAs($this->admin)->post(route('admin.adjustments.store'), [
+            'date' => now()->format('Y-m-d'),
+            'bucket' => StockMovement::BUCKET_DAMAGED,
+            'reason' => 'Koreksi salah input',
+            'items' => [['product_id' => $this->filter->id, 'actual_quantity' => 3]],
+        ])->assertSessionHasNoErrors();
+
+        $adjustment = StockAdjustment::latest('id')->firstOrFail();
+
+        $this->assertTrue($adjustment->isForDamaged());
+        $this->assertSame(6, $adjustment->items->first()->system_quantity);
+    }
+
+    public function test_a_damaged_correction_only_touches_the_damaged_balance(): void
+    {
+        $this->giveStock($this->filter, 20);
+        $this->filter->forceFill(['damaged_stock' => 6])->save();
+
+        $adjustment = $this->makeAdjustment([[$this->filter, 6, 3]], StockMovement::BUCKET_DAMAGED);
+
+        $this->actingAs($this->admin)->post(route('admin.adjustments.submit', $adjustment))
+            ->assertSessionHas('success');
+
+        $this->filter->refresh();
+        $this->assertSame(3, $this->filter->damaged_stock);
+        $this->assertSame(20, $this->filter->stock, 'Stok layak jual tidak boleh ikut berubah.');
+
+        $movement = StockMovement::where('product_id', $this->filter->id)->latest('id')->firstOrFail();
+
+        $this->assertSame(StockMovement::BUCKET_DAMAGED, $movement->bucket);
+        $this->assertSame('out', $movement->type);
+        $this->assertSame(3, $movement->quantity);
+        $this->assertStringContainsString('Penyesuaian stok rusak', $movement->description);
+    }
+
+    public function test_a_form_without_a_balance_still_means_sellable_stock(): void
+    {
+        $this->actingAs($this->admin)->post(route('admin.adjustments.store'), [
+            'date' => now()->format('Y-m-d'),
+            'reason' => 'Koreksi salah input',
+            'items' => [['product_id' => $this->filter->id, 'actual_quantity' => 3]],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertFalse(StockAdjustment::latest('id')->firstOrFail()->isForDamaged());
+    }
+
+    public function test_the_damaged_balance_is_shown_on_the_pages(): void
+    {
+        $adjustment = $this->makeAdjustment([[$this->filter, 6, 3]], StockMovement::BUCKET_DAMAGED);
+
+        $this->actingAs($this->admin)->get(route('admin.adjustments.show', $adjustment))
+            ->assertOk()->assertSee('Stok rusak');
+
+        $this->actingAs($this->admin)->get(route('admin.adjustments.create'))
+            ->assertOk()->assertSee('Saldo yang Dikoreksi');
+
+        $this->actingAs($this->admin)->get(route('admin.adjustments.index', ['bucket' => 'good']))
+            ->assertOk()->assertDontSee($adjustment->code);
+    }
+
+    protected function makeAdjustment(array $lines, string $bucket = StockMovement::BUCKET_GOOD): StockAdjustment
     {
         $adjustment = StockAdjustment::create([
             'code' => StockAdjustment::nextCode(),
             'date' => now(),
+            'bucket' => $bucket,
             'reason' => 'Stok opname',
             'status' => StockAdjustment::STATUS_DRAFT,
         ]);

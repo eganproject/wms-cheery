@@ -33,6 +33,7 @@ class StoreStockAdjustmentRequest extends FormRequest
     {
         return [
             'date' => ['required', 'date'],
+            'bucket' => ['required', Rule::in(array_keys(StockAdjustment::buckets()))],
             'reason' => ['required', Rule::in(StockAdjustment::reasons())],
             'note' => ['nullable', 'string', 'max:1000'],
             'items' => ['required', 'array', 'min:1'],
@@ -53,7 +54,11 @@ class StoreStockAdjustmentRequest extends FormRequest
             ->values()
             ->all();
 
-        $this->merge(['items' => $items]);
+        // Form lama tanpa pilihan saldo tetap berarti stok layak jual.
+        $this->merge([
+            'items' => $items,
+            'bucket' => $this->input('bucket') ?: \App\Models\StockMovement::BUCKET_GOOD,
+        ]);
     }
 
     /**
@@ -77,6 +82,7 @@ class StoreStockAdjustmentRequest extends FormRequest
     {
         return [
             'date' => 'tanggal',
+            'bucket' => 'saldo yang dikoreksi',
             'reason' => 'alasan penyesuaian',
             'note' => 'catatan',
         ];

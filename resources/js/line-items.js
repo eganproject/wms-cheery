@@ -7,9 +7,11 @@
  */
 let sequence = 0;
 
-export default function lineItems(initial = [], products = []) {
+export default function lineItems(initial = [], products = [], bucket = 'good') {
     return {
         products,
+        // Saldo yang dikoreksi pada penyesuaian stok: good | damaged.
+        bucket,
         rows: initial.length ? initial.map(normalize) : [blankRow()],
 
         init() {
@@ -95,7 +97,9 @@ export default function lineItems(initial = [], products = []) {
 
         /** Saldo tercatat menurut master barang. */
         systemOf(row) {
-            return this.product(row)?.stock ?? 0;
+            const product = this.product(row);
+
+            return (this.bucket === 'damaged' ? product?.damaged : product?.stock) ?? 0;
         },
 
         /** Selisih hasil hitung fisik terhadap saldo tercatat. */

@@ -28,6 +28,7 @@ class StockAdjustment extends Model
     protected $fillable = [
         'code',
         'date',
+        'bucket',
         'reason',
         'note',
         'status',
@@ -71,6 +72,48 @@ class StockAdjustment extends Model
     public function isPosted(): bool
     {
         return $this->status === self::STATUS_POSTED;
+    }
+
+    /* ------------------------------------------------------------ saldo -- */
+
+    /** Saldo yang dikoreksi dokumen ini: layak jual (bawaan) atau rusak. */
+    public function stockBucket(): string
+    {
+        return $this->bucket === StockMovement::BUCKET_DAMAGED
+            ? StockMovement::BUCKET_DAMAGED
+            : StockMovement::BUCKET_GOOD;
+    }
+
+    public function isForDamaged(): bool
+    {
+        return $this->stockBucket() === StockMovement::BUCKET_DAMAGED;
+    }
+
+    /** Kolom saldo pada tabel barang yang dikoreksi dokumen ini. */
+    public function stockColumn(): string
+    {
+        return static::columnFor($this->stockBucket());
+    }
+
+    public static function columnFor(?string $bucket): string
+    {
+        return $bucket === StockMovement::BUCKET_DAMAGED ? 'damaged_stock' : 'stock';
+    }
+
+    public function bucketLabel(): string
+    {
+        return static::buckets()[$this->stockBucket()];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function buckets(): array
+    {
+        return [
+            StockMovement::BUCKET_GOOD => 'Stok layak jual',
+            StockMovement::BUCKET_DAMAGED => 'Stok rusak',
+        ];
     }
 
     /** Baris yang menambah stok. */

@@ -1,6 +1,6 @@
 <x-app-layout title="Detail Penyesuaian Stok">
     <x-ui.page-header :title="$adjustment->code" :status="$adjustment->statusLabel()" :status-variant="$adjustment->statusVariant()"
-                      :subtitle="$adjustment->date->translatedFormat('d F Y').' · '.$adjustment->reason"
+                      :subtitle="$adjustment->date->translatedFormat('d F Y').' · '.$adjustment->bucketLabel().' · '.$adjustment->reason"
                       :back="route('admin.adjustments.index')">
         <x-slot name="actions">
             @if ($adjustment->isEditable())
@@ -57,7 +57,7 @@
                         <thead>
                             <tr>
                                 <th>Barang</th>
-                                <th class="text-right"><span class="inline-flex items-center gap-1">Tercatat <x-ui.hint text="Stok menurut sistem saat dokumen dibuat." /></span></th>
+                                <th class="text-right"><span class="inline-flex items-center gap-1">Tercatat <x-ui.hint text="Saldo yang dikoreksi menurut sistem saat dokumen dibuat." /></span></th>
                                 <th class="text-right"><span class="inline-flex items-center gap-1">Hitung Fisik <x-ui.hint text="Jumlah sebenarnya di rak." /></span></th>
                                 <th class="text-right"><span class="inline-flex items-center gap-1">Selisih <x-ui.hint text="Hitung fisik dikurangi tercatat. Selisih ini yang diterapkan ke stok saat disetujui." /></span></th>
                             </tr>
@@ -135,6 +135,12 @@
                 @endif
 
                 <dl class="space-y-3 border-t border-ink-100 pt-4 text-sm">
+                    <div class="flex items-center justify-between gap-3">
+                        <dt class="text-ink-500">Saldo dikoreksi</dt>
+                        <dd>
+                            <x-ui.badge :variant="$adjustment->isForDamaged() ? 'danger' : 'outline'">{{ $adjustment->bucketLabel() }}</x-ui.badge>
+                        </dd>
+                    </div>
                     <div class="flex items-start justify-between gap-3">
                         <dt class="text-ink-500">Alasan</dt>
                         <dd class="text-right font-medium text-ink-950">{{ $adjustment->reason }}</dd>
