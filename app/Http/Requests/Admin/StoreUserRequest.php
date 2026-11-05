@@ -25,6 +25,7 @@ class StoreUserRequest extends FormRequest
             'role_id' => ['required', 'integer', 'exists:roles,id'],
             'password' => ['required', 'confirmed', Password::defaults()],
             'is_active' => ['boolean'],
+            'employee_id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('employees', 'id')->whereNull('user_id')],
         ];
     }
 
@@ -57,6 +58,7 @@ class StoreUserRequest extends FormRequest
             'phone' => 'nomor telepon',
             'role_id' => 'role',
             'password' => 'kata sandi',
+            'employee_id' => 'karyawan',
         ];
     }
 }

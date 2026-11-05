@@ -16,6 +16,14 @@
             </span>
             <x-text-input type="search" name="search" :value="request('search')" placeholder="Cari nama, kode, atau jabatan..." class="pl-8" />
         </div>
+        @if ($positions->isNotEmpty())
+            <x-ui.select name="position" class="sm:w-48">
+                <option value="">Semua jabatan</option>
+                @foreach ($positions as $position)
+                    <option value="{{ $position->id }}" @selected((int) request('position') === $position->id)>{{ $position->name }}</option>
+                @endforeach
+            </x-ui.select>
+        @endif
         <x-ui.select name="method" class="sm:w-48">
             <option value="">Semua metode absen</option>
             @foreach (\App\Models\Employee::METHODS as $value => $label)
@@ -29,7 +37,7 @@
         </x-ui.select>
         <div class="flex items-center gap-2">
             <x-ui.button type="submit" variant="secondary" icon="filter" class="flex-1 sm:flex-none">Terapkan</x-ui.button>
-            @if (request()->hasAny(['search', 'method', 'status']))
+            @if (request()->hasAny(['search', 'position', 'method', 'status']))
                 <x-ui.button :href="route('admin.employees.index')" variant="ghost" size="icon" title="Reset filter">
                     <x-icon name="refresh" class="h-4 w-4" />
                 </x-ui.button>

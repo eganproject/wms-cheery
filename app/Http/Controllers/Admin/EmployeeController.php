@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AppSetting;
 use App\Models\Employee;
+use App\Models\JobPosition;
 use App\Models\User;
 use App\Models\WorkShift;
 use App\Support\Listing;
@@ -31,6 +32,7 @@ class EmployeeController extends Controller implements HasMiddleware
     {
         $employees = Employee::query()
             ->with(['user:id,email', 'workShift'])
+            ->when($request->filled('position'), fn ($query) => $query->where('job_position_id', $request->integer('position')))
             ->search($request->string('search')->trim()->value())
             ->when(array_key_exists((string) $request->input('method'), Employee::METHODS),
                 fn ($query) => $query->where('attendance_method', $request->input('method')))
@@ -49,7 +51,9 @@ class EmployeeController extends Controller implements HasMiddleware
             ->paginate(Listing::perPage($request))
             ->withQueryString();
 
-        return view('admin.employees.index', compact('employees'));
+        $positions = JobPosition::orderBy('name')->get(['id', 'name']);
+
+        return view('admin.employees.index', compact('employees', 'positions'));
     }
 
     public function create(): View
@@ -63,7 +67,7 @@ class EmployeeController extends Controller implements HasMiddleware
 
         return redirect()
             ->route('admin.employees.index')
-            ->with('success', "Karyawan {$employee->name} berhasil ditambahkan.");
+            ->with('success', "Karyawan {$employee->name} berhasil ditambahkan.".$this->syncAccountRole($request, $employee));
     }
 
     public function edit(Employee $employee): View
@@ -77,7 +81,7 @@ class EmployeeController extends Controller implements HasMiddleware
 
         return redirect()
             ->route('admin.employees.index')
-            ->with('success', "Karyawan {$employee->name} berhasil diperbarui.");
+            ->with('success', "Karyawan {$employee->name} berhasil diperbarui.".$this->syncAccountRole($request, $employee));
     }
 
     public function destroy(Employee $employee): RedirectResponse
@@ -100,7 +104,7 @@ class EmployeeController extends Controller implements HasMiddleware
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
-            'position' => ['nullable', 'string', 'max:80'],
+            'job_position_id' => ['nullable', 'integer', Rule::exists('job_positions', 'id')],
             'phone' => ['nullable', 'string', 'max:30'],
             'attendance_method' => ['required', Rule::in(array_keys(Employee::METHODS))],
             'machine_pin' => [
@@ -130,6 +134,35 @@ class EmployeeController extends Controller implements HasMiddleware
     }
 
     /**
+     * Role akun login mengikuti role bawaan jabatan, kalau admin mencentang
+     * "Samakan role akun". Akun super admin dan role super admin (bagi yang
+     * bukan super admin) tidak diubah.
+     */
+    protected function syncAccountRole(Request $request, Employee $employee): string
+    {
+        if (! $request->boolean('sync_role') || ! $employee->user_id || ! $employee->job_position_id) {
+            return '';
+        }
+
+        $employee->load(['user.role', 'jobPosition.role']);
+        $user = $employee->user;
+        $role = $employee->jobPosition->role;
+
+        if (! $user || ! $role || $user->role_id === $role->id) {
+            return '';
+        }
+
+        if ($user->isSuperAdmin() || ($role->is_super_admin && ! $request->user()->isSuperAdmin())
+            || ! $request->user()->can('users.update')) {
+            return ' Role akun tidak diubah otomatis.';
+        }
+
+        $user->update(['role_id' => $role->id]);
+
+        return " Role akun {$user->name} sekarang {$role->name}.";
+    }
+
+    /**
      * @return array<string, mixed>
      */
     protected function formData(?Employee $employee): array
@@ -138,10 +171,13 @@ class EmployeeController extends Controller implements HasMiddleware
             ->where(fn ($query) => $query->where('is_active', true)->orWhere('id', $employee?->user_id))
             ->whereDoesntHave('employee', fn ($query) => $query->when($employee, fn ($q) => $q->whereKeyNot($employee->id)))
             ->orderBy('name')
-            ->get(['id', 'name', 'email']);
+            ->get(['id', 'name', 'email', 'role_id']);
 
         return [
             'employee' => $employee,
+            'positions' => JobPosition::query()->with('role:id,name')
+                ->where(fn ($query) => $query->where('is_active', true)->orWhere('id', $employee?->job_position_id))
+                ->orderBy('name')->get(['id', 'name', 'role_id']),
             'code' => $employee?->code ?? Employee::nextCode(),
             'users' => $users,
             'shifts' => WorkShift::query()->where('is_active', true)->orWhere('id', $employee?->work_shift_id)->orderBy('start_time')->get(),

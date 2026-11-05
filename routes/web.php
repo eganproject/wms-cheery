@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\ApprovalController;
+use App\Http\Controllers\Admin\JobPositionController;
 use App\Http\Controllers\Admin\CourierReportController;
 use App\Http\Controllers\Admin\DailyWaybillReportController;
 use App\Http\Controllers\Admin\DamagedStockController;
@@ -235,6 +236,7 @@ Route::middleware('auth')
         Route::resource('attendance-leaves', AttendanceLeaveController::class)->except('show')
             ->parameters(['attendance-leaves' => 'attendance_leave']);
         Route::resource('employees', EmployeeController::class)->except('show');
+        Route::resource('job-positions', JobPositionController::class)->except('show');
         Route::get('work-shifts', [WorkShiftController::class, 'index'])->name('work-shifts.index');
         Route::get('work-shifts/create', [WorkShiftController::class, 'create'])->name('work-shifts.create');
         Route::post('work-shifts', [WorkShiftController::class, 'store'])->name('work-shifts.store');

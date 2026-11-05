@@ -31,7 +31,7 @@ class Employee extends Model
     ];
 
     protected $fillable = [
-        'code', 'name', 'position', 'phone', 'user_id', 'work_shift_id',
+        'code', 'name', 'position', 'job_position_id', 'phone', 'user_id', 'work_shift_id',
         'attendance_method', 'machine_pin', 'joined_at', 'is_active',
     ];
 
@@ -49,6 +49,15 @@ class Employee extends Model
      */
     protected static function booted(): void
     {
+        // Nama jabatan disalin dari master supaya pencarian & ekspor tetap jalan.
+        static::saving(function (Employee $employee) {
+            if ($employee->isDirty('job_position_id')) {
+                $employee->position = $employee->job_position_id
+                    ? JobPosition::whereKey($employee->job_position_id)->value('name')
+                    : null;
+            }
+        });
+
         static::saved(function (Employee $employee) {
             if ($employee->machine_pin && $employee->wasChanged('machine_pin') || ($employee->wasRecentlyCreated && $employee->machine_pin)) {
                 AttendancePunch::query()
@@ -68,6 +77,11 @@ class Employee extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function jobPosition(): BelongsTo
+    {
+        return $this->belongsTo(JobPosition::class);
     }
 
     public function workShift(): BelongsTo

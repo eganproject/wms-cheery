@@ -31,6 +31,9 @@ class UpdateUserRequest extends FormRequest
             'role_id' => ['required', 'integer', 'exists:roles,id'],
             'password' => ['nullable', 'confirmed', Password::defaults()],
             'is_active' => ['boolean'],
+            'employee_id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('employees', 'id')->where(
+                fn ($query) => $query->where(fn ($q) => $q->whereNull('user_id')->orWhere('user_id', $this->route('user')->id))
+            )],
         ];
     }
 
@@ -40,6 +43,13 @@ class UpdateUserRequest extends FormRequest
             $actor = $this->user();
             $target = $this->route('user');
             $role = \App\Models\Role::find($this->input('role_id'));
+
+            // Karyawan yang absen hanya lewat HP butuh akun; jangan sampai terlepas.
+            $linked = $target->employee;
+            if ($this->has('employee_id') && $linked && (int) $this->input('employee_id') !== $linked->id
+                && $linked->attendance_method === \App\Models\Employee::METHOD_PHONE) {
+                $validator->errors()->add('employee_id', "Akun ini dipakai {$linked->name} untuk absen dari HP. Ganti dulu cara absennya di data karyawan.");
+            }
 
             if ($role?->is_super_admin && ! $actor->isSuperAdmin()) {
                 $validator->errors()->add('role_id', 'Hanya super admin yang bisa memberikan role super admin.');
@@ -83,6 +93,7 @@ class UpdateUserRequest extends FormRequest
             'phone' => 'nomor telepon',
             'role_id' => 'role',
             'password' => 'kata sandi',
+            'employee_id' => 'karyawan',
         ];
     }
 }

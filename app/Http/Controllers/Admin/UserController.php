@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreUserRequest;
 use App\Http\Requests\Admin\UpdateUserRequest;
+use App\Models\Employee;
 use App\Models\Role;
 use App\Models\User;
 use App\Support\Listing;
@@ -63,12 +64,18 @@ class UserController extends Controller implements HasMiddleware
             // Izinnya ikut dimuat supaya kartu role bisa menjelaskan
             // kemampuan tiap role dengan bahasa manusia.
             'roles' => $this->assignableRoles(),
+            'employees' => $this->linkableEmployees(null),
         ]);
     }
 
     public function store(StoreUserRequest $request): RedirectResponse
     {
-        User::create($request->validated());
+        $data = $request->validated();
+        $employeeId = $data['employee_id'] ?? null;
+        unset($data['employee_id']);
+
+        $user = User::create($data);
+        $this->linkEmployee($user, $employeeId);
 
         return redirect()
             ->route('admin.users.index')
@@ -91,18 +98,25 @@ class UserController extends Controller implements HasMiddleware
             // Izinnya ikut dimuat supaya kartu role bisa menjelaskan
             // kemampuan tiap role dengan bahasa manusia.
             'roles' => $this->assignableRoles(),
+            'employees' => $this->linkableEmployees($user),
         ]);
     }
 
     public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
         $data = $request->validated();
+        $employeeId = $data['employee_id'] ?? null;
+        unset($data['employee_id']);
 
         if (blank($data['password'] ?? null)) {
             unset($data['password']);
         }
 
         $user->update($data);
+
+        if ($request->has('employee_id')) {
+            $this->linkEmployee($user, $employeeId);
+        }
 
         return redirect()
             ->route('admin.users.index')
@@ -128,6 +142,35 @@ class UserController extends Controller implements HasMiddleware
         return redirect()
             ->route('admin.users.index')
             ->with('success', 'Pengguna berhasil dihapus.');
+    }
+
+    /**
+     * Karyawan yang bisa dihubungkan ke akun ini, dengan role bawaan jabatannya
+     * supaya form bisa langsung mengisi role.
+     */
+    protected function linkableEmployees(?User $user)
+    {
+        return Employee::query()
+            ->with('jobPosition:id,name,role_id')
+            ->where(fn ($query) => $query->whereNull('user_id')->when($user, fn ($q) => $q->orWhere('user_id', $user->id)))
+            ->where(fn ($query) => $query->where('is_active', true)->when($user, fn ($q) => $q->orWhere('user_id', $user->id)))
+            ->orderBy('name')
+            ->get(['id', 'code', 'name', 'phone', 'position', 'job_position_id', 'user_id']);
+    }
+
+    /**
+     * Hubungkan akun ke karyawan (atau lepaskan kalau dikosongkan).
+     */
+    protected function linkEmployee(User $user, ?int $employeeId): void
+    {
+        Employee::query()
+            ->where('user_id', $user->id)
+            ->when($employeeId, fn ($query) => $query->whereKeyNot($employeeId))
+            ->update(['user_id' => null]);
+
+        if ($employeeId) {
+            Employee::whereKey($employeeId)->update(['user_id' => $user->id]);
+        }
     }
 
     /**

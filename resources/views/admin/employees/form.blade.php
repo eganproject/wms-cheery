@@ -8,8 +8,24 @@
     ];
 @endphp
 
+@php
+    // Role bawaan tiap jabatan dan role akun saat ini, untuk catatan "role akun akan jadi ...".
+    $positionRoles = $positions->mapWithKeys(fn ($p) => [$p->id => $p->role ? ['id' => $p->role->id, 'name' => $p->role->name] : null]);
+    $userRoles = $users->pluck('role_id', 'id');
+@endphp
 <form method="POST" action="{{ $isEdit ? route('admin.employees.update', $employee) : route('admin.employees.store') }}"
-      x-data="{ method: @js($method) }">
+      x-data="{
+          method: @js($method),
+          position: @js((string) old('job_position_id', $employee?->job_position_id)),
+          user: @js((string) old('user_id', $employee?->user_id)),
+          positionRoles: @js($positionRoles),
+          userRoles: @js($userRoles),
+          get targetRole() { return this.positionRoles[this.position] ?? null },
+          get roleDiffers() {
+              return this.method !== 'machine' && this.user && this.targetRole
+                  && Number(this.userRoles[this.user]) !== this.targetRole.id;
+          },
+      }">
     @csrf
     @if ($isEdit)
         @method('PUT')
@@ -25,8 +41,20 @@
                     <x-ui.field label="Nama Lengkap" for="name" :error="$errors->get('name')" required>
                         <x-text-input id="name" name="name" type="text" :value="old('name', $employee?->name)" required autofocus maxlength="120" />
                     </x-ui.field>
-                    <x-ui.field label="Jabatan" for="position" :error="$errors->get('position')">
-                        <x-text-input id="position" name="position" type="text" :value="old('position', $employee?->position)" placeholder="Packer, Admin Gudang, QC..." maxlength="80" />
+                    <x-ui.field label="Jabatan" for="job_position_id" :error="$errors->get('job_position_id')">
+                        <x-ui.select id="job_position_id" name="job_position_id" x-model="position">
+                            <option value="">Belum diatur</option>
+                            @foreach ($positions as $position)
+                                <option value="{{ $position->id }}">{{ $position->name }}{{ $position->role ? ' · role '.$position->role->name : '' }}</option>
+                            @endforeach
+                        </x-ui.select>
+                        <p class="form-help">
+                            @if ($positions->isEmpty())
+                                Belum ada jabatan. Tambahkan dulu di tab Jabatan.
+                            @else
+                                Pilihan jabatan dan role bawaannya diatur di tab Jabatan.
+                            @endif
+                        </p>
                     </x-ui.field>
                     <x-ui.field label="Nomor HP" for="phone" :error="$errors->get('phone')">
                         <x-text-input id="phone" name="phone" type="text" :value="old('phone', $employee?->phone)" placeholder="08xxxxxxxxxx" maxlength="30" />
@@ -60,15 +88,26 @@
                     <x-ui.field label="Akun Login WMS" for="user_id" :error="$errors->get('user_id')"
                                 info="Karyawan login ke aplikasi HP dengan akun ini untuk absen."
                                 x-show="method !== 'machine'">
-                        <x-ui.select id="user_id" name="user_id">
+                        <x-ui.select id="user_id" name="user_id" x-model="user">
                             <option value="">Tanpa akun</option>
                             @foreach ($users as $user)
-                                <option value="{{ $user->id }}" @selected((int) old('user_id', $employee?->user_id) === $user->id)>{{ $user->name }} · {{ $user->email }}</option>
+                                <option value="{{ $user->id }}">{{ $user->name }} · {{ $user->email }}</option>
                             @endforeach
                         </x-ui.select>
-                        <p class="form-help" x-text="method === 'phone' ? 'Wajib untuk metode HP. Belum ada akunnya? Tambahkan dulu di menu Pengguna.' : 'Isi kalau karyawan juga absen dari HP.'"></p>
+                        <p class="form-help" x-text="method === 'phone' ? 'Wajib untuk metode HP. Belum ada akunnya? Buat di menu Pengguna & Akses, lalu pilih karyawan ini di sana.' : 'Isi kalau karyawan juga absen dari HP.'"></p>
                     </x-ui.field>
                 </div>
+
+                @can('users.update')
+                    <label x-show="roleDiffers" x-cloak
+                           class="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3.5">
+                        <input type="checkbox" name="sync_role" value="1" checked class="mt-0.5 rounded border-ink-300 text-ink-950 focus:ring-ink-300">
+                        <span class="text-sm text-ink-700">
+                            Samakan role akun dengan jabatan: jadikan <strong x-text="targetRole?.name"></strong>.
+                            <span class="block text-xs text-ink-500">Hilangkan centang kalau akun ini memang diberi role lain.</span>
+                        </span>
+                    </label>
+                @endcan
             </x-ui.card>
         </div>
 

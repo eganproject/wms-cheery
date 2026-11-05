@@ -1,9 +1,35 @@
 @php
     $user = $user ?? null;
     $isEdit = (bool) $user;
+    $employees = $employees ?? collect();
+    // Data karyawan untuk mengisi nama, nomor HP, dan role dari jabatannya.
+    $employeeData = $employees->mapWithKeys(fn ($e) => [$e->id => [
+        'name' => $e->name,
+        'phone' => $e->phone,
+        'position' => $e->jobPosition?->name ?? $e->position,
+        'role' => $e->jobPosition?->role_id,
+    ]]);
+    $currentEmployeeId = old('employee_id', $user?->employee?->id);
 @endphp
 
-<form method="POST" action="{{ $isEdit ? route('admin.users.update', $user) : route('admin.users.store') }}">
+<form method="POST" action="{{ $isEdit ? route('admin.users.update', $user) : route('admin.users.store') }}"
+      x-data="{
+          employees: @js($employeeData),
+          employee: @js((string) $currentEmployeeId),
+          roleNote: '',
+          pick() {
+              const data = this.employees[this.employee];
+              this.roleNote = '';
+              if (! data) return;
+              if (this.$refs.name && ! this.$refs.name.value) this.$refs.name.value = data.name;
+              if (this.$refs.phone && ! this.$refs.phone.value && data.phone) this.$refs.phone.value = data.phone;
+              const radio = data.role ? this.$root.querySelector(`input[name=role_id][value='${data.role}']`) : null;
+              if (radio) {
+                  radio.checked = true;
+                  this.roleNote = 'Role diisi otomatis dari jabatan ' + data.position + '. Boleh diganti kalau perlu.';
+              }
+          },
+      }">
     @csrf
     @if ($isEdit)
         @method('PUT')
@@ -12,10 +38,24 @@
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {{-- Main --}}
         <div class="space-y-6 lg:col-span-2">
+            @if ($employees->isNotEmpty() || $currentEmployeeId)
+                <x-ui.card title="Karyawan" subtitle="Hubungkan akun ini ke data karyawan. Role akan mengikuti jabatannya.">
+                    <x-ui.field label="Karyawan" for="employee_id" :error="$errors->get('employee_id')">
+                        <x-ui.select id="employee_id" name="employee_id" x-model="employee" x-on:change="pick()">
+                            <option value="">Bukan karyawan / tidak dihubungkan</option>
+                            @foreach ($employees as $employee)
+                                <option value="{{ $employee->id }}">{{ $employee->name }} · {{ $employee->code }}{{ ($employee->jobPosition?->name ?? $employee->position) ? ' · '.($employee->jobPosition?->name ?? $employee->position) : '' }}</option>
+                            @endforeach
+                        </x-ui.select>
+                        <p class="form-help">Karyawan yang absen dari HP login dengan akun ini.</p>
+                    </x-ui.field>
+                </x-ui.card>
+            @endif
+
             <x-ui.card title="Informasi Pengguna" subtitle="Data dasar akun pengguna.">
                 <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <x-ui.field label="Nama Lengkap" for="name" :error="$errors->get('name')" required class="sm:col-span-2">
-                        <x-text-input id="name" name="name" type="text" :value="old('name', $user?->name)"
+                        <x-text-input id="name" name="name" type="text" x-ref="name" :value="old('name', $user?->name)"
                                       required autofocus placeholder="Contoh: Budi Santoso" />
                     </x-ui.field>
 
@@ -34,7 +74,7 @@
                             <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
                                 <x-icon name="phone" class="h-4 w-4" />
                             </span>
-                            <x-text-input id="phone" name="phone" type="text" :value="old('phone', $user?->phone)"
+                            <x-text-input id="phone" name="phone" type="text" x-ref="phone" :value="old('phone', $user?->phone)"
                                           placeholder="08xxxxxxxxxx" class="pl-8" />
                         </div>
                     </x-ui.field>
@@ -131,6 +171,7 @@
                             </label>
                         @endforeach
 
+                        <p x-show="roleNote" x-cloak x-text="roleNote" class="text-xs text-brand-700"></p>
                         <x-input-error :messages="$errors->get('role_id')" class="mt-1" />
                     </div>
 
