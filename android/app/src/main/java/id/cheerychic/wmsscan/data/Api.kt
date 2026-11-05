@@ -63,6 +63,12 @@ object Api {
         runCatching { call("POST", "/logout") }
     }
 
+    /* ---------------------------------------------- pembaruan app ---- */
+
+    /** Versi terbaru aplikasi (tanpa login, supaya HP yang sesinya habis tetap bisa update). */
+    suspend fun appVersion(server: String = Session.serverUrl): AppVersionResponse =
+        json.decodeFromString(call("GET", "/app-version", base = server, authed = false))
+
     /* ------------------------------------------------------ kemas ---- */
 
     suspend fun scanResi(code: String): ResiResponse =

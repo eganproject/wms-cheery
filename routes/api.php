@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\OutboundHandoverController;
 use App\Http\Controllers\Admin\OutboundMarketplaceController;
 use App\Http\Controllers\Admin\OutboundScanController;
+use App\Http\Controllers\Api\Mobile\AppVersionController;
 use App\Http\Controllers\Api\Mobile\AttendanceController as MobileAttendanceController;
 use App\Http\Controllers\Api\Mobile\AuthController as MobileAuthController;
 use App\Http\Controllers\Api\Mobile\OrderController as MobileOrderController;
@@ -33,6 +34,12 @@ Route::prefix('mobile')
     ->name('mobile.')
     ->group(function (): void {
         Route::post('/login', [MobileAuthController::class, 'login'])->name('login');
+
+        // Pembaruan aplikasi dari dalam aplikasi (tanpa login).
+        Route::middleware('throttle:60,1')->group(function (): void {
+            Route::get('/app-version', [AppVersionController::class, 'show'])->name('app-version');
+            Route::get('/app-download', [AppVersionController::class, 'download'])->name('app-download');
+        });
 
         Route::middleware(['auth:mobile', 'throttle:240,1'])->group(function (): void {
             Route::get('/me', [MobileAuthController::class, 'me'])->name('me');

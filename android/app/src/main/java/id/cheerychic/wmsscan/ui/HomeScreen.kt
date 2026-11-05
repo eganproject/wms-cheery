@@ -48,6 +48,7 @@ import id.cheerychic.wmsscan.data.Api
 import id.cheerychic.wmsscan.data.ApiException
 import id.cheerychic.wmsscan.data.Session
 import id.cheerychic.wmsscan.data.Summary
+import id.cheerychic.wmsscan.data.Updater
 import id.cheerychic.wmsscan.data.User
 import id.cheerychic.wmsscan.ui.components.AppCard
 import id.cheerychic.wmsscan.ui.components.Banner
@@ -207,6 +208,22 @@ fun HomeScreen(user: User, onTab: (Tab) -> Unit, onAbsen: (String) -> Unit = {},
                     "Serah Terima", if (user.can.serahTerima) "Serahkan ke kurir" else "Belum ada akses",
                     Ic.Truck, gold = false, enabled = user.can.serahTerima, modifier = Modifier.weight(1f),
                 ) { onTab(Tab.Serah) }
+            }
+
+            // Versi aplikasi + cek pembaruan manual.
+            Row(
+                Modifier.fillMaxWidth().padding(top = 4.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Versi ${Updater.versionName} · ", color = InkMuted, fontSize = 12.5.sp)
+                Text(
+                    "Periksa pembaruan",
+                    color = Brand2,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { Updater.check(manual = true) }.padding(4.dp),
+                )
             }
             Spacer(Modifier.height(120.dp))
         }

@@ -35,4 +35,22 @@ return [
         ],
     ],
 
+    /*
+     * Pembaruan aplikasi Android dari dalam aplikasi (/api/mobile/app-version).
+     * Bawaan: versi terbaru dibaca dari GitHub Releases (tag android-v1.0.N).
+     * Bila repo dijadikan private, isi MOBILE_APP_GITHUB_TOKEN (izin baca
+     * Contents) — APK lalu diunduh lewat server ini. Bisa juga diisi manual
+     * dengan MOBILE_APP_VERSION_CODE + MOBILE_APP_DOWNLOAD_URL.
+     */
+    'mobile_app' => [
+        'github_repo' => env('MOBILE_APP_GITHUB_REPO', 'eganproject/wms-cheery'),
+        'github_token' => env('MOBILE_APP_GITHUB_TOKEN'),
+        'version_code' => env('MOBILE_APP_VERSION_CODE'),
+        'version_name' => env('MOBILE_APP_VERSION_NAME'),
+        'download_url' => env('MOBILE_APP_DOWNLOAD_URL'),
+        'notes' => env('MOBILE_APP_NOTES'),
+        // HP dengan versi di bawah angka ini wajib memperbarui dulu.
+        'min_version_code' => (int) env('MOBILE_APP_MIN_VERSION_CODE', 0),
+    ],
+
 ];

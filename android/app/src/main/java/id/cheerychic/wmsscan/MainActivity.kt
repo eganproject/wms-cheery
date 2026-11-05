@@ -23,6 +23,7 @@ import id.cheerychic.wmsscan.ui.LoginScreen
 import id.cheerychic.wmsscan.ui.OrderDetailScreen
 import id.cheerychic.wmsscan.ui.OrdersScreen
 import id.cheerychic.wmsscan.ui.SerahTerimaScreen
+import id.cheerychic.wmsscan.ui.UpdatePrompt
 import id.cheerychic.wmsscan.ui.components.Tab
 import id.cheerychic.wmsscan.ui.theme.WmsTheme
 
@@ -31,7 +32,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
-            WmsTheme { AppRoot() }
+            WmsTheme {
+                AppRoot()
+                UpdatePrompt()
+            }
         }
     }
 }

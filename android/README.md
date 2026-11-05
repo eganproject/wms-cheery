@@ -13,6 +13,29 @@ oleh GitHub Actions (`.github/workflows/android.yml`) dan diterbitkan di
 dari HP (login GitHub), unduh, lalu pasang. Versi baru cukup dipasang menimpa
 yang lama.
 
+## Pembaruan dari dalam aplikasi
+
+Setiap kali dibuka (dan paling sering tiap 30 menit), aplikasi menanyakan
+`GET /api/mobile/app-version` ke server WMS. Bila ada versi lebih baru,
+muncul jendela **Versi baru tersedia** → **Perbarui** → APK diunduh → penginstal
+Android terbuka → operator menekan **Perbarui**. Bisa juga dicek manual lewat
+tulisan **Periksa pembaruan** di bawah Beranda.
+
+- Pertama kali Android meminta izin **Instal aplikasi tidak dikenal** untuk
+  WMS Cheery Scan (aplikasi membuka layar pengaturannya).
+- Hanya berjalan bila APK lama dan baru ditandatangani **kunci yang sama**
+  (lihat *Kunci tanda tangan*). Tanpa secret keystore, tiap build memakai kunci
+  debug acak, sehingga update selalu ditolak Android.
+- Server membaca versi terbaru dari GitHub Releases (tag `android-v1.0.N`),
+  disimpan 10 menit. Pengaturan di `.env` server:
+
+| Variabel | Arti |
+|---|---|
+| `MOBILE_APP_GITHUB_REPO` | repo sumber rilis (bawaan `eganproject/wms-cheery`) |
+| `MOBILE_APP_GITHUB_TOKEN` | isi bila repo private; APK lalu diunduh lewat server (`/api/mobile/app-download`) |
+| `MOBILE_APP_MIN_VERSION_CODE` | HP dengan versi di bawah angka ini wajib update (jendela tidak bisa ditutup) |
+| `MOBILE_APP_VERSION_CODE` + `MOBILE_APP_DOWNLOAD_URL` (+ `_VERSION_NAME`, `_NOTES`) | isi manual tanpa GitHub |
+
 ## Pemakaian
 
 1. Isi **alamat server** = alamat yang dibuka di browser untuk WMS, mis.

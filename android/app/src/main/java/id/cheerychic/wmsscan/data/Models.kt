@@ -306,3 +306,18 @@ data class AbsenHistory(
     val summary: AbsenSummary = AbsenSummary(),
     val days: List<AbsenDay> = emptyList(),
 )
+
+@Serializable
+data class AppRelease(
+    @SerialName("version_code") val versionCode: Long,
+    @SerialName("version_name") val versionName: String,
+    @SerialName("download_url") val downloadUrl: String,
+    val size: Long? = null,
+    val notes: String? = null,
+)
+
+@Serializable
+data class AppVersionResponse(
+    val latest: AppRelease? = null,
+    @SerialName("min_version_code") val minVersionCode: Long = 0,
+)
