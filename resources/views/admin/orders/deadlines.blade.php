@@ -17,6 +17,9 @@
     $dayLink = fn ($day) => route('admin.orders.deadlines.day', ['date' => $day->format('Y-m-d')]
         + array_filter(request()->only(['jenis', 'tahap', 'store', 'courier']), fn ($value) => filled($value)));
 
+    $planCarry = array_filter(request()->only(['jenis', 'tahap', 'store', 'courier']), fn ($value) => filled($value));
+    $planBase = route('admin.orders.deadlines.production', $planCarry);
+
     $pill = 'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs whitespace-nowrap transition';
     $pillOn = 'border-brand-500 bg-brand-50 font-medium text-brand-800';
     $pillOff = 'border-ink-200 bg-white text-ink-600 hover:border-ink-300 hover:text-ink-950';
@@ -57,6 +60,8 @@
     <x-ui.page-header title="Tenggat PO"
                       subtitle="Berapa resi yang masih harus diproses, dikelompokkan menurut batas kirimnya. Kerjakan dari yang paling kiri.">
         <x-slot name="actions">
+            <x-ui.button :href="route('admin.orders.deadlines.production', $planCarry + ['dari' => $now->format('Y-m-d'), 'sampai' => $now->copy()->addDays(6)->format('Y-m-d')])"
+                         icon="sliders" title="Kebutuhan barang dan yang harus diproduksi untuk tanggal batas kirim tertentu">Rencana Produksi</x-ui.button>
             <x-ui.button :href="route('admin.orders.packing')" variant="secondary" icon="list">Packing List Harian</x-ui.button>
             <x-ui.button :href="route('admin.po-periods.index')" variant="secondary" icon="calendar">Lama PO</x-ui.button>
         </x-slot>
@@ -141,9 +146,10 @@
         @endforeach
     </div>
 
-    <div class="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+    {{-- Centang beberapa tanggal untuk rencana produksi. --}}
+    <div class="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-3" x-data="{ picked: [] }" data-plan-picker>
         <x-ui.card class="lg:col-span-2" padding="p-0" :title="$view === 'kalender' ? 'Kalender batas kirim' : 'Per tanggal batas kirim'"
-                   :subtitle="$num($total).' resi '.($kind === 'po' ? 'PO ' : '').'belum dikirim. Klik tanggal untuk melihat rincian barang dan resinya.'">
+                   :subtitle="$num($total).' resi '.($kind === 'po' ? 'PO ' : '').'belum dikirim. Klik tanggal untuk rinciannya, atau centang beberapa tanggal untuk rencana produksi.'">
             <x-slot name="actions">
                 @if ($view === 'kalender')
                     <div class="flex items-center gap-1" data-calendar-nav>
@@ -207,6 +213,12 @@
                                 $outside = ! $cursor->isSameMonth($month);
                                 $heat = $count > 0 ? (int) ceil($count * 4 / $maxDay) : 0;
                             @endphp
+                            <div class="relative">
+                            @if ($count > 0)
+                                <input type="checkbox" value="{{ $cursor->format('Y-m-d') }}" x-model="picked"
+                                       aria-label="Pilih {{ $cursor->translatedFormat('d M Y') }} untuk rencana produksi"
+                                       class="absolute right-1.5 top-1.5 z-10 h-4 w-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500">
+                            @endif
                             <a href="{{ $count === 0 ? '#' : $dayLink($cursor) }}"
                                @if ($count === 0) aria-disabled="true" tabindex="-1" @endif
                                data-day="{{ $cursor->format('Y-m-d') }}"
@@ -238,6 +250,7 @@
                                     </span>
                                 @endif
                             </a>
+                            </div>
                         @endfor
                     </div>
                     <p class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-ink-500">
@@ -251,6 +264,7 @@
                 <table class="erp-table" data-deadline-days>
                     <thead class="sticky top-0 z-10">
                         <tr>
+                            <th class="w-8"><span class="sr-only">Pilih</span></th>
                             <th>Batas kirim</th>
                             <th class="text-right">Resi</th>
                             <th class="text-right"><span class="inline-flex items-center gap-1">Siap dikemas <x-ui.hint text="Belum QC dan semua barangnya kebagian stok." /></span></th>
@@ -268,6 +282,8 @@
                                 $width = (int) round($row['total'] * 100 / max(1, $days->max('total')));
                             @endphp
                             <tr @class(['bg-brand-50' => $isActive, 'bg-rose-50/40' => ! $isActive && ($past || $row['overdue'] > 0)])>
+                                <td><input type="checkbox" value="{{ $row['day']->format('Y-m-d') }}" x-model="picked" class="rounded border-ink-300"
+                                           aria-label="Pilih {{ $row['day']->translatedFormat('d M Y') }} untuk rencana produksi"></td>
                                 <td>
                                     <a href="{{ $dayLink($row['day']) }}" class="block hover:underline">
                                         <span class="font-medium text-ink-950">{{ $row['day']->translatedFormat('D, d M Y') }}</span>
@@ -288,7 +304,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="py-8 text-center text-sm text-ink-500">Tidak ada resi yang belum dikirim dengan batas kirim.</td></tr>
+                            <tr><td colspan="7" class="py-8 text-center text-sm text-ink-500">Tidak ada resi yang belum dikirim dengan batas kirim.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -338,6 +354,19 @@
                 </table>
             </div>
         </x-ui.card>
+
+        <div x-show="picked.length" x-cloak x-transition.opacity
+             class="fixed inset-x-3 bottom-20 z-40 mx-auto flex max-w-xl items-center justify-between gap-3 rounded-xl bg-ink-950 px-4 py-3 text-sm text-white shadow-lg lg:bottom-6"
+             data-plan-bar>
+            <span><strong x-text="picked.length"></strong> tanggal dipilih</span>
+            <div class="flex items-center gap-2">
+                <button type="button" class="rounded-md px-2 py-1 text-xs text-ink-300 hover:text-white" @click="picked = []">Batal</button>
+                <a :href="'{{ $planBase }}' + ('{{ $planBase }}'.includes('?') ? '&' : '?') + 'tanggal=' + [...picked].sort().join(',')"
+                   class="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-3 py-1.5 text-xs font-semibold text-ink-950 hover:bg-brand-400">
+                    <x-icon name="sliders" class="h-3.5 w-3.5" /> Lihat rencana produksi
+                </a>
+            </div>
+        </div>
     </div>
 
     {{-- Daftar resi --}}

@@ -7,6 +7,11 @@ use App\Models\ShipmentOrder;
 use App\Services\OrderPlanner;
 use App\Support\Listing;
 use App\Support\PackingList;
+use App\Support\ProductionPlan;
+use App\Services\TableExport;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use App\Models\Product;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -259,6 +264,120 @@ class PoDeadlineController extends Controller implements HasMiddleware
             'leadTimes' => $leadTimes,
             'orders' => $orders,
         ]);
+    }
+
+    /**
+     * Rencana produksi: gabungan kebutuhan barang untuk tanggal-tanggal batas
+     * kirim yang dicentang, dengan stok dan kekurangannya.
+     */
+    public function production(Request $request, OrderPlanner $planner): View
+    {
+        $planner->refresh();
+
+        return view('admin.orders.deadline-production', $this->plan($request) + ['now' => now()]);
+    }
+
+    public function productionExcel(Request $request, OrderPlanner $planner): StreamedResponse
+    {
+        $planner->refresh();
+        $data = $this->plan($request);
+        /** @var ProductionPlan $plan */
+        $plan = $data['plan'];
+        $days = $plan->dates->map(fn (Carbon $date) => $date->format('Y-m-d'));
+
+        $export = TableExport::make('Rencana Produksi PO')
+            ->note($data['description'])
+            ->note(sprintf('%s resi · %s barang · butuh %s unit · tertutup stok %s · harus diproduksi %s',
+                $plan->totals['orders'], $plan->totals['products'], $plan->totals['needed'], $plan->totals['covered'], $plan->totals['short']))
+            ->note('Stok dipakai lebih dulu oleh resi yang batas kirimnya lebih awal, termasuk tanggal yang tidak dipilih.');
+
+        $export->sheet('Rencana Produksi', array_merge(
+            [['No', 'number'], ['SKU', 'text'], ['Nama Barang', 'text']],
+            $plan->dates->map(fn (Carbon $date) => [$date->translatedFormat('d M'), 'sum'])->all(),
+            [['Total Dibutuhkan', 'sum'], ['Stok Gudang', 'number'], ['Dipakai Tanggal Lain', 'sum'], ['Tertutup Stok', 'sum'], ['Harus Diproduksi', 'sum'], ['Keterangan', 'text']],
+        ), $plan->rows->map(fn (array $row, int $index) => array_merge(
+            [$index + 1, $row['sku'], $row['name']],
+            $days->map(fn (string $day) => $row['days'][$day] ?? 0)->all(),
+            [$row['needed'], $row['stock'], $row['earlier'], $row['covered'], $row['short'], self::planRemark($row)],
+        )));
+
+        $export->sheet('Kekurangan per Tanggal', array_merge(
+            [['SKU', 'text'], ['Nama Barang', 'text']],
+            $plan->dates->map(fn (Carbon $date) => [$date->translatedFormat('d M'), 'sum'])->all(),
+            [['Total', 'sum']],
+        ), $plan->rows->where('short', '>', 0)->values()->map(fn (array $row) => array_merge(
+            [$row['sku'], $row['name']],
+            $days->map(fn (string $day) => $row['short_days'][$day] ?? 0)->all(),
+            [$row['short']],
+        )));
+
+        return $export->download('rencana-produksi-'.$this->planFilename($plan).'.xlsx');
+    }
+
+    public function productionPdf(Request $request, OrderPlanner $planner): Response
+    {
+        $planner->refresh();
+        $data = $this->plan($request);
+
+        return Pdf::loadView('admin.orders.deadline-production-pdf', $data)
+            ->setPaper('a4', $data['plan']->dates->count() > 5 ? 'landscape' : 'portrait')
+            ->download('rencana-produksi-'.$this->planFilename($data['plan']).'.pdf');
+    }
+
+    public static function planRemark(array $row): string
+    {
+        return collect([
+            $row['matched'] ? null : 'SKU belum terdaftar',
+            $row['from_bundle'] ? 'Termasuk isi paket' : null,
+            $row['earlier_short'] > 0 ? 'Tanggal lain lebih awal juga kurang '.$row['earlier_short'] : null,
+        ])->filter()->implode(', ');
+    }
+
+    /** @return array<string, mixed> */
+    protected function plan(Request $request): array
+    {
+        $kind = array_key_exists((string) $request->input('jenis'), self::KINDS) ? (string) $request->input('jenis') : 'po';
+        $stage = array_key_exists((string) $request->input('tahap'), self::STAGES) ? (string) $request->input('tahap') : '';
+        $mode = $request->input('per') === PackingList::BY_SKU ? PackingList::BY_SKU : PackingList::BY_PRODUCT;
+        $dates = ProductionPlan::datesFrom($request->input('tanggal'), $request->input('dari'), $request->input('sampai'));
+        $plan = ProductionPlan::for(fn () => $this->base($request, $kind, $stage), $dates, $mode);
+
+        $description = collect([
+            'Jenis: '.self::KINDS[$kind],
+            $stage !== '' ? 'Tahap: '.self::STAGES[$stage] : null,
+            $request->filled('store') ? 'Toko: '.$request->string('store') : null,
+            $request->filled('courier') ? 'Kurir: '.$request->string('courier') : null,
+            'Ringkas per: '.($mode === PackingList::BY_SKU ? 'SKU di resi' : 'barang (paket dipecah)'),
+            'Tanggal batas kirim: '.($dates->isEmpty() ? '—' : self::describeDates($dates)),
+        ])->filter()->implode(' · ');
+
+        return [
+            'plan' => $plan,
+            'kind' => $kind,
+            'stage' => $stage,
+            'mode' => $mode,
+            'description' => $description,
+        ];
+    }
+
+    /** @param  \Illuminate\Support\Collection<int, Carbon>  $dates */
+    public static function describeDates($dates): string
+    {
+        $first = $dates->first();
+        $last = $dates->last();
+        $consecutive = $dates->count() > 2 && (int) $first->diffInDays($last) === $dates->count() - 1;
+
+        if ($consecutive) {
+            return $first->translatedFormat('d M').' – '.$last->translatedFormat('d M Y').' ('.$dates->count().' hari)';
+        }
+
+        return $dates->map(fn (Carbon $date) => $date->translatedFormat('d M'))->implode(', ').' '.$last->format('Y');
+    }
+
+    protected function planFilename(ProductionPlan $plan): string
+    {
+        return $plan->dates->isEmpty() ? now()->format('Y-m-d')
+            : $plan->dates->first()->format('Y-m-d').($plan->dates->count() > 1 ? '-sd-'.$plan->dates->last()->format('Y-m-d') : '');
     }
 
     public static function status(ShipmentOrder $order): string

@@ -147,4 +147,45 @@ class PoDeadlineTest extends TestCase
         $this->actingAs($this->admin)->get(route('admin.orders.deadlines.day', ['date' => '2026-06-08', 'per' => 'sku']))->assertOk();
         $this->actingAs($this->admin)->get('/admin/orders/po-deadlines/2026-99-99')->assertNotFound();
     }
+
+    public function test_production_plan_uses_stock_for_earlier_deadlines_first(): void
+    {
+        Product::where('sku', 'Helena 3')->first()->forceFill(['stock' => 2])->save();
+        app(OrderPlanner::class)->refresh(force: true);
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('admin.orders.deadlines.production', ['tanggal' => '2026-06-13,2026-06-12']))
+            ->assertOk()
+            ->assertSee('Rencana Produksi PO')
+            ->assertSee('Helena 3');
+
+        $plan = $response->viewData('plan');
+        $this->assertSame(['2026-06-12', '2026-06-13'], $plan->dates->map->format('Y-m-d')->all());
+        $row = $plan->rows->firstWhere('sku', 'Helena 3');
+        // JX01 (8 Juni, tidak dipilih) memakai 1 stok dulu; sisa 1 untuk 12 Juni, 13 Juni kurang 1.
+        $this->assertSame(2, $row['needed']);
+        $this->assertSame(1, $row['earlier']);
+        $this->assertSame(1, $row['covered']);
+        $this->assertSame(1, $row['short']);
+        $this->assertSame(['2026-06-12' => 0, '2026-06-13' => 1], $row['short_days']);
+        $this->assertSame(2, $plan->totals['orders']);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.orders.deadlines.production', ['dari' => '2026-06-12', 'sampai' => '2026-06-24']))
+            ->assertOk()->assertSee('Kalea 1');
+
+        $this->actingAs($this->admin)->get(route('admin.orders.deadlines.production'))
+            ->assertOk()->assertSee('Belum ada');
+    }
+
+    public function test_production_plan_exports_excel_and_pdf(): void
+    {
+        $query = ['tanggal' => '2026-06-12,2026-06-13'];
+
+        $excel = $this->actingAs($this->admin)->get(route('admin.orders.deadlines.production.excel', $query))->assertOk();
+        $this->assertStringContainsString('rencana-produksi-2026-06-12-sd-2026-06-13.xlsx', $excel->headers->get('content-disposition'));
+
+        $pdf = $this->actingAs($this->admin)->get(route('admin.orders.deadlines.production.pdf', $query))->assertOk();
+        $this->assertSame('application/pdf', $pdf->headers->get('content-type'));
+    }
 }
