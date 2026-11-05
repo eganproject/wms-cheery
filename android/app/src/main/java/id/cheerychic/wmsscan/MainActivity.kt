@@ -22,6 +22,7 @@ import id.cheerychic.wmsscan.ui.KemasScreen
 import id.cheerychic.wmsscan.ui.LoginScreen
 import id.cheerychic.wmsscan.ui.OrderDetailScreen
 import id.cheerychic.wmsscan.ui.OrdersScreen
+import id.cheerychic.wmsscan.ui.ReturScreen
 import id.cheerychic.wmsscan.ui.SerahTerimaScreen
 import id.cheerychic.wmsscan.ui.UpdatePrompt
 import id.cheerychic.wmsscan.ui.components.Tab
@@ -59,6 +60,7 @@ private fun AppRoot() {
                 onTab = openTab,
                 onAbsen = { type -> nav.navigate("absen/$type") { launchSingleTop = true } },
                 onAbsenHistory = { nav.navigate("absen-riwayat") { launchSingleTop = true } },
+                onRetur = { if (user?.can?.retur == true) nav.navigate("retur") { launchSingleTop = true } },
             )
         }
         composable(
@@ -73,6 +75,7 @@ private fun AppRoot() {
         }
         composable("absen-riwayat") { AbsenHistoryScreen(onBack = { nav.popBackStack() }) }
         composable("kemas") { KemasScreen(onBack = { nav.popBackStack() }) }
+        composable("retur") { ReturScreen(onBack = { nav.popBackStack() }) }
         composable("serah") {
             SerahTerimaScreen(
                 onBack = { nav.popBackStack() },

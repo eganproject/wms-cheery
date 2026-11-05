@@ -83,7 +83,13 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun HomeScreen(user: User, onTab: (Tab) -> Unit, onAbsen: (String) -> Unit = {}, onAbsenHistory: () -> Unit = {}) {
+fun HomeScreen(
+    user: User,
+    onTab: (Tab) -> Unit,
+    onAbsen: (String) -> Unit = {},
+    onAbsenHistory: () -> Unit = {},
+    onRetur: () -> Unit = {},
+) {
     StatusBarIcons(darkScreen = false)
     val scope = rememberCoroutineScope()
     val lifecycle = LocalLifecycleOwner.current
@@ -209,6 +215,9 @@ fun HomeScreen(user: User, onTab: (Tab) -> Unit, onAbsen: (String) -> Unit = {},
                     Ic.Truck, gold = false, enabled = user.can.serahTerima, modifier = Modifier.weight(1f),
                 ) { onTab(Tab.Serah) }
             }
+            if (user.can.retur) {
+                ReturTile(onRetur)
+            }
 
             // Versi aplikasi + cek pembaruan manual.
             Row(
@@ -329,6 +338,27 @@ private fun WorkTile(
         Column {
             Text(title, color = fg.copy(alpha = if (enabled) 1f else 0.5f), fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
             Text(subtitle, color = fg.copy(alpha = 0.7f), fontSize = 12.5.sp)
+        }
+    }
+}
+
+/** Terima Retur: scan resi paket yang dikembalikan, periksa, terima. */
+@Composable
+private fun ReturTile(onClick: () -> Unit) {
+    AppCard(Modifier.fillMaxWidth(), radius = 22.dp, onClick = onClick) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(BrandBg),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Ic.Reset, null, tint = Brand2, modifier = Modifier.size(22.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Terima Retur", color = Ink, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                Text("Periksa paket yang dikembalikan pembeli", color = InkMuted, fontSize = 12.5.sp)
+            }
+            Icon(Ic.Next, null, tint = InkMuted, modifier = Modifier.size(18.dp))
         }
     }
 }

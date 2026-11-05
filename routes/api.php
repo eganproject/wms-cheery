@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\OutboundHandoverController;
 use App\Http\Controllers\Admin\OutboundMarketplaceController;
+use App\Http\Controllers\Admin\ReturnMarketplaceController;
 use App\Http\Controllers\Admin\OutboundScanController;
 use App\Http\Controllers\Api\Mobile\AppVersionController;
 use App\Http\Controllers\Api\Mobile\AttendanceController as MobileAttendanceController;
@@ -52,6 +53,15 @@ Route::prefix('mobile')
 
             // Serah Terima Paket.
             Route::post('/serah-terima/scan', [OutboundHandoverController::class, 'scan'])->name('handover.scan');
+
+            // Terima Retur (Retur Marketplace di web).
+            Route::post('/retur/resi', [ReturnMarketplaceController::class, 'store'])->name('retur.resi');
+            Route::post('/retur/manual', [ReturnMarketplaceController::class, 'manual'])->name('retur.manual');
+            Route::post('/retur/foreign', [ReturnMarketplaceController::class, 'addForeign'])->name('retur.foreign');
+            Route::post('/retur/{return}/item', [ReturnMarketplaceController::class, 'addItem'])->name('retur.item');
+            Route::delete('/retur/{return}/item/{item}', [ReturnMarketplaceController::class, 'removeItem'])->name('retur.item.remove');
+            Route::delete('/retur/{return}/foreign/{foreign}', [ReturnMarketplaceController::class, 'removeForeign'])->name('retur.foreign.remove');
+            Route::post('/retur/{return}/finish', [ReturnMarketplaceController::class, 'finish'])->name('retur.finish');
 
             // Daftar pesanan: belum dikemas, sudah dikemas, dikirim.
             Route::get('/summary', [MobileOrderController::class, 'summary'])->name('summary');

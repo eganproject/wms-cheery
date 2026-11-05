@@ -95,6 +95,10 @@ class AuthController extends Controller
                 'serah_terima' => $user->can('outbounds.post'),
                 // Halaman Pesanan di web: imports.view.
                 'pesanan' => $user->can('imports.view'),
+                // Stasiun Retur Marketplace di web: returns.create + returns.scan.
+                'retur' => $user->can('returns.create') && $user->can('returns.scan'),
+                // Menerima retur (stok bertambah / diajukan): returns.post.
+                'retur_terima' => $user->can('returns.post'),
                 // Absen dari HP: akun terhubung ke karyawan aktif bermetode HP.
                 'absen' => $employee !== null && $employee->is_active && $employee->allowsPhone(),
             ],

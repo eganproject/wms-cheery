@@ -9,6 +9,8 @@ data class Can(
     @SerialName("serah_terima") val serahTerima: Boolean = false,
     val pesanan: Boolean = false,
     val absen: Boolean = false,
+    val retur: Boolean = false,
+    @SerialName("retur_terima") val returTerima: Boolean = false,
 )
 
 @Serializable
@@ -320,4 +322,72 @@ data class AppRelease(
 data class AppVersionResponse(
     val latest: AppRelease? = null,
     @SerialName("min_version_code") val minVersionCode: Long = 0,
+)
+
+/* ------------------------------------------------------------ retur -- */
+
+@Serializable
+data class ReturnDoc(
+    val id: Int,
+    val code: String = "",
+    @SerialName("tracking_number") val trackingNumber: String? = null,
+    val marketplace: String? = null,
+    val sender: String? = null,
+    @SerialName("order_number") val orderNumber: String? = null,
+)
+
+@Serializable
+data class ReturnLine(
+    val id: Int,
+    val sku: String = "",
+    val name: String = "",
+    val barcode: String? = null,
+    val unit: String = "pcs",
+    val quantity: Int = 0,
+    val good: Int = 0,
+    val damaged: Int = 0,
+)
+
+@Serializable
+data class ForeignLine(
+    val id: Int,
+    val description: String = "",
+    val quantity: Int = 1,
+    @SerialName("photo_url") val photoUrl: String? = null,
+)
+
+@Serializable
+data class NameCandidate(val sku: String, val name: String = "", val unit: String = "pcs")
+
+@Serializable
+data class ScannedInfo(val sku: String = "", val name: String = "", val quantity: Int = 0, val unit: String = "pcs")
+
+/**
+ * Jawaban stasiun retur. Satu bentuk untuk semua langkah: resi, barang,
+ * barang asing, hapus baris. Bila kata yang diketik cocok dengan beberapa
+ * nama barang, yang terisi hanya [candidates].
+ */
+@Serializable
+data class ReturnPayload(
+    val found: Boolean = false,
+    @SerialName("tracking_number") val trackingNumber: String? = null,
+    val message: String? = null,
+    val warning: String? = null,
+    val scanned: ScannedInfo? = null,
+    val candidates: List<NameCandidate> = emptyList(),
+    @SerialName("return") val doc: ReturnDoc? = null,
+    val items: List<ReturnLine> = emptyList(),
+    val foreign: List<ForeignLine> = emptyList(),
+)
+
+@Serializable
+data class ReturnFinish(
+    val code: String = "",
+    @SerialName("tracking_number") val trackingNumber: String? = null,
+    val posted: Boolean = false,
+    val good: Int = 0,
+    val damaged: Int = 0,
+    val missing: Int = 0,
+    val foreign: Int = 0,
+    val message: String = "",
 )

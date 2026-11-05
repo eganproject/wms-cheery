@@ -90,6 +90,75 @@ object Api {
     suspend fun handover(code: String): HandoverResponse =
         json.decodeFromString(call("POST", "/serah-terima/scan", buildJsonObject { put("code", code) }))
 
+    /* ------------------------------------------------------ retur ---- */
+
+    suspend fun returResi(code: String): ReturnPayload =
+        json.decodeFromString(call("POST", "/retur/resi", buildJsonObject { put("code", code) }))
+
+    /** Barang pertama retur manual: dokumennya dibuat saat itu juga. */
+    suspend fun returManual(tracking: String?, code: String, quantity: Int): ReturnPayload =
+        json.decodeFromString(
+            call("POST", "/retur/manual", buildJsonObject {
+                if (!tracking.isNullOrBlank()) put("tracking_number", tracking)
+                put("code", code)
+                if (quantity > 1) put("quantity", quantity)
+            })
+        )
+
+    suspend fun returItem(returnId: Int, code: String, quantity: Int): ReturnPayload =
+        json.decodeFromString(
+            call("POST", "/retur/$returnId/item", buildJsonObject {
+                put("code", code)
+                if (quantity > 1) put("quantity", quantity)
+            })
+        )
+
+    suspend fun returRemoveItem(returnId: Int, itemId: Int): ReturnPayload =
+        json.decodeFromString(call("DELETE", "/retur/$returnId/item/$itemId"))
+
+    /** Barang bukan milik kita: keterangan, jumlah, foto opsional (JPEG). */
+    suspend fun returForeign(
+        returnId: Int?,
+        tracking: String?,
+        description: String,
+        quantity: Int,
+        photo: ByteArray?,
+    ): ReturnPayload {
+        val form = MultipartBody.Builder().setType(MultipartBody.FORM)
+            .addFormDataPart("description", description)
+            .addFormDataPart("quantity", quantity.coerceAtLeast(1).toString())
+            .apply {
+                if (returnId != null) addFormDataPart("return_id", returnId.toString())
+                else if (!tracking.isNullOrBlank()) addFormDataPart("tracking_number", tracking)
+                photo?.let { addFormDataPart("photo", "barang-asing.jpg", it.toRequestBody("image/jpeg".toMediaType())) }
+            }
+            .build()
+        return json.decodeFromString(call("POST", "/retur/foreign", rawBody = form))
+    }
+
+    suspend fun returRemoveForeign(returnId: Int, foreignId: Int): ReturnPayload =
+        json.decodeFromString(call("DELETE", "/retur/$returnId/foreign/$foreignId"))
+
+    /**
+     * Terima paket. [checks]: id baris -> (layak, rusak, seharusnya).
+     * "Seharusnya" hanya dipakai server untuk retur manual.
+     */
+    suspend fun returFinish(returnId: Int, checks: Map<Int, Triple<Int, Int, Int>>, reason: String?): ReturnFinish =
+        json.decodeFromString(
+            call("POST", "/retur/$returnId/finish", buildJsonObject {
+                if (!reason.isNullOrBlank()) put("reason", reason)
+                put("items", buildJsonObject {
+                    checks.forEach { (id, check) ->
+                        put(id.toString(), buildJsonObject {
+                            put("good", check.first)
+                            put("damaged", check.second)
+                            put("expected", check.third)
+                        })
+                    }
+                })
+            })
+        )
+
     /* ---------------------------------------------------- pesanan ---- */
 
     suspend fun summary(date: String? = null): Summary =
