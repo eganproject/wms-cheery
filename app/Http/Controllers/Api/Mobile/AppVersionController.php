@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api\Mobile;
 
 use App\Http\Controllers\Controller;
+use App\Models\MobileAppRelease;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -32,17 +34,33 @@ class AppVersionController extends Controller
                 'notes' => $latest['notes'],
                 'published_at' => $latest['published_at'],
             ] : null,
-            'min_version_code' => (int) config('services.mobile_app.min_version_code', 0),
+            'min_version_code' => max(
+                (int) config('services.mobile_app.min_version_code', 0),
+                rescue(fn () => MobileAppRelease::requiredVersionCode(), 0, false),
+            ),
         ]);
     }
 
     /**
-     * Unduh APK lewat server ini — dipakai bila repo GitHub-nya private
-     * (HP tidak punya token GitHub).
+     * Unduh APK lewat server ini: APK unggahan admin, atau APK dari repo
+     * GitHub private (HP tidak punya token GitHub). Alamat ini juga bisa
+     * dibuka dari browser HP untuk pemasangan pertama.
      */
     public function download(): StreamedResponse
     {
         $latest = $this->latest();
+
+        // APK unggahan admin: langsung dari penyimpanan server.
+        if (($latest['release'] ?? null) instanceof MobileAppRelease) {
+            $release = $latest['release'];
+            $disk = Storage::disk(MobileAppRelease::DISK);
+            abort_unless($disk->exists($release->file_path), 404, 'Berkas pembaruan tidak ditemukan.');
+
+            return $disk->download($release->file_path, 'wms-cheery-scan.apk', [
+                'Content-Type' => 'application/vnd.android.package-archive',
+            ]);
+        }
+
         $token = config('services.mobile_app.github_token');
 
         abort_if(! $latest || ! $token || ! $latest['asset_api_url'], 404, 'Berkas pembaruan tidak ditemukan.');
@@ -70,10 +88,28 @@ class AppVersionController extends Controller
     }
 
     /**
-     * @return array{version_code:int, version_name:string, download_url:string, size:?int, notes:?string, published_at:?string, asset_api_url:?string}|null
+     * @return array{version_code:int, version_name:string, download_url:string, size:?int, notes:?string, published_at:?string, asset_api_url:?string, release?:MobileAppRelease}|null
      */
     private function latest(): ?array
     {
+        // APK yang diunggah admin (Pengaturan > Aplikasi Android) selalu
+        // didahulukan; GitHub hanya cadangan bila belum ada unggahan.
+        // rescue: server yang belum `php artisan migrate` tetap jalan lewat GitHub.
+        if (rescue(fn () => MobileAppRelease::query()->exists(), false, false)) {
+            $release = MobileAppRelease::latestActive();
+
+            return $release ? [
+                'version_code' => $release->version_code,
+                'version_name' => $release->version_name,
+                'download_url' => route('mobile.app-download', absolute: false),
+                'size' => $release->file_size,
+                'notes' => $release->notes,
+                'published_at' => $release->created_at?->toIso8601String(),
+                'asset_api_url' => null,
+                'release' => $release,
+            ] : null;
+        }
+
         $config = config('services.mobile_app');
 
         // Diisi manual di .env: tidak perlu GitHub sama sekali.

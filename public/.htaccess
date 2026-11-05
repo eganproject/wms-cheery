@@ -1,3 +1,14 @@
+# APK aplikasi Android (Pengaturan > Aplikasi Android) berukuran puluhan MB.
+# Untuk Apache + mod_php (mis. Laragon); server PHP-FPM membaca .user.ini.
+<IfModule mod_php.c>
+    php_value upload_max_filesize 100M
+    php_value post_max_size 110M
+</IfModule>
+<IfModule mod_php8.c>
+    php_value upload_max_filesize 100M
+    php_value post_max_size 110M
+</IfModule>
+
 # Mesin pemindai kamera dimuat sebagai WebAssembly. Sebagian server Apache
 # belum mengenal akhiran .wasm dan menyajikannya sebagai berkas biasa,
 # sehingga peramban menolak menjalankannya dan kamera gagal membaca kode.

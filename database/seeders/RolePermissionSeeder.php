@@ -121,6 +121,11 @@ class RolePermissionSeeder extends Seeder
             'stock-api-access.update' => 'Menambah dan mengubah IP API stok',
             'stock-api-access.delete' => 'Menghapus IP API stok',
         ],
+        'Aplikasi Android' => [
+            'mobile-app.view' => 'Melihat versi aplikasi Android',
+            'mobile-app.update' => 'Mengunggah & mengatur versi aplikasi Android',
+            'mobile-app.delete' => 'Menghapus versi aplikasi Android',
+        ],
         'Absensi' => [
             'attendance.view' => 'Melihat absensi harian & rekap absensi',
             'leaves.view' => 'Melihat izin, sakit & cuti',

@@ -26,8 +26,14 @@ tulisan **Periksa pembaruan** di bawah Beranda.
 - Hanya berjalan bila APK lama dan baru ditandatangani **kunci yang sama**
   (lihat *Kunci tanda tangan*). Tanpa secret keystore, tiap build memakai kunci
   debug acak, sehingga update selalu ditolak Android.
-- Server membaca versi terbaru dari GitHub Releases (tag `android-v1.0.N`),
-  disimpan 10 menit. Pengaturan di `.env` server:
+- **Cara utama:** unggah APK di web admin **Pengaturan > Aplikasi Android**
+  (hak akses `mobile-app.*`). Nomor versi dibaca otomatis dari APK, bisa diberi
+  catatan "Yang baru" dan tanda **Wajib diperbarui**. HP mengunduh APK langsung
+  dari server WMS (`/api/mobile/app-download`, alamat ini juga dipakai untuk
+  pemasangan pertama dari browser HP). Batas upload PHP minimal ~60 MB
+  (`public/.user.ini` / `.htaccess` sudah menaikkan ke 100 MB bila server mengizinkan).
+- Bila belum ada APK yang diunggah, server memakai GitHub Releases (tag
+  `android-v1.0.N`), disimpan 10 menit. Pengaturan di `.env` server:
 
 | Variabel | Arti |
 |---|---|

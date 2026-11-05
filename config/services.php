@@ -37,12 +37,15 @@ return [
 
     /*
      * Pembaruan aplikasi Android dari dalam aplikasi (/api/mobile/app-version).
-     * Bawaan: versi terbaru dibaca dari GitHub Releases (tag android-v1.0.N).
+     * Utama: APK yang diunggah di Pengaturan > Aplikasi Android. Bila belum
+     * ada satu pun, versi terbaru dibaca dari GitHub Releases (android-v1.0.N).
      * Bila repo dijadikan private, isi MOBILE_APP_GITHUB_TOKEN (izin baca
      * Contents) — APK lalu diunduh lewat server ini. Bisa juga diisi manual
      * dengan MOBILE_APP_VERSION_CODE + MOBILE_APP_DOWNLOAD_URL.
      */
     'mobile_app' => [
+        // Nama paket aplikasi; APK yang diunggah di admin harus cocok.
+        'package' => env('MOBILE_APP_PACKAGE', 'id.cheerychic.wmsscan'),
         'github_repo' => env('MOBILE_APP_GITHUB_REPO', 'eganproject/wms-cheery'),
         'github_token' => env('MOBILE_APP_GITHUB_TOKEN'),
         'version_code' => env('MOBILE_APP_VERSION_CODE'),

@@ -23,6 +23,7 @@ use App\Http\Controllers\Admin\ShipmentImportController;
 use App\Http\Controllers\Admin\ShipmentOrderCancellationController;
 use App\Http\Controllers\Admin\ShipmentSkuMatchController;
 use App\Http\Controllers\Admin\StockAdjustmentController;
+use App\Http\Controllers\Admin\MobileAppReleaseController;
 use App\Http\Controllers\Admin\StockApiAllowedIpController;
 use App\Http\Controllers\Admin\StockMovementController;
 use App\Http\Controllers\Admin\StockOpnameController;
@@ -206,6 +207,12 @@ Route::middleware('auth')
         // Manajemen akses
         Route::get('permissions', [PermissionController::class, 'index'])->name('permissions.index');
         Route::put('permissions', [PermissionController::class, 'update'])->name('permissions.update');
+
+        Route::get('mobile-app', [MobileAppReleaseController::class, 'index'])->name('mobile-app.index');
+        Route::post('mobile-app', [MobileAppReleaseController::class, 'store'])->name('mobile-app.store');
+        Route::put('mobile-app/{release}', [MobileAppReleaseController::class, 'update'])->name('mobile-app.update');
+        Route::delete('mobile-app/{release}', [MobileAppReleaseController::class, 'destroy'])->name('mobile-app.destroy');
+        Route::get('mobile-app/{release}/download', [MobileAppReleaseController::class, 'download'])->name('mobile-app.download');
 
         Route::get('stock-api-access', [StockApiAllowedIpController::class, 'index'])->name('stock-api-access.index');
         Route::post('stock-api-access', [StockApiAllowedIpController::class, 'store'])->name('stock-api-access.store');
