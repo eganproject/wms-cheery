@@ -142,10 +142,33 @@ class AdminPanelTest extends TestCase
         $permissions = Permission::whereIn('slug', ['dashboard.view', 'users.view', 'users.create'])->pluck('id')->all();
 
         $this->actingAs($this->admin)->put(route('admin.permissions.update'), [
-            'matrix' => [$role->id => $permissions],
-        ])->assertRedirect(route('admin.permissions.index'));
+            'role_id' => $role->id, 'permissions' => $permissions,
+        ])->assertRedirect(route('admin.permissions.index', ['role' => $role->id]));
 
         $this->assertCount(3, $role->refresh()->permissions);
+    }
+
+    public function test_permission_page_edits_one_role_at_a_time(): void
+    {
+        $staff = Role::where('slug', 'staff-gudang')->firstOrFail();
+        $super = Role::where('is_super_admin', true)->firstOrFail();
+        \App\Models\JobPosition::create(['name' => 'Packer', 'role_id' => $staff->id, 'is_active' => true]);
+
+        $this->actingAs($this->admin)->get(route('admin.permissions.index', ['role' => $staff->id]))
+            ->assertOk()->assertSee('Simpan hak akses Staff Gudang')->assertSee('Packer');
+        $this->actingAs($this->admin)->get(route('admin.permissions.index', ['role' => $super->id]))
+            ->assertOk()->assertSee('tidak perlu diatur');
+
+        // Role lain tidak ikut berubah saat satu role disimpan.
+        $adminRole = Role::where('slug', 'admin')->firstOrFail();
+        $before = $adminRole->permissions()->count();
+        $this->actingAs($this->admin)->put(route('admin.permissions.update'), ['role_id' => $staff->id, 'permissions' => []])
+            ->assertSessionHas('success');
+        $this->assertCount(0, $staff->refresh()->permissions);
+        $this->assertSame($before, $adminRole->permissions()->count());
+
+        $this->actingAs($this->admin)->put(route('admin.permissions.update'), ['role_id' => $super->id, 'permissions' => []])
+            ->assertSessionHas('error');
     }
 
     public function test_user_without_permission_cannot_access_user_management(): void

@@ -22,45 +22,66 @@ class PermissionController extends Controller implements HasMiddleware
     }
 
     /**
-     * Permission matrix: every permission as a row, every role as a column.
+     * Hak akses diatur satu role sekaligus: pilih role di kiri, centang
+     * aksesnya per kelompok menu di kanan.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
-        $roles = Role::with('permissions')->orderBy('name')->get();
+        $roles = Role::query()
+            ->with(['permissions:id', 'jobPositions:id,name,role_id'])
+            ->withCount('users')
+            ->orderByDesc('is_super_admin')
+            ->orderBy('name')
+            ->get();
+
+        $role = $roles->firstWhere('id', $request->integer('role'))
+            ?? $roles->firstWhere('is_super_admin', false)
+            ?? $roles->first();
 
         $permissionGroups = Permission::orderBy('id')->get()->groupBy('group');
 
-        $matrix = $roles->mapWithKeys(fn (Role $role) => [
-            $role->id => $role->permissions->pluck('id')->all(),
-        ]);
+        // Selain super admin, hanya izin yang dimiliki sendiri (atau yang sudah
+        // dimiliki role ini) yang boleh dicentang.
+        $actor = $request->user()->loadMissing('role.permissions');
+        $grantable = $actor->isSuperAdmin()
+            ? null
+            : array_values(array_unique(array_merge(
+                $actor->role?->permissions->pluck('id')->all() ?? [],
+                $role?->permissions->pluck('id')->all() ?? [],
+            )));
 
-        return view('admin.permissions.index', compact('roles', 'permissionGroups', 'matrix'));
+        return view('admin.permissions.index', [
+            'roles' => $roles,
+            'role' => $role,
+            'permissionGroups' => $permissionGroups,
+            'assigned' => $role?->permissions->pluck('id')->all() ?? [],
+            'grantable' => $grantable,
+        ]);
     }
 
     public function update(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'matrix' => ['array'],
-            'matrix.*' => ['array'],
-            'matrix.*.*' => ['integer', 'exists:permissions,id'],
+            'role_id' => ['required', 'integer', 'exists:roles,id'],
+            'permissions' => ['array'],
+            'permissions.*' => ['integer', 'exists:permissions,id'],
         ]);
 
-        $matrix = $validated['matrix'] ?? [];
+        $role = Role::findOrFail($validated['role_id']);
+        $back = redirect()->route('admin.permissions.index', ['role' => $role->id]);
 
-        // Selain super admin, hanya izin yang dimiliki sendiri yang bisa
-        // ditambahkan ke role mana pun — termasuk role-nya sendiri.
-        foreach (Role::where('is_super_admin', false)->get() as $role) {
-            if (\App\Support\AccessGuard::unheldPermissions($request->user(), $matrix[$role->id] ?? [], $role)) {
-                return back()->with('error', 'Anda hanya bisa memberikan hak akses yang Anda miliki sendiri.');
-            }
+        if ($role->is_super_admin) {
+            return $back->with('error', 'Role super admin selalu memiliki semua hak akses dan tidak perlu diatur.');
         }
 
-        Role::where('is_super_admin', false)->get()->each(function (Role $role) use ($matrix) {
-            $role->permissions()->sync($matrix[$role->id] ?? []);
-        });
+        $permissions = $validated['permissions'] ?? [];
 
-        return redirect()
-            ->route('admin.permissions.index')
-            ->with('success', 'Hak akses berhasil disimpan.');
+        if (\App\Support\AccessGuard::unheldPermissions($request->user(), $permissions, $role)) {
+            return $back->with('error', 'Anda hanya bisa memberikan hak akses yang Anda miliki sendiri.');
+        }
+
+        $role->permissions()->sync($permissions);
+
+        return $back->with('success', "Hak akses {$role->name} berhasil disimpan.");
     }
 }
