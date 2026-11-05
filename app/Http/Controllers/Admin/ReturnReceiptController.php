@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\UpdateReturnReceiptRequest;
 use App\Models\Outbound;
 use App\Models\Product;
 use App\Models\ReturnReceipt;
+use App\Models\ReturnReceiptForeignItem;
 use App\Models\ReturnReceiptItem;
 use App\Services\ApprovalService;
 use App\Services\TableExport;
@@ -18,6 +19,8 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -31,7 +34,8 @@ class ReturnReceiptController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:returns.view', only: ['index', 'show', 'export']),
+            new Middleware('can:returns.view', only: ['index', 'show', 'export', 'foreignPhoto']),
+            new Middleware('can:returns.post', only: ['foreignFollowup']),
             new Middleware('can:returns.create', only: ['create', 'store']),
             new Middleware('can:returns.update', only: ['edit', 'update']),
             new Middleware('can:returns.delete', only: ['destroy']),
@@ -146,6 +150,9 @@ class ReturnReceiptController extends Controller implements HasMiddleware
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->when($request->filled('type'), fn ($query) => $query->where('type', $request->string('type')))
             ->when($request->filled('marketplace'), fn ($query) => $query->where('marketplace', $request->string('marketplace')))
+            ->when($request->filled('foreign'), fn ($query) => $request->string('foreign')->value() === 'any'
+                ? $query->whereNotNull('foreign_status')
+                : $query->where('foreign_status', $request->string('foreign')))
             ->dateBetween(DateRange::fromRequest($request))
             ->latest('date')
             ->latest('id');
@@ -231,7 +238,7 @@ class ReturnReceiptController extends Controller implements HasMiddleware
 
     public function show(ReturnReceipt $return): View
     {
-        $return->load(['items.product', 'user', 'shipmentOrder.outbound']);
+        $return->load(['items.product', 'foreignItems', 'user', 'shipmentOrder.outbound']);
 
         return view('admin.returns.show', [
             'return' => $return,
@@ -368,6 +375,42 @@ class ReturnReceiptController extends Controller implements HasMiddleware
         }
 
         return back()->with('success', "Pengajuan {$return->code} ditarik kembali ke draft.");
+    }
+
+    /**
+     * Foto barang bukan milik kita. Disimpan di disk privat.
+     */
+    public function foreignPhoto(ReturnReceiptForeignItem $foreign)
+    {
+        $disk = Storage::disk(ReturnReceiptForeignItem::PHOTO_DISK);
+
+        abort_unless($foreign->photo_path && $disk->exists($foreign->photo_path), 404);
+
+        return $disk->response($foreign->photo_path, null, [
+            'Cache-Control' => 'private, max-age=3600',
+        ]);
+    }
+
+    /**
+     * Tindak lanjut barang bukan milik kita: klaim ke marketplace, lalu
+     * selesai (dikembalikan atau dibuang). Tetap bisa diubah setelah dokumen
+     * diterima karena klaim biasanya baru beres beberapa hari kemudian.
+     */
+    public function foreignFollowup(Request $request, ReturnReceipt $return): RedirectResponse
+    {
+        abort_unless($return->foreignItems()->exists(), 404);
+
+        $data = $request->validate([
+            'foreign_status' => ['required', Rule::in(array_keys(ReturnReceipt::foreignStatuses()))],
+            'foreign_note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $return->update($data + [
+            'foreign_updated_at' => now(),
+            'foreign_updated_by' => $request->user()->id,
+        ]);
+
+        return back()->with('success', 'Tindak lanjut barang bukan milik kita disimpan.');
     }
 
     public function destroy(ReturnReceipt $return): RedirectResponse

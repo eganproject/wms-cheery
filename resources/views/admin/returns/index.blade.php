@@ -45,6 +45,14 @@
                 <option value="draft" @selected(request('status') === 'draft')>Draft</option>
                 <option value="posted" @selected(request('status') === 'posted')>Diterima</option>
             </x-ui.select>
+
+            <x-ui.select name="foreign" class="sm:w-44">
+                <option value="">Semua isi paket</option>
+                <option value="any" @selected(request('foreign') === 'any')>Ada barang bukan milik kita</option>
+                @foreach (\App\Models\ReturnReceipt::foreignStatuses() as $value => $label)
+                    <option value="{{ $value }}" @selected(request('foreign') === $value)>Barang asing: {{ $label }}</option>
+                @endforeach
+            </x-ui.select>
         </div>
 
         {{-- Rentang tanggal berbaris sendiri: kolomnya membawa pintasan periode
@@ -54,7 +62,7 @@
 
             <div class="flex items-center gap-2">
                 <x-ui.button type="submit" variant="secondary" icon="filter" class="flex-1 sm:flex-none">Terapkan</x-ui.button>
-                @if (request()->hasAny(['search', 'status', 'type', 'marketplace', 'from', 'to']))
+                @if (request()->hasAny(['search', 'status', 'type', 'marketplace', 'foreign', 'from', 'to']))
                     <x-ui.button :href="route('admin.returns.index')" variant="ghost" size="icon" title="Reset filter">
                         <x-icon name="refresh" class="h-4 w-4" />
                     </x-ui.button>
@@ -119,6 +127,13 @@
                                             {{ $return->statusLabel() }}
                                         </x-ui.badge>
                                     @endif
+                                    @if ($return->foreign_status)
+                                        <div class="mt-1">
+                                            <x-ui.badge :variant="$return->foreignStatusVariant()" title="Barang bukan milik kita">
+                                                Barang asing · {{ $return->foreignStatusLabel() }}
+                                            </x-ui.badge>
+                                        </div>
+                                    @endif
                                 </td>
                                 <td>
                                     <div class="flex items-center justify-end gap-1">
@@ -177,6 +192,9 @@
                                 <x-ui.badge variant="outline">Non-marketplace</x-ui.badge>
                             @endif
                             <x-ui.badge variant="outline">{{ (int) $return->items_sum_quantity }} unit</x-ui.badge>
+                            @if ($return->foreign_status)
+                                <x-ui.badge :variant="$return->foreignStatusVariant()">Barang asing · {{ $return->foreignStatusLabel() }}</x-ui.badge>
+                            @endif
                         </div>
 
                         <div class="mt-3 flex items-center justify-end gap-1 border-t border-ink-50 pt-3">

@@ -139,6 +139,73 @@
                 @endif
             </x-ui.card>
 
+            {{-- Barang bukan milik kita: bukti untuk klaim, tidak masuk stok --}}
+            @if ($return->foreignItems->isNotEmpty())
+                <x-ui.card title="Barang Bukan Milik Kita"
+                           :subtitle="$return->foreignItems->count().' baris · '.$return->foreignQuantity().' unit · tidak masuk stok'"
+                           padding="p-0">
+                    <x-slot name="actions">
+                        <x-ui.badge :variant="$return->foreignStatusVariant()">{{ $return->foreignStatusLabel() }}</x-ui.badge>
+                    </x-slot>
+
+                    <ul class="divide-y divide-ink-100">
+                        @foreach ($return->foreignItems as $foreign)
+                            <li class="flex items-center gap-3 px-5 py-3 sm:px-6">
+                                @if ($foreign->photoUrl())
+                                    <a href="{{ $foreign->photoUrl() }}" target="_blank" rel="noopener" class="shrink-0">
+                                        <img src="{{ $foreign->photoUrl() }}" alt="Foto {{ $foreign->description }}"
+                                             class="h-14 w-14 rounded-lg object-cover ring-1 ring-ink-100">
+                                    </a>
+                                @else
+                                    <span class="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-control text-[11px] text-ink-400">Tanpa foto</span>
+                                @endif
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-sm font-medium text-ink-950">{{ $foreign->description }}</p>
+                                    <p class="text-xs text-ink-500">Dicatat {{ $foreign->created_at?->translatedFormat('d M Y H:i') }}</p>
+                                </div>
+                                <span class="shrink-0 text-sm font-semibold text-ink-950">{{ number_format($foreign->quantity, 0, ',', '.') }}
+                                    <span class="text-xs font-normal text-ink-400">unit</span></span>
+                            </li>
+                        @endforeach
+                    </ul>
+
+                    <div class="border-t border-ink-100 px-5 py-4 sm:px-6">
+                        @can('returns.post')
+                            <form method="POST" action="{{ route('admin.returns.foreign.followup', $return) }}" class="space-y-3">
+                                @csrf
+                                @method('PUT')
+                                <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                    <label class="block text-xs text-ink-500">
+                                        Tindak lanjut
+                                        <select name="foreign_status" class="form-control mt-1">
+                                            @foreach (\App\Models\ReturnReceipt::foreignStatuses() as $value => $label)
+                                                <option value="{{ $value }}" @selected($return->foreign_status === $value)>{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </label>
+                                    <label class="block text-xs text-ink-500 sm:col-span-2">
+                                        Catatan
+                                        <input type="text" name="foreign_note" maxlength="1000" value="{{ old('foreign_note', $return->foreign_note) }}"
+                                               placeholder="mis. Klaim TikTok no. 123, barang dikembalikan ke kurir"
+                                               class="form-control mt-1">
+                                    </label>
+                                </div>
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <p class="text-[11px] text-ink-400">
+                                        @if ($return->foreign_updated_at)
+                                            Terakhir diubah {{ $return->foreign_updated_at->translatedFormat('d M Y H:i') }}
+                                        @endif
+                                    </p>
+                                    <x-ui.button type="submit" variant="secondary" size="sm" icon="check">Simpan Tindak Lanjut</x-ui.button>
+                                </div>
+                            </form>
+                        @else
+                            <p class="text-sm text-ink-600">{{ $return->foreign_note ?: 'Belum ada catatan tindak lanjut.' }}</p>
+                        @endcan
+                    </div>
+                </x-ui.card>
+            @endif
+
             @if ($return->note)
                 <x-ui.card title="Catatan">
                     <p class="whitespace-pre-line text-sm text-ink-600">{{ $return->note }}</p>

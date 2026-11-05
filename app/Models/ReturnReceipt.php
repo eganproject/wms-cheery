@@ -25,6 +25,13 @@ class ReturnReceipt extends Model
 
     public const TYPE_MARKETPLACE = 'marketplace';
 
+    /** Tindak lanjut barang bukan milik kita. */
+    public const FOREIGN_OPEN = 'open';
+
+    public const FOREIGN_CLAIMED = 'claimed';
+
+    public const FOREIGN_DONE = 'done';
+
     protected $fillable = [
         'code',
         'date',
@@ -36,6 +43,10 @@ class ReturnReceipt extends Model
         'reference',
         'reason',
         'note',
+        'foreign_status',
+        'foreign_note',
+        'foreign_updated_at',
+        'foreign_updated_by',
         'status',
         'resi_verified_at',
         'posted_at',
@@ -54,11 +65,58 @@ class ReturnReceipt extends Model
         return [
             'date' => 'date',
             'resi_verified_at' => 'datetime',
+            'foreign_updated_at' => 'datetime',
             'posted_at' => 'datetime',
             'submitted_at' => 'datetime',
             'approved_at' => 'datetime',
             'rejected_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Lewat model, bukan cascade database, supaya fotonya ikut terhapus.
+        static::deleting(function (self $return) {
+            $return->foreignItems()->get()->each->delete();
+        });
+    }
+
+    /** Barang bukan milik kita yang ikut di paket ini. Tidak masuk stok. */
+    public function foreignItems(): HasMany
+    {
+        return $this->hasMany(ReturnReceiptForeignItem::class);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function foreignStatuses(): array
+    {
+        return [
+            self::FOREIGN_OPEN => 'Belum ditindak',
+            self::FOREIGN_CLAIMED => 'Diajukan klaim',
+            self::FOREIGN_DONE => 'Selesai',
+        ];
+    }
+
+    public function foreignStatusLabel(): ?string
+    {
+        return self::foreignStatuses()[$this->foreign_status] ?? null;
+    }
+
+    public function foreignStatusVariant(): string
+    {
+        return match ($this->foreign_status) {
+            self::FOREIGN_OPEN => 'danger',
+            self::FOREIGN_CLAIMED => 'warning',
+            self::FOREIGN_DONE => 'success',
+            default => 'neutral',
+        };
+    }
+
+    public function foreignQuantity(): int
+    {
+        return (int) $this->foreignItems->sum('quantity');
     }
 
     public function items(): HasMany
@@ -168,7 +226,9 @@ class ReturnReceipt extends Model
     {
         $blockers = [];
 
-        if ($this->items->isEmpty()) {
+        // Paket yang isinya seluruhnya barang asing tetap boleh diterima:
+        // dokumennya menjadi bukti klaim, stok tidak berubah.
+        if ($this->items->isEmpty() && ! $this->foreignItems()->exists()) {
             $blockers[] = 'Dokumen belum memiliki baris barang.';
         }
 

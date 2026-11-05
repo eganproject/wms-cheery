@@ -12,6 +12,7 @@
                 start: '{{ route('admin.returns.marketplace.store') }}',
                 lookup: '{{ route('admin.returns.marketplace.lookup') }}',
                 manual: '{{ route('admin.returns.marketplace.manual') }}',
+                foreign: '{{ route('admin.returns.marketplace.foreign') }}',
             },
             canFinish: {{ auth()->user()->can('returns.post') ? 'true' : 'false' }},
          })"
@@ -204,11 +205,68 @@
                                     : (isCollectStage ? 'Menunggu barang pertama discan' : 'Menunggu resi discan')"></p>
                         </div>
 
-                        <button type="button" x-on:click="markEverythingIntact()" x-show="document" x-cloak
-                                class="btn btn-default shrink-0 text-green-800">
-                            <x-icon name="check" class="h-3.5 w-3.5" />
-                            Semua utuh
-                        </button>
+                        <div class="flex shrink-0 items-center gap-2">
+                            <button type="button" x-on:click="openForeign()" x-show="canRecordForeign" x-cloak :disabled="busy"
+                                    title="Catat barang di paket ini yang bukan barang kita. Tidak masuk stok."
+                                    class="btn btn-default shrink-0 text-amber-800">
+                                <x-icon name="warning" class="h-3.5 w-3.5" />
+                                <span class="hidden sm:inline">Bukan barang kita</span>
+                                <span class="sm:hidden">Barang asing</span>
+                            </button>
+
+                            <button type="button" x-on:click="markEverythingIntact()" x-show="document && items.length" x-cloak
+                                    class="btn btn-default shrink-0 text-green-800">
+                                <x-icon name="check" class="h-3.5 w-3.5" />
+                                Semua utuh
+                            </button>
+                        </div>
+                    </div>
+
+                    {{-- Catat barang bukan milik kita: bukti klaim, tidak masuk stok --}}
+                    <form x-show="foreignForm.open" x-cloak data-no-ajax @submit.prevent="saveForeign()"
+                          class="shrink-0 space-y-2.5 border-b border-amber-200 bg-amber-50 px-4 py-3 sm:px-5">
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs font-semibold text-amber-900">Barang bukan milik kita</p>
+                            <button type="button" x-on:click="closeForeign()"
+                                    class="text-xs text-ink-500 underline-offset-4 hover:underline">Batal</button>
+                        </div>
+                        <div class="flex gap-2">
+                            <input x-ref="foreignDescription" x-model="foreignForm.description" type="text" maxlength="255"
+                                   placeholder="Keterangan, mis. kaos hitam merek lain"
+                                   class="form-control min-w-0 flex-1">
+                            <input x-model.number="foreignForm.quantity" type="number" min="1" max="9999" inputmode="numeric"
+                                   title="Jumlah" class="form-control w-20 text-center">
+                        </div>
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <label class="btn btn-default cursor-pointer">
+                                <x-icon name="camera" class="h-3.5 w-3.5" />
+                                <span x-text="foreignForm.photoName || 'Ambil / pilih foto'" class="max-w-[12rem] truncate"></span>
+                                <input x-ref="foreignPhoto" type="file" accept="image/*" capture="environment" class="hidden"
+                                       x-on:change="foreignForm.photoName = $event.target.files[0]?.name ?? ''">
+                            </label>
+                            <button type="submit" :disabled="busy" class="btn btn-primary">Simpan</button>
+                        </div>
+                        <p class="text-[11px] text-amber-800">Dicatat sebagai bukti klaim ke marketplace. Tidak menambah stok dan tidak dihitung hilang.</p>
+                    </form>
+
+                    {{-- Hasil cari nama barang: pilih satu, lalu masuk seperti hasil scan --}}
+                    <div x-show="candidates.length" x-cloak class="shrink-0 border-b border-ink-100 bg-amber-50 px-4 py-3 sm:px-5">
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs font-medium text-ink-700">Pilih barang yang dimaksud</p>
+                            <button type="button" x-on:click="candidates = []; focusInput()"
+                                    class="text-xs text-ink-500 underline-offset-4 hover:underline">Tutup</button>
+                        </div>
+                        <ul class="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                            <template x-for="candidate in candidates" :key="candidate.sku">
+                                <li>
+                                    <button type="button" x-on:click="pickCandidate(candidate)" :disabled="busy"
+                                            class="flex w-full min-w-0 flex-col items-start rounded-lg bg-white px-3 py-2 text-left ring-1 ring-ink-100 transition hover:ring-blue-400 disabled:opacity-50">
+                                        <span class="w-full truncate text-sm font-medium text-ink-950" x-text="candidate.name"></span>
+                                        <span class="font-mono text-[11px] text-ink-500" x-text="'SKU ' + candidate.sku"></span>
+                                    </button>
+                                </li>
+                            </template>
+                        </ul>
                     </div>
 
                     {{-- Satu-satunya bagian yang menggulir --}}
@@ -228,7 +286,7 @@
 
                                 <p class="mt-1 max-w-xs text-xs leading-relaxed text-ink-500"
                                    x-text="isCollectStage
-                                        ? 'Dokumen retur langsung dibuat begitu barang pertama discan. Barcode maupun SKU sama-sama diterima.'
+                                        ? 'Dokumen retur langsung dibuat begitu barang pertama discan. Barcode, SKU, maupun nama barang sama-sama diterima.'
                                         : 'Scan resi retur pada panel di samping. Bila resinya belum diimport, barangnya bisa discan sendiri.'"></p>
                             </div>
                         </template>
@@ -330,6 +388,36 @@
                                 </template>
                             </ul>
                         </template>
+
+                        {{-- Barang bukan milik kita yang sudah dicatat pada paket ini --}}
+                        <template x-if="document && foreign.length">
+                            <div class="border-t border-amber-200 bg-amber-50/60">
+                                <p class="px-4 pt-3 text-xs font-semibold text-amber-900 sm:px-5"
+                                   x-text="`Bukan milik kita · ${foreignUnits} unit · tidak masuk stok`"></p>
+                                <ul class="divide-y divide-amber-100">
+                                    <template x-for="entry in foreign" :key="entry.id">
+                                        <li class="flex items-center gap-3 px-4 py-2.5 sm:px-5">
+                                            <template x-if="entry.photo_url">
+                                                <a :href="entry.photo_url" target="_blank" rel="noopener" class="shrink-0">
+                                                    <img :src="entry.photo_url" alt="" class="h-10 w-10 rounded-lg object-cover ring-1 ring-amber-200">
+                                                </a>
+                                            </template>
+                                            <template x-if="! entry.photo_url">
+                                                <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-amber-600 ring-1 ring-amber-200">
+                                                    <x-icon name="camera" class="h-4 w-4" />
+                                                </span>
+                                            </template>
+                                            <p class="min-w-0 flex-1 truncate text-sm text-ink-950" x-text="entry.description"></p>
+                                            <span class="shrink-0 text-sm font-semibold text-ink-950" x-text="`${entry.quantity} unit`"></span>
+                                            <button type="button" x-on:click="removeForeign(entry)" title="Hapus baris ini" :disabled="busy"
+                                                    class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-ink-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-40">
+                                                <x-icon name="trash" class="h-3.5 w-3.5" />
+                                            </button>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </div>
+                        </template>
                     </div>
 
                     {{-- Kaki kartu: aksi utama, posisinya tidak pernah berubah --}}
@@ -339,6 +427,7 @@
                                 <span class="font-medium text-green-700" x-text="`${goodUnits} layak jual`"></span>
                                 <span class="font-medium text-red-600" x-show="damagedUnits > 0" x-text="`${damagedUnits} rusak`"></span>
                                 <span class="font-medium text-orange-600" x-show="missingUnits > 0" x-text="`${missingUnits} hilang`"></span>
+                                <span class="font-medium text-amber-700" x-show="foreignUnits > 0" x-text="`${foreignUnits} bukan milik kita`"></span>
                             </div>
 
                             <select x-model="reason" data-plain x-show="document" x-cloak
@@ -391,6 +480,8 @@
                                     <span class="text-green-700" x-text="entry.good"></span>
                                     <span class="text-red-600" x-show="entry.damaged > 0" x-text="`/${entry.damaged}`"></span>
                                     <span class="text-orange-600" x-show="entry.missing > 0" x-text="`/${entry.missing}`"></span>
+                                    <span class="text-amber-700" x-show="entry.foreign > 0" x-text="`+${entry.foreign} asing`"
+                                          title="Barang bukan milik kita"></span>
                                 </div>
                                 <span class="shrink-0 font-mono text-[11px] text-ink-400" x-text="entry.at"></span>
                             </li>

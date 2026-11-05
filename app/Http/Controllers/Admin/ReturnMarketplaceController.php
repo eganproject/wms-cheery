@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ReturnReceipt;
+use App\Models\ReturnReceiptForeignItem;
 use App\Models\ReturnReceiptItem;
 use App\Models\ShipmentOrder;
 use App\Services\ApprovalService;
 use App\Services\ShipmentOrderResolver;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -38,8 +40,8 @@ class ReturnMarketplaceController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:returns.create', only: ['create', 'store', 'manual', 'addItem', 'removeItem', 'lookupItem']),
-            new Middleware('can:returns.scan', only: ['create', 'store', 'manual', 'addItem', 'removeItem', 'lookupItem']),
+            new Middleware('can:returns.create', only: ['create', 'store', 'manual', 'addItem', 'removeItem', 'lookupItem', 'addForeign', 'removeForeign']),
+            new Middleware('can:returns.scan', only: ['create', 'store', 'manual', 'addItem', 'removeItem', 'lookupItem', 'addForeign', 'removeForeign']),
             new Middleware('can:returns.post', only: ['finish']),
         ];
     }
@@ -130,24 +132,10 @@ class ReturnMarketplaceController extends Controller implements HasMiddleware
 
         $tracking = filled($data['tracking_number'] ?? null) ? trim($data['tracking_number']) : null;
 
-        if ($tracking && ReturnReceipt::where('tracking_number', $tracking)->exists()) {
-            throw ValidationException::withMessages([
-                'code' => 'Nomor resi ini sudah dipakai dokumen retur lain.',
-            ]);
-        }
+        $this->guardTrackingFree($tracking);
 
         $return = DB::transaction(function () use ($data, $tracking, $product, $quantity) {
-            $return = ReturnReceipt::create([
-                'code' => ReturnReceipt::nextCode(),
-                'date' => now()->toDateString(),
-                'type' => ReturnReceipt::TYPE_MARKETPLACE,
-                'sender' => $data['sender'] ?? 'Pembeli marketplace',
-                'tracking_number' => $tracking,
-                'status' => ReturnReceipt::STATUS_DRAFT,
-                // Label fisiknya baru saja discan operator.
-                'resi_verified_at' => now(),
-                'user_id' => auth()->id(),
-            ]);
+            $return = $this->newManualDocument($tracking, $data['sender'] ?? null);
 
             $return->items()->create([
                 'product_id' => $product->id,
@@ -163,6 +151,103 @@ class ReturnMarketplaceController extends Controller implements HasMiddleware
             'found' => true,
             'scanned' => $this->scannedInfo($product, $quantity),
         ] + $this->payload($return, null));
+    }
+
+    protected function guardTrackingFree(?string $tracking): void
+    {
+        if ($tracking && ReturnReceipt::where('tracking_number', $tracking)->exists()) {
+            throw ValidationException::withMessages([
+                'code' => 'Nomor resi ini sudah dipakai dokumen retur lain.',
+            ]);
+        }
+    }
+
+    protected function newManualDocument(?string $tracking, ?string $sender): ReturnReceipt
+    {
+        return ReturnReceipt::create([
+            'code' => ReturnReceipt::nextCode(),
+            'date' => now()->toDateString(),
+            'type' => ReturnReceipt::TYPE_MARKETPLACE,
+            'sender' => $sender ?: 'Pembeli marketplace',
+            'tracking_number' => $tracking,
+            'status' => ReturnReceipt::STATUS_DRAFT,
+            // Label fisiknya baru saja discan operator.
+            'resi_verified_at' => now(),
+            'user_id' => auth()->id(),
+        ]);
+    }
+
+    /**
+     * Catat barang bukan milik kita yang ikut di paket retur.
+     *
+     * Bisa pada paket dari resi import maupun retur manual. Bila dokumennya
+     * belum ada (barang asing adalah isi pertama yang ditemukan), dokumen
+     * retur manual dibentuk saat itu juga. Barang ini tidak pernah masuk stok.
+     */
+    public function addForeign(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'return_id' => ['nullable', 'integer', 'exists:return_receipts,id'],
+            'tracking_number' => ['nullable', 'string', 'max:100'],
+            'description' => ['required', 'string', 'max:255'],
+            'quantity' => ['required', 'integer', 'min:1', 'max:9999'],
+            'photo' => ['nullable', 'image', 'max:8192'],
+        ], [], [
+            'description' => 'keterangan barang',
+            'photo' => 'foto',
+        ]);
+
+        $return = filled($data['return_id'] ?? null) ? ReturnReceipt::findOrFail($data['return_id']) : null;
+
+        if ($return) {
+            $this->guardEditable($return);
+        } else {
+            $tracking = filled($data['tracking_number'] ?? null) ? trim($data['tracking_number']) : null;
+            $this->guardTrackingFree($tracking);
+        }
+
+        $path = ReturnReceiptForeignItem::storePhoto($request->file('photo'));
+
+        $return = DB::transaction(function () use ($return, $data, $path) {
+            $return ??= $this->newManualDocument(
+                filled($data['tracking_number'] ?? null) ? trim($data['tracking_number']) : null,
+                null,
+            );
+
+            $return->foreignItems()->create([
+                'description' => trim($data['description']),
+                'quantity' => $data['quantity'],
+                'photo_path' => $path,
+                'user_id' => auth()->id(),
+            ]);
+
+            if (! $return->foreign_status) {
+                $return->update(['foreign_status' => ReturnReceipt::FOREIGN_OPEN]);
+            }
+
+            return $return;
+        });
+
+        $return->load('items.product');
+
+        return response()->json(['found' => true] + $this->payload($return, $return->reference));
+    }
+
+    public function removeForeign(ReturnReceipt $return, ReturnReceiptForeignItem $foreign): JsonResponse
+    {
+        $this->guardEditable($return);
+
+        abort_unless($foreign->return_receipt_id === $return->id, 404);
+
+        $foreign->delete();
+
+        if (! $return->foreignItems()->exists()) {
+            $return->update(['foreign_status' => null, 'foreign_note' => null]);
+        }
+
+        $return->load('items.product');
+
+        return response()->json(['found' => true] + $this->payload($return, $return->reference));
     }
 
     /**
@@ -237,13 +322,7 @@ class ReturnMarketplaceController extends Controller implements HasMiddleware
 
     protected function productFor(string $code): Product
     {
-        $product = Product::findByCode($code);
-
-        if (! $product) {
-            throw ValidationException::withMessages([
-                'code' => "Kode {$code} tidak dikenali sebagai barcode maupun SKU barang mana pun.",
-            ]);
-        }
+        $product = Product::findByCode($code) ?? $this->productByName($code);
 
         /*
             Paket bundling tidak bisa diterima kembali sebagai satu baris.
@@ -261,6 +340,52 @@ class ReturnMarketplaceController extends Controller implements HasMiddleware
         }
 
         return $product;
+    }
+
+    /**
+     * Barang retur sering datang tanpa label barcode, dan petugas tidak hafal
+     * SKU-nya. Bila kode tidak dikenali, kata yang diketik dicocokkan ke nama
+     * barang: satu yang cocok langsung dipakai, beberapa yang cocok dikirim
+     * balik sebagai pilihan.
+     */
+    protected function productByName(string $code): Product
+    {
+        $words = collect(preg_split('/\s+/', trim($code)))
+            ->filter(fn ($word) => mb_strlen($word) >= 2)
+            ->take(5);
+
+        $matches = $words->isEmpty() ? collect() : Product::query()
+            ->singles()
+            ->where('is_active', true)
+            ->where(function ($query) use ($words) {
+                foreach ($words as $word) {
+                    $query->where('name', 'like', '%'.addcslashes($word, '%_\\').'%');
+                }
+            })
+            ->orderBy('name')
+            ->limit(9)
+            ->get(['id', 'sku', 'name', 'unit']);
+
+        if ($matches->count() === 1) {
+            return $matches->first();
+        }
+
+        if ($matches->isEmpty()) {
+            throw ValidationException::withMessages([
+                'code' => "Kode {$code} tidak dikenali sebagai barcode, SKU, maupun nama barang mana pun.",
+            ]);
+        }
+
+        throw new HttpResponseException(response()->json([
+            'candidates' => $matches->take(8)->map(fn (Product $product) => [
+                'sku' => $product->sku,
+                'name' => $product->name,
+                'unit' => $product->unit,
+            ])->values(),
+            'message' => $matches->count() > 8
+                ? 'Lebih dari 8 barang cocok. Pilih di bawah atau ketik nama lebih lengkap.'
+                : "{$matches->count()} barang cocok dengan \"{$code}\". Pilih yang benar.",
+        ]));
     }
 
     /**
@@ -302,6 +427,13 @@ class ReturnMarketplaceController extends Controller implements HasMiddleware
                 'good' => $item->good_quantity,
                 'damaged' => $item->damaged_quantity,
                 'remove_url' => route('admin.returns.marketplace.item.remove', [$return, $item]),
+            ])->values(),
+            'foreign' => $return->foreignItems()->oldest('id')->get()->map(fn (ReturnReceiptForeignItem $foreign) => [
+                'id' => $foreign->id,
+                'description' => $foreign->description,
+                'quantity' => $foreign->quantity,
+                'photo_url' => $foreign->photoUrl(),
+                'remove_url' => route('admin.returns.marketplace.foreign.remove', [$return, $foreign]),
             ])->values(),
             'urls' => [
                 'item' => route('admin.returns.marketplace.item', $return),
@@ -397,6 +529,7 @@ class ReturnMarketplaceController extends Controller implements HasMiddleware
         $return->refresh()->load('items');
 
         $missing = $return->missingQuantity();
+        $foreign = (int) $return->foreignItems()->sum('quantity');
 
         return response()->json([
             'code' => $return->code,
@@ -405,9 +538,11 @@ class ReturnMarketplaceController extends Controller implements HasMiddleware
             'good' => $return->goodQuantity(),
             'damaged' => $return->damagedQuantity(),
             'missing' => $missing,
+            'foreign' => $foreign,
             'message' => $selfApprove
                 ? "{$return->code} diterima. {$return->goodQuantity()} unit layak jual masuk stok"
-                    .($missing > 0 ? ", {$missing} unit hilang." : '.')
+                    .($missing > 0 ? ", {$missing} unit hilang" : '')
+                    .($foreign > 0 ? ", {$foreign} unit bukan milik kita dicatat untuk klaim." : '.')
                 : "{$return->code} diajukan dan menunggu persetujuan.",
         ]);
     }

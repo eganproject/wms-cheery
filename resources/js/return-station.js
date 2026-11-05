@@ -35,6 +35,16 @@ export default function returnStation(config) {
         manualEntry: false,
         pendingTracking: '',
 
+        /** Barang yang namanya cocok dengan kata yang diketik, untuk dipilih. */
+        candidates: [],
+
+        /**
+         * Barang bukan milik kita yang ikut di paket. Dicatat sebagai bukti
+         * klaim (keterangan, jumlah, foto) dan tidak pernah masuk stok.
+         */
+        foreign: [],
+        foreignForm: { open: false, description: '', quantity: 1, photoName: '' },
+
         completed: [],
         history: [],
         autoContinue: true,
@@ -50,6 +60,15 @@ export default function returnStation(config) {
 
         init() {
             this.focusInput();
+        },
+
+        /** Barang asing bisa dicatat begitu paketnya dibuka. */
+        get canRecordForeign() {
+            return this.stage === 'collect' || this.stage === 'review';
+        },
+
+        get foreignUnits() {
+            return this.foreign.reduce((total, entry) => total + Number(entry.quantity || 0), 0);
         },
 
         get isResiStage() {
@@ -94,9 +113,9 @@ export default function returnStation(config) {
         get placeholder() {
             return {
                 resi: 'Scan atau ketik nomor resi retur…',
-                collect: 'Scan barcode atau ketik SKU barang…',
+                collect: 'Scan barcode, ketik SKU, atau ketik nama barang…',
                 review: this.manualEntry
-                    ? 'Scan barang lain, atau Enter untuk menerima…'
+                    ? 'Scan barang lain / ketik nama, atau Enter untuk menerima…'
                     : 'Tekan Enter untuk menerima paket ini…',
                 finishing: '',
             }[this.stage];
@@ -252,7 +271,17 @@ export default function returnStation(config) {
                 ? await this.post(this.urls.item, { code, quantity })
                 : await this.post(this.urls.manual, { tracking_number: this.pendingTracking, code, quantity });
 
+            // Kata yang diketik cocok dengan beberapa nama barang: petugas
+            // memilih salah satu, jumlah pengalinya tetap disimpan.
+            if (payload.candidates) {
+                this.candidates = payload.candidates;
+                this.report('warning', payload.message, code);
+
+                return;
+            }
+
             this.bulk = 1;
+            this.candidates = [];
 
             // Hasil pemeriksaan yang sudah diketik tidak ikut tertimpa.
             this.adopt(payload, true);
@@ -263,6 +292,78 @@ export default function returnStation(config) {
             this.report('success', `${scanned.sku} · ${scanned.quantity} ${scanned.unit}`, code, 'item');
         },
 
+        /** Pilih salah satu barang hasil pencarian nama. */
+        async pickCandidate(candidate) {
+            if (this.busy) return;
+
+            this.candidates = [];
+            this.code = candidate.sku;
+            await this.submit();
+        },
+
+        openForeign() {
+            this.foreignForm = { open: true, description: '', quantity: 1, photoName: '' };
+            if (this.$refs.foreignPhoto) this.$refs.foreignPhoto.value = '';
+            this.$nextTick(() => this.$refs.foreignDescription?.focus());
+        },
+
+        closeForeign() {
+            this.foreignForm.open = false;
+            this.focusInput();
+        },
+
+        async saveForeign() {
+            if (this.busy) return;
+
+            const description = this.foreignForm.description.trim();
+
+            if (! description) {
+                this.report('error', 'Tulis keterangan barangnya, mis. "kaos hitam merek lain".', '');
+
+                return;
+            }
+
+            const body = new FormData();
+            body.append('description', description);
+            body.append('quantity', String(Math.max(1, Number(this.foreignForm.quantity) || 1)));
+
+            if (this.document) body.append('return_id', String(this.document.id));
+            else if (this.pendingTracking) body.append('tracking_number', this.pendingTracking);
+
+            const photo = this.$refs.foreignPhoto?.files?.[0];
+            if (photo) body.append('photo', photo);
+
+            this.busy = true;
+
+            try {
+                const payload = await this.send(this.urls.foreign, 'POST', body);
+
+                this.adopt(payload, true);
+                this.foreignForm.open = false;
+                this.report('warning', `Bukan milik kita · ${description} · tidak masuk stok`, description);
+            } catch (error) {
+                this.report('error', error.message, '');
+            } finally {
+                this.busy = false;
+                this.focusInput();
+            }
+        },
+
+        async removeForeign(entry) {
+            if (this.busy) return;
+
+            this.busy = true;
+
+            try {
+                this.adopt(await this.request(entry.remove_url, 'DELETE'), true);
+            } catch (error) {
+                this.report('error', error.message, '');
+            } finally {
+                this.busy = false;
+                this.focusInput();
+            }
+        },
+
         async removeItem(item) {
             if (this.busy) return;
 
@@ -271,7 +372,7 @@ export default function returnStation(config) {
             try {
                 this.adopt(await this.request(item.remove_url, 'DELETE'), true);
 
-                if (! this.items.length) {
+                if (! this.items.length && ! this.foreign.length) {
                     this.report('success', 'Baris terakhir dihapus. Scan barang lagi untuk melanjutkan.', '');
                 }
             } catch (error) {
@@ -298,6 +399,7 @@ export default function returnStation(config) {
                 };
             });
 
+            this.foreign = payload.foreign ?? [];
             this.document = payload.return;
             this.urls = { ...this.urls, ...payload.urls };
             this.pendingTracking = '';
@@ -310,7 +412,7 @@ export default function returnStation(config) {
         /* -------------------------------------------------- penyelesaian */
 
         async finish() {
-            if (! this.items.length) {
+            if (! this.items.length && ! this.foreign.length) {
                 this.feedback = { type: 'error', message: 'Belum ada barang pada paket ini.' };
                 signal('error');
 
@@ -359,6 +461,7 @@ export default function returnStation(config) {
                     good: payload.good,
                     damaged: payload.damaged,
                     missing: payload.missing,
+                    foreign: payload.foreign ?? 0,
                     at: timestamp(),
                 });
 
@@ -382,6 +485,9 @@ export default function returnStation(config) {
             this.document = null;
             this.items = [];
             this.manualEntry = false;
+            this.candidates = [];
+            this.foreign = [];
+            this.foreignForm.open = false;
             this.pendingTracking = '';
             this.reason = '';
             this.code = '';
@@ -394,17 +500,22 @@ export default function returnStation(config) {
             return this.request(url, 'POST', body);
         },
 
-        async request(url, method, body = null) {
+        request(url, method, body = null) {
+            return this.send(url, method, body === null ? null : JSON.stringify(body), { 'Content-Type': 'application/json' });
+        },
+
+        /** Kirim apa adanya; FormData (foto) menentukan Content-Type sendiri. */
+        async send(url, method, body, headers = {}) {
             const response = await fetch(url, {
                 method,
                 headers: {
-                    'Content-Type': 'application/json',
+                    ...headers,
                     Accept: 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
                     'X-Requested-With': 'XMLHttpRequest',
                 },
                 credentials: 'same-origin',
-                body: body === null ? null : JSON.stringify(body),
+                body,
             });
 
             const payload = await response.json().catch(() => ({}));

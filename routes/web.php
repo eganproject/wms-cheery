@@ -124,6 +124,10 @@ Route::middleware('auth')
         Route::post('returns/marketplace/lookup', [ReturnMarketplaceController::class, 'lookupItem'])->name('returns.marketplace.lookup');
         Route::post('returns/marketplace/{return}/item', [ReturnMarketplaceController::class, 'addItem'])->name('returns.marketplace.item');
         Route::delete('returns/marketplace/{return}/item/{item}', [ReturnMarketplaceController::class, 'removeItem'])->name('returns.marketplace.item.remove');
+        Route::post('returns/marketplace/foreign', [ReturnMarketplaceController::class, 'addForeign'])->name('returns.marketplace.foreign');
+        Route::delete('returns/marketplace/{return}/foreign/{foreign}', [ReturnMarketplaceController::class, 'removeForeign'])->name('returns.marketplace.foreign.remove');
+        Route::get('returns/foreign/{foreign}/photo', [ReturnReceiptController::class, 'foreignPhoto'])->name('returns.foreign.photo');
+        Route::put('returns/{return}/foreign-followup', [ReturnReceiptController::class, 'foreignFollowup'])->name('returns.foreign.followup');
         Route::post('returns/marketplace/{return}/finish', [ReturnMarketplaceController::class, 'finish'])->name('returns.marketplace.finish');
         Route::get('returns/{return}/scan', [ReturnScanController::class, 'show'])->name('returns.scan');
         Route::post('returns/{return}/scan/resi', [ReturnScanController::class, 'resi'])->name('returns.scan.resi');

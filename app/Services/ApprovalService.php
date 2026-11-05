@@ -220,7 +220,11 @@ class ApprovalService
     {
         $document->loadMissing('items');
 
-        if ($document->items->isEmpty()) {
+        // Retur yang isinya hanya barang bukan milik kita tetap sah: syarat
+        // isinya dinilai oleh postingBlockers() dokumen itu sendiri.
+        $foreignOnly = $document instanceof \App\Models\ReturnReceipt && $document->foreignItems()->exists();
+
+        if ($document->items->isEmpty() && ! $foreignOnly) {
             throw ValidationException::withMessages([
                 'items' => 'Dokumen belum memiliki baris barang.',
             ]);
