@@ -52,8 +52,7 @@ class PackingList
         $doneCount = 0;
 
         $orders
-            ->whereNull('cancelled_at')
-            ->whereDoesntHave('outbounds', fn (Builder $outbound) => $outbound->where('status', \App\Models\Outbound::STATUS_POSTED))
+            ->open()
             ->with(['items', 'outbound.items'])
             ->orderBy('shipment_orders.id')
             ->chunk(500, function (Collection $chunk) use (&$lines, &$orderCount, &$doneCount, $mode) {

@@ -746,12 +746,34 @@ class OwnerReportService
 
     /**
      * Saring ekspresi tanggal (bukan kolom polos) dengan batas inklusif.
+     *
+     * Untuk tanggal penjualan, COALESCE(order_date, created_at) dipecah
+     * menjadi dua syarat setara yang masing-masing bisa memakai indeks:
+     * tanggal pesanan dalam rentang, atau tanggal pesanan kosong dan tanggal
+     * unggah dalam rentang. Tanpa itu setiap laporan membaca seluruh resi.
      */
     protected function constrainExpression(QueryBuilder $query, string $expression, DateRange $range): QueryBuilder
     {
+        $from = $range->from;
+        $to = $range->to ? Carbon::parse($range->to)->addDay()->toDateString() : null;
+
+        if ($expression === self::SALE_DATE) {
+            if (! $from && ! $to) {
+                return $query;
+            }
+
+            $between = fn ($q, string $column) => $q
+                ->when($from, fn ($q) => $q->where($column, '>=', $from))
+                ->when($to, fn ($q) => $q->where($column, '<', $to));
+
+            return $query->where(fn ($q) => $q
+                ->where(fn ($q) => $between($q, 'shipment_orders.order_date'))
+                ->orWhere(fn ($q) => $between($q->whereNull('shipment_orders.order_date'), 'shipment_orders.created_at')));
+        }
+
         return $query
-            ->when($range->from, fn ($q, $from) => $q->whereRaw("{$expression} >= ?", [$from]))
-            ->when($range->to, fn ($q, $to) => $q->whereRaw("{$expression} < ?", [Carbon::parse($to)->addDay()->toDateString()]));
+            ->when($from, fn ($q) => $q->whereRaw("{$expression} >= ?", [$from]))
+            ->when($to, fn ($q) => $q->whereRaw("{$expression} < ?", [$to]));
     }
 
     protected function periodKey(string $day, string $per): string

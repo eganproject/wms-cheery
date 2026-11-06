@@ -49,7 +49,41 @@ class ShipmentOrder extends Model
             'ship_by' => 'datetime',
             'ship_by_set_at' => 'datetime',
             'is_priority' => 'boolean',
+            'shipped_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Perbarui shipped_at resi dari dokumen kirimnya.
+     *
+     * shipped_at hanya penyaring awal supaya resi yang sudah lama berangkat
+     * bisa dilewati lewat indeks: tahapan resi tetap ditentukan dari dokumen
+     * kirimnya. Dipanggil setiap kali dokumen kirim disimpan atau dihapus.
+     * updated_at sengaja tidak disentuh.
+     *
+     * @param  iterable<int|null>  $ids
+     */
+    public static function syncShipped(iterable $ids): void
+    {
+        $ids = collect($ids)->filter()->map(fn ($id) => (int) $id)->unique()->values();
+
+        foreach ($ids->chunk(500) as $chunk) {
+            DB::table('shipment_orders')->whereIn('id', $chunk->all())->update([
+                'shipped_at' => DB::table('outbounds')
+                    ->selectRaw('MIN(outbounds.posted_at)')
+                    ->whereColumn('outbounds.shipment_order_id', 'shipment_orders.id')
+                    ->where('outbounds.status', Outbound::STATUS_POSTED),
+            ]);
+        }
+    }
+
+    /**
+     * Penyaring awal "belum berangkat" lewat indeks. Selalu dipasangkan
+     * dengan pemeriksaan dokumen kirim yang sebenarnya.
+     */
+    public function scopeNotYetShipped(Builder $query): Builder
+    {
+        return $query->whereNull('shipment_orders.shipped_at');
     }
 
     public function import(): BelongsTo
@@ -406,6 +440,7 @@ class ShipmentOrder extends Model
     public function scopeCancelled(Builder $query): Builder
     {
         return $query
+            ->notYetShipped()
             ->whereNotNull('cancelled_at')
             ->whereDoesntHave('outbounds', fn (Builder $outbound) => $outbound
                 ->where('status', Outbound::STATUS_POSTED));
@@ -418,6 +453,7 @@ class ShipmentOrder extends Model
     public function scopeQualityChecked(Builder $query): Builder
     {
         return $query
+            ->notYetShipped()
             ->whereNull('cancelled_at')
             ->whereDoesntHave('outbounds', fn (Builder $outbound) => $outbound
                 ->where('status', Outbound::STATUS_POSTED))
@@ -434,6 +470,7 @@ class ShipmentOrder extends Model
     public function scopeAwaitingQc(Builder $query): Builder
     {
         return $query
+            ->notYetShipped()
             ->whereNull('cancelled_at')
             ->whereDoesntHave('outbounds', fn (Builder $outbound) => $outbound
                 ->where('status', Outbound::STATUS_POSTED))
@@ -516,26 +553,14 @@ class ShipmentOrder extends Model
         return $query
             ->whereNotNull('shipment_orders.order_number')
             ->where('shipment_orders.order_number', '!=', '')
-            ->whereIn('shipment_orders.order_number', static::duplicatedOrderNumbers());
-    }
-
-    /**
-     * Nomor pesanan yang punya lebih dari satu resi.
-     *
-     * Dihitung dengan COUNT(DISTINCT tracking_number), bukan COUNT(*), supaya
-     * jawabannya tetap benar seandainya indeks unik pada nomor resi suatu saat
-     * dilepas: dua baris dengan resi yang sama persis bukan pesanan berkembar,
-     * dan menyebutnya begitu hanya akan mengirim orang mencari paket kedua
-     * yang tidak pernah ada.
-     */
-    protected static function duplicatedOrderNumbers(): \Illuminate\Database\Query\Builder
-    {
-        return DB::table('shipment_orders', 'kembar')
-            ->select('kembar.order_number')
-            ->whereNotNull('kembar.order_number')
-            ->where('kembar.order_number', '!=', '')
-            ->groupBy('kembar.order_number')
-            ->havingRaw('COUNT(DISTINCT kembar.tracking_number) > 1');
+            // Ada resi lain (nomor resi berbeda) dengan nomor pesanan yang
+            // sama: dua baris dengan resi yang persis sama bukan kembaran.
+            // Diperiksa per baris lewat indeks nomor pesanan, bukan dengan
+            // mengelompokkan seluruh resi setiap kali halaman dibuka.
+            ->whereExists(fn ($twin) => $twin->select(DB::raw(1))
+                ->from('shipment_orders as kembar')
+                ->whereColumn('kembar.order_number', 'shipment_orders.order_number')
+                ->whereColumn('kembar.tracking_number', '!=', 'shipment_orders.tracking_number'));
     }
 
     /**
@@ -608,6 +633,7 @@ class ShipmentOrder extends Model
     public function scopeOpen(Builder $query): Builder
     {
         return $query
+            ->notYetShipped()
             ->whereNull('shipment_orders.cancelled_at')
             ->whereDoesntHave('outbounds', fn (Builder $outbound) => $outbound
                 ->where('status', Outbound::STATUS_POSTED));

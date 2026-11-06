@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Outbound;
 use App\Models\ShipmentOrder;
 use App\Services\OrderPlanner;
 use App\Services\TikTokImportService;
@@ -48,8 +47,7 @@ class OrderPriorityController extends Controller implements HasMiddleware
 
         $locked = ShipmentOrder::query()
             ->where('ship_by_source', OrderPlanner::SOURCE_TIKTOK)
-            ->whereNull('cancelled_at')
-            ->whereDoesntHave('outbounds', fn ($query) => $query->where('status', Outbound::STATUS_POSTED));
+            ->open();
 
         return view('admin.orders.priority', [
             'result' => session('priority_result'),

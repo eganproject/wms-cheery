@@ -87,6 +87,21 @@ class Outbound extends Model
         ];
     }
 
+    /**
+     * Jaga shipment_orders.shipped_at tetap sesuai dokumen kirimnya: saat
+     * dikirim, dibatalkan, dipindah ke resi lain, atau dihapus.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (Outbound $outbound) {
+            if ($outbound->wasRecentlyCreated || $outbound->wasChanged(['status', 'posted_at', 'shipment_order_id'])) {
+                ShipmentOrder::syncShipped([$outbound->shipment_order_id, $outbound->getOriginal('shipment_order_id')]);
+            }
+        });
+
+        static::deleted(fn (Outbound $outbound) => ShipmentOrder::syncShipped([$outbound->shipment_order_id]));
+    }
+
     public function items(): HasMany
     {
         return $this->hasMany(OutboundItem::class);

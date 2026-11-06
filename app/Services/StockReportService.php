@@ -74,10 +74,13 @@ class StockReportService
 
     public function paginate(StockReportFilters $filters, int $perPage = 25, ?int $page = null): LengthAwarePaginator
     {
-        return $this->ordered($filters)
+        $rows = $this->ordered($filters)
             ->paginate($perPage, page: $page)
-            ->withQueryString()
-            ->through(fn (object $row) => StockReportRow::fromQuery($row, $filters->days(), $this->contribution($filters)));
+            ->withQueryString();
+
+        $this->withLastOutgoing($rows->getCollection(), $filters);
+
+        return $rows->through(fn (object $row) => StockReportRow::fromQuery($row, $filters->days(), $this->contribution($filters)));
     }
 
     /**
@@ -87,9 +90,36 @@ class StockReportService
      */
     public function lazy(StockReportFilters $filters): LazyCollection
     {
+        // Satu query yang dibaca bertahap, bukan lazy(500): lazy mengulang
+        // seluruh hitungan mutasi untuk setiap 500 barang.
         return $this->ordered($filters)
-            ->lazy(500)
+            ->cursor()
+            ->chunk(500)
+            ->flatMap(fn (LazyCollection $rows) => $this->withLastOutgoing($rows->collect(), $filters))
             ->map(fn (object $row) => StockReportRow::fromQuery($row, $filters->days(), $this->contribution($filters)));
+    }
+
+    /**
+     * Isi last_out_at hanya untuk barang yang sedang ditampilkan.
+     *
+     * Dihitung terpisah, bukan digabung ke query daftar, karena untuk
+     * mencarinya basis data harus membaca seluruh riwayat barang keluar —
+     * untuk satu halaman berisi 25 barang cukup riwayat 25 barang itu.
+     *
+     * @param  Collection<int, object>  $rows
+     * @return Collection<int, object>
+     */
+    protected function withLastOutgoing(Collection $rows, StockReportFilters $filters): Collection
+    {
+        $last = $rows->isEmpty() ? collect() : DB::table('products as lp')
+            ->whereIn('lp.id', $rows->pluck('id')->all())
+            ->select('lp.id')
+            ->selectSub($this->lastOutgoing($filters)->whereColumn('stock_movements.product_id', 'lp.id'), 'last_out_at')
+            ->pluck('last_out_at', 'id');
+
+        return $rows->each(function (object $row) use ($last) {
+            $row->last_out_at = $last[$row->id] ?? null;
+        });
     }
 
     /**
@@ -226,7 +256,6 @@ class StockReportService
     protected function ordered(StockReportFilters $filters): Builder
     {
         $query = $this->base($filters)
-            ->leftJoinSub($this->lastOutgoing($filters), 'lo', 'lo.product_id', '=', 'p.id')
             ->select('p.id', 'p.sku', 'p.name', 'p.category', 'p.unit', 'p.min_stock')
             ->selectRaw(self::DAMAGED_CLOSING.' as damaged_stock')
             ->selectRaw('COALESCE(m.incoming, 0) as incoming')
@@ -234,8 +263,7 @@ class StockReportService
             ->selectRaw(self::SOLD.' as sold')
             ->selectRaw('COALESCE(m.frequency, 0) as frequency')
             ->selectRaw(self::CLOSING.' as closing')
-            ->selectRaw(self::OPENING.' as opening')
-            ->selectRaw('lo.last_out_at as last_out_at');
+            ->selectRaw(self::OPENING.' as opening');
 
         return match ($filters->sort) {
             'masuk' => $query->orderByRaw('COALESCE(m.incoming, 0) DESC')->orderBy('p.name'),
@@ -359,24 +387,27 @@ class StockReportService
     }
 
     /**
-     * Kapan tiap barang terakhir keluar secara operasional, dibatasi sampai
+     * Kapan sebuah barang terakhir keluar secara operasional, dibatasi sampai
      * akhir periode supaya tidak menyebut tanggal yang belum terjadi pada
      * laporan periode lampau. Tidak dibatasi awal periode: bagi barang
      * Non-Moving, tanggal sebelum periode justru yang paling perlu dilihat.
+     *
+     * Dibaca mundur dari mutasi terbaru dan berhenti di yang pertama cocok,
+     * jadi barang laris dengan ribuan mutasi tetap cepat.
      */
     protected function lastOutgoing(StockReportFilters $filters): Builder
     {
         return DB::table('stock_movements')
-            ->select('product_id')
-            ->selectRaw('MAX(stock_movements.created_at) as last_out_at')
+            ->select('stock_movements.created_at')
             // Paket yang batal setelah serah terima tidak dihitung keluar.
             ->join('outbounds as sent', fn ($join) => $join
                 ->on('sent.id', '=', 'stock_movements.reference_id')
                 ->where('sent.status', Outbound::STATUS_POSTED))
-            ->where('bucket', StockMovement::BUCKET_GOOD)
+            ->where('stock_movements.reference_type', Outbound::class)
             ->where('stock_movements.type', 'out')
-            ->where('reference_type', Outbound::class)
+            ->where('stock_movements.bucket', StockMovement::BUCKET_GOOD)
             ->where('stock_movements.created_at', '<=', $filters->to)
-            ->groupBy('product_id');
+            ->orderByDesc('stock_movements.created_at')
+            ->limit(1);
     }
 }

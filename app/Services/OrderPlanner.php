@@ -106,37 +106,51 @@ class OrderPlanner
      */
     public function fingerprint(): string
     {
-        // Satu query berisi beberapa sub-query, supaya halaman yang
-        // memanggilnya tidak menambah banyak query.
-        $row = DB::selectOne('SELECT '.implode(', ', array_map(
-            fn (string $sql, int $index) => $sql.' AS f'.$index,
-            $sub = [
-                '(SELECT MAX(id) FROM stock_movements)',
-                '(SELECT COUNT(*) FROM products)',
-                '(SELECT SUM(stock) FROM products)',
-                '(SELECT MAX(updated_at) FROM products)',
-                '(SELECT COUNT(*) FROM shipment_orders)',
-                '(SELECT MAX(updated_at) FROM shipment_orders)',
-                '(SELECT SUM(CASE WHEN cancelled_at IS NULL THEN 1 ELSE 0 END) FROM shipment_orders)',
-                '(SELECT COUNT(*) FROM shipment_order_items)',
-                '(SELECT SUM(product_id) FROM shipment_order_items)',
-                '(SELECT MAX(updated_at) FROM shipment_order_items)',
-                '(SELECT COUNT(*) FROM outbounds)',
-                '(SELECT MAX(updated_at) FROM outbounds)',
-                '(SELECT MAX(id) FROM outbounds)',
-                '(SELECT COUNT(*) FROM outbound_items)',
-                '(SELECT SUM(scanned_quantity) FROM outbound_items)',
-                '(SELECT SUM(quantity) FROM outbound_items)',
-                '(SELECT COUNT(*) FROM product_bundle_items)',
-                '(SELECT MAX(updated_at) FROM product_bundle_items)',
-                '(SELECT COUNT(*) FROM product_po_periods)',
-                '(SELECT MAX(updated_at) FROM product_po_periods)',
-                '(SELECT MAX(id) FROM product_po_periods)',
-                '(SELECT COUNT(*) FROM app_settings)',
-                '(SELECT MAX(updated_at) FROM app_settings)',
-            ],
-            array_keys($sub),
-        )));
+        // Satu query, supaya halaman yang memanggilnya tidak menambah banyak
+        // query.
+        //
+        // Resi, barang, dan dokumen kirim hanya diringkas untuk resi yang
+        // masih terbuka (belum berangkat dan belum batal, lewat indeks):
+        // hanya merekalah yang dihitung planner. Resi yang berangkat atau
+        // batal keluar dari kelompok ini sehingga jumlahnya berubah, jadi
+        // tetap terdeteksi tanpa membaca seluruh riwayat setiap kali.
+        $open = 'SELECT id FROM shipment_orders WHERE shipped_at IS NULL AND cancelled_at IS NULL';
+        $openOutbounds = "SELECT id FROM outbounds WHERE shipment_order_id IN ({$open})";
+
+        $row = DB::selectOne(<<<SQL
+            SELECT * FROM (
+                SELECT
+                    (SELECT MAX(id) FROM stock_movements) AS f0,
+                    (SELECT COUNT(*) FROM products) AS f1,
+                    (SELECT SUM(stock) FROM products) AS f2,
+                    (SELECT MAX(updated_at) FROM products) AS f3,
+                    (SELECT MAX(id) FROM shipment_orders) AS f4,
+                    (SELECT MAX(id) FROM outbounds) AS f5,
+                    (SELECT COUNT(*) FROM product_bundle_items) AS f6,
+                    (SELECT MAX(updated_at) FROM product_bundle_items) AS f7,
+                    (SELECT COUNT(*) FROM product_po_periods) AS f8,
+                    (SELECT MAX(updated_at) FROM product_po_periods) AS f9,
+                    (SELECT MAX(id) FROM product_po_periods) AS f10,
+                    (SELECT COUNT(*) FROM app_settings) AS f11,
+                    (SELECT MAX(updated_at) FROM app_settings) AS f12
+            ) base
+            CROSS JOIN (
+                SELECT COUNT(*) AS o0, MAX(updated_at) AS o1
+                FROM shipment_orders WHERE shipped_at IS NULL AND cancelled_at IS NULL
+            ) open_orders
+            CROSS JOIN (
+                SELECT COUNT(*) AS i0, SUM(product_id) AS i1, SUM(quantity) AS i2, MAX(updated_at) AS i3
+                FROM shipment_order_items WHERE shipment_order_id IN ({$open})
+            ) open_items
+            CROSS JOIN (
+                SELECT COUNT(*) AS b0, MAX(updated_at) AS b1, SUM(CASE WHEN resi_verified_at IS NULL THEN 0 ELSE 1 END) AS b2
+                FROM outbounds WHERE shipment_order_id IN ({$open})
+            ) open_outbounds
+            CROSS JOIN (
+                SELECT COUNT(*) AS l0, SUM(scanned_quantity) AS l1, SUM(quantity) AS l2, SUM(product_id) AS l3
+                FROM outbound_items WHERE outbound_id IN ({$openOutbounds})
+            ) open_lines
+            SQL);
 
         $parts = [self::VERSION, ...array_values((array) $row)];
 
@@ -376,6 +390,7 @@ class OrderPlanner
         $orders = [];
 
         $rows = DB::table('shipment_orders')
+            ->whereNull('shipped_at')
             ->whereNull('cancelled_at')
             ->whereNotExists(fn ($query) => $query->select(DB::raw(1))
                 ->from('outbounds')
@@ -422,6 +437,8 @@ class OrderPlanner
         $rows = DB::table('shipment_order_items')
             ->join('shipment_orders', 'shipment_orders.id', '=', 'shipment_order_items.shipment_order_id')
             ->whereNull('shipment_orders.cancelled_at')
+            // Resi yang sudah berangkat tidak dihitung lagi.
+            ->whereNull('shipment_orders.shipped_at')
             ->select(['shipment_order_items.shipment_order_id', 'shipment_order_items.product_id', 'shipment_order_items.sku', 'shipment_order_items.quantity'])
             ->orderBy('shipment_order_items.id')
             ->cursor();
@@ -447,6 +464,7 @@ class OrderPlanner
     {
         $latest = DB::table('outbounds')
             ->whereNotNull('shipment_order_id')
+            ->whereIn('shipment_order_id', DB::table('shipment_orders')->whereNull('shipped_at')->select('id'))
             ->groupBy('shipment_order_id')
             ->selectRaw('shipment_order_id, MAX(id) as id')
             ->pluck('id', 'shipment_order_id');

@@ -46,8 +46,7 @@ class PoPeriodController extends Controller implements HasMiddleware
         $periods = ProductPoPeriod::query()->with('user:id,name')->orderBy('starts_at')->orderBy('id')->get()
             ->groupBy(fn (ProductPoPeriod $period) => $period->ownerKey());
 
-        $open = ShipmentOrder::query()->whereNull('cancelled_at')
-            ->whereDoesntHave('outbounds', fn ($query) => $query->where('status', \App\Models\Outbound::STATUS_POSTED));
+        $open = ShipmentOrder::query()->open();
 
         $now = now();
         $missing = $this->missingOwners();
@@ -190,6 +189,7 @@ class PoPeriodController extends Controller implements HasMiddleware
         $rows = \Illuminate\Support\Facades\DB::table('shipment_order_items')
             ->join('shipment_orders', 'shipment_orders.id', '=', 'shipment_order_items.shipment_order_id')
             ->join('products', 'products.id', '=', 'shipment_order_items.product_id')
+            ->whereNull('shipment_orders.shipped_at')
             ->whereNull('shipment_orders.cancelled_at')
             ->whereNull('shipment_orders.computed_ship_by')
             ->where(fn ($query) => $query->whereNull('shipment_orders.is_preorder')->orWhere('shipment_orders.is_preorder', true))
