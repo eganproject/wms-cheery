@@ -49,6 +49,20 @@ export default function productBulkEdit(config) {
             return this.selected.filter((id) => ! this.ids.includes(id)).length;
         },
 
+        /** Halaman Cetak Label QR dengan barang yang sedang dipilih. */
+        get labelsUrl() {
+            const query = new URLSearchParams();
+
+            if (this.allFiltered) {
+                query.set('scope', 'filtered');
+                Object.entries(config.filters ?? {}).forEach(([key, value]) => query.set(key, value));
+            } else {
+                this.selected.forEach((id) => query.append('ids[]', id));
+            }
+
+            return `${config.labelsUrl}?${query}`;
+        },
+
         get count() {
             return this.allFiltered ? this.total : this.selected.length;
         },

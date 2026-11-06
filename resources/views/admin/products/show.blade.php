@@ -20,6 +20,9 @@
                     </x-ui.button>
                 @endcan
             @endif
+            <x-ui.button :href="route('admin.products.labels', ['ids' => [$product->id]])" variant="secondary" icon="qr-code">
+                Cetak QR
+            </x-ui.button>
             @can('products.update')
                 <x-ui.button :href="route('admin.products.edit', $product)" icon="pencil">
                     {{ $isBundle ? 'Ubah Paket' : 'Ubah Barang' }}

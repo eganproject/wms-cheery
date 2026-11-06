@@ -381,7 +381,7 @@ class ProductController extends Controller implements HasMiddleware
     /**
      * Filter yang sama dipakai tabel di layar maupun berkas hasil export.
      */
-    protected function filtered(Request $request): Builder
+    public function filtered(Request $request): Builder
     {
         /*
             Saringan kondisi stok selalu menyiratkan barang biasa.

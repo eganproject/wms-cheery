@@ -8,6 +8,9 @@
                                      title="Hapus produk induk ini?"
                                      description="Hanya induknya yang dihapus. Semua varian tetap ada sebagai barang biasa beserta stok dan riwayatnya." />
             @endcan
+            <x-ui.button :href="route('admin.products.labels', ['group' => $group->id])" variant="secondary" icon="qr-code">
+                Cetak QR Varian
+            </x-ui.button>
             @can('products.update')
                 <x-ui.button :href="route('admin.products.groups.edit', $group)" icon="pencil">Ubah Produk</x-ui.button>
             @endcan

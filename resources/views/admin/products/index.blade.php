@@ -14,6 +14,11 @@
                     Export Excel
                 </x-ui.button>
             @endcan
+            @can('products.view')
+                <x-ui.button :href="route('admin.products.labels')" variant="secondary" icon="qr-code">
+                    Cetak QR
+                </x-ui.button>
+            @endcan
             @can('products.create')
                 <x-ui.button :href="route('admin.products.create')" icon="plus">Tambah Barang</x-ui.button>
             @endcan
@@ -121,6 +126,8 @@
                   ids: @js($products->pluck('id')->all()),
                   total: {{ $products->total() }},
                   key: @js(collect(request()->query())->except(['page', 'per_page', 'sort', 'dir'])->sortKeys()->toJson()),
+                  labelsUrl: @js(route('admin.products.labels')),
+                  filters: @js(collect(request()->only(['search', 'category', 'stock', 'status', 'type']))->filter(fn ($value) => filled($value))->all()),
               })"
               {{-- Pilihan yang sudah dipakai tidak perlu diingat lagi. --}}
               x-on:submit="forget()">
@@ -207,6 +214,13 @@
                                    inputmode="numeric" placeholder="0"
                                    class="w-16 border-0 bg-transparent p-0 text-center text-base font-semibold text-ink-950 shadow-none focus:shadow-none focus:ring-0">
                         </label>
+
+                        {{-- Barang terpilih dibawa ke halaman cetak label; di sana jumlah
+                             label per barang dan ukurannya masih bisa diatur. --}}
+                        <a :href="labelsUrl" class="btn btn-default">
+                            <x-icon name="qr-code" class="h-4 w-4" />
+                            Cetak QR
+                        </a>
 
                         <button type="submit"
                                 class="btn btn-primary">

@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProductGroupController;
 use App\Http\Controllers\Admin\ProductImportController;
+use App\Http\Controllers\Admin\ProductLabelController;
 use App\Http\Controllers\Admin\RestockReportController;
 use App\Http\Controllers\Admin\ReturnMarketplaceController;
 use App\Http\Controllers\Admin\ReturnReceiptController;
@@ -71,6 +72,8 @@ Route::middleware('auth')
         Route::get('products/import', [ProductImportController::class, 'create'])->name('products.import');
         Route::post('products/import', [ProductImportController::class, 'store'])->name('products.import.store');
         Route::get('products/import/template', [ProductImportController::class, 'template'])->name('products.import.template');
+        Route::get('products/labels', [ProductLabelController::class, 'create'])->name('products.labels');
+        Route::post('products/labels/pdf', [ProductLabelController::class, 'pdf'])->name('products.labels.pdf');
         Route::patch('products/bulk/min-stock', [ProductController::class, 'bulkMinStock'])->name('products.bulk.min-stock');
         Route::post('products/variants', [ProductGroupController::class, 'store'])->name('products.groups.store');
         Route::get('products/variants/{product_group}', [ProductGroupController::class, 'show'])->name('products.groups.show');

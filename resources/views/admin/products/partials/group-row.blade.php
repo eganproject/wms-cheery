@@ -38,6 +38,10 @@
                class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-950">
                 <x-icon name="document" class="h-4 w-4" />
             </a>
+            <a href="{{ route('admin.products.labels', ['group' => $group->id]) }}" title="Cetak QR semua varian"
+               class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-950">
+                <x-icon name="qr-code" class="h-4 w-4" />
+            </a>
             @can('products.update')
                 <a href="{{ route('admin.products.groups.edit', $group) }}" title="Ubah produk induk"
                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-950">
