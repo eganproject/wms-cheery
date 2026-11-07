@@ -268,7 +268,12 @@ class PackingListController extends Controller implements HasMiddleware
     protected function resiQuery(Request $request, array $data): Builder
     {
         return $this->filtered($request, null, $data['type'], $data['due'])
-            ->with(['items:id,shipment_order_id,sku,quantity'])
+            ->with([
+                'items:id,shipment_order_id,sku,quantity,product_id',
+                // Gambar barang untuk kolom Isi; varian tanpa gambar memakai gambar induknya.
+                'items.product:id,sku,name,image_path,product_group_id',
+                'items.product.group:id,image_path',
+            ])
             ->mostUrgentFirst();
     }
 

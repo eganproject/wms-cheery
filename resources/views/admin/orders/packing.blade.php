@@ -234,16 +234,7 @@
                             <td class="text-right tabular-nums text-ink-400">{{ $skuRows->firstItem() + $loop->index }}</td>
                             <td>
                                 <div class="flex items-start gap-3">
-                                @if ($row['image_url'])
-                                    <a href="{{ $row['image_url'] }}" target="_blank" rel="noopener"
-                                       class="block h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-ink-50 ring-1 ring-inset ring-ink-100">
-                                        <img src="{{ $row['image_url'] }}" alt="{{ $row['name'] }}" loading="lazy" class="h-full w-full object-cover">
-                                    </a>
-                                @else
-                                    <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ink-50 text-ink-300 ring-1 ring-inset ring-ink-100">
-                                        <x-icon name="box" class="h-4 w-4" />
-                                    </span>
-                                @endif
+                                <x-ui.product-image :url="$row['image_url']" :name="$row['name']" :sku="$row['sku']" size="sm" group="packing" />
                                 <div class="min-w-0">
                                 <span @class(['block font-mono text-[13px]', 'text-ink-950' => $row['matched'], 'text-amber-700' => ! $row['matched']])>{{ $row['sku'] }}</span>
                                 @if ($row['name'])
@@ -362,7 +353,17 @@
                                     @endif
                                 </td>
                                 <td class="whitespace-nowrap text-xs text-ink-500">{{ $order->order_date?->format('d/m/Y H:i') }}</td>
-                                <td class="text-xs">{{ $order->items->map(fn ($item) => $item->sku.' ×'.$item->quantity)->implode(', ') }}</td>
+                                <td class="text-xs">
+                                    <div class="flex min-w-48 flex-wrap gap-1.5">
+                                        @foreach ($order->items as $item)
+                                            <span class="inline-flex max-w-full items-center gap-1.5 rounded-md bg-ink-50 py-0.5 pl-0.5 pr-2 ring-1 ring-inset ring-ink-100">
+                                                <x-ui.product-image :product="$item->product" :sku="$item->sku" size="2xs" group="packing-resi" />
+                                                <span class="truncate font-mono text-[11px] text-ink-700">{{ $item->sku }}</span>
+                                                <span class="shrink-0 font-semibold tabular-nums text-ink-950">×{{ $item->quantity }}</span>
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                </td>
                                 @if ($type === PackingListController::ALL)
                                     <td class="text-xs">
                                         @if ($order->stock_status === \App\Services\OrderPlanner::READY)

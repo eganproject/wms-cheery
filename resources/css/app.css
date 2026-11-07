@@ -106,6 +106,31 @@
 }
 
 @layer components {
+    /* ---------------------------------------------- thumbnail barang */
+
+    /* Ikon kotak pengganti hanya muncul bila <img> gagal dimuat (image-lightbox.js). */
+    [data-thumb] .thumb-fallback {
+        @apply hidden;
+    }
+
+    [data-thumb].thumb-broken {
+        @apply cursor-default;
+    }
+
+    [data-thumb].thumb-broken img {
+        @apply hidden;
+    }
+
+    [data-thumb].thumb-broken .thumb-fallback {
+        @apply flex;
+    }
+
+    /* Atribut hidden harus menang atas kelas flex di dalam pratinjau gambar. */
+    #image-lightbox[hidden],
+    #image-lightbox [hidden] {
+        display: none !important;
+    }
+
     /* ------------------------------------------------------ kontrol form */
 
     .form-control {

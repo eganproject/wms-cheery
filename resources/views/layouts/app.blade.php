@@ -114,6 +114,42 @@
         <span data-part="next-text"></span>
     </p>
 </div>
+{{-- Pratinjau gambar barang untuk semua link [data-lightbox] (resources/js/image-lightbox.js). --}}
+<div id="image-lightbox" hidden role="dialog" aria-modal="true" aria-label="Pratinjau gambar"
+     class="fixed inset-0 z-[95] flex flex-col bg-ink-950/85 backdrop-blur-sm print:hidden">
+    <div class="flex items-start gap-3 px-4 py-3 text-white sm:px-6">
+        <div class="min-w-0 flex-1">
+            <p data-part="title" class="truncate text-sm font-semibold"></p>
+            <p data-part="caption" class="truncate font-mono text-xs text-white/70"></p>
+        </div>
+        <span data-part="counter" class="shrink-0 pt-0.5 text-xs tabular-nums text-white/70"></span>
+        <a data-part="original" href="#" target="_blank" rel="noopener" data-no-ajax
+           class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
+           title="Buka gambar ukuran asli di tab baru">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg>
+            <span class="hidden sm:inline">Ukuran asli</span>
+        </a>
+        <button type="button" data-part="close" data-action="close"
+                class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                title="Tutup (Esc)" aria-label="Tutup">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+        </button>
+    </div>
+    <div class="relative flex min-h-0 flex-1 items-center justify-center px-4 pb-6 sm:px-16" data-action="close">
+        <img data-part="image" alt="" hidden
+             class="max-h-full max-w-full rounded-xl bg-white object-contain shadow-2xl" onclick="event.stopPropagation()">
+        <p data-part="loading" class="text-sm text-white/70">Memuat gambar…</p>
+        <p data-part="error" hidden class="rounded-lg bg-white/10 px-4 py-3 text-sm text-white">Gambar tidak bisa dimuat. Berkasnya mungkin sudah dihapus.</p>
+        <button type="button" data-part="prev" data-action="prev" title="Sebelumnya (←)" aria-label="Gambar sebelumnya"
+                class="absolute left-2 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 sm:left-4">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+        </button>
+        <button type="button" data-part="next" data-action="next" title="Berikutnya (→)" aria-label="Gambar berikutnya"
+                class="absolute right-2 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 sm:right-4">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+        </button>
+    </div>
+</div>
 </body>
 </html>
 @endif

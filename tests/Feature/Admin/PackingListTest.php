@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Models\Outbound;
 use App\Models\Product;
 use App\Models\ProductBundleItem;
+use App\Models\ProductGroup;
 use App\Models\ShipmentImport;
 use App\Models\ShipmentOrder;
 use App\Models\User;
@@ -153,5 +154,32 @@ class PackingListTest extends TestCase
             ->viewData('rows');
 
         $this->assertSame(['TAS-1'], $rows->pluck('sku')->all());
+    }
+
+    public function test_rows_show_a_clickable_image_and_variants_fall_back_to_the_parent_image(): void
+    {
+        $group = ProductGroup::create(['name' => 'Gamis', 'unit' => 'pcs', 'image_path' => 'products/gamis.jpg']);
+        $variant = Product::create(['sku' => 'GAMIS-M', 'name' => 'Gamis - M', 'unit' => 'pcs', 'min_stock' => 0, 'product_group_id' => $group->id]);
+        $tas = Product::create(['sku' => 'TAS-1', 'name' => 'Tas Mini', 'unit' => 'pcs', 'min_stock' => 0]);
+        $tas->forceFill(['image_path' => 'products/tas.jpg'])->save();
+        $polos = Product::create(['sku' => 'POLOS', 'name' => 'Tanpa Gambar', 'unit' => 'pcs', 'min_stock' => 0]);
+
+        $this->order('R1', [['GAMIS-M', 1, $variant], ['TAS-1', 2, $tas], ['POLOS', 1, $polos], ['ASING', 1, null]]);
+
+        $html = $this->actingAs($this->admin)
+            ->get(route('admin.orders.packing', ['jenis' => 'semua']))
+            ->assertOk()
+            ->getContent();
+
+        $gamis = $group->imageUrl();
+        $this->assertStringContainsString('href="'.$gamis.'"', $html);
+        $this->assertStringContainsString('href="'.$tas->image_url.'"', $html);
+        // Tabel barang dan kolom Isi daftar resi sama-sama membuka pratinjau.
+        $this->assertSame(2, substr_count($html, 'data-lightbox="packing"'));
+        $this->assertSame(2, substr_count($html, 'data-lightbox="packing-resi"'));
+        $this->assertStringContainsString('data-lightbox-caption="GAMIS-M"', $html);
+        // Barang tanpa gambar dan SKU belum terdaftar memakai kotak kosong.
+        $this->assertStringContainsString('title="Belum ada gambar"', $html);
+        $this->assertStringContainsString('id="image-lightbox"', $html);
     }
 }

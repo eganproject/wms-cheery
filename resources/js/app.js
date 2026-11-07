@@ -5,6 +5,7 @@ import './listing';
 
 import Alpine from 'alpinejs';
 import initHints from './hints';
+import initImageLightbox from './image-lightbox';
 import bundleRecipe from './bundle-recipe';
 import cameraScanner from './camera-scanner';
 import commandPalette from './command-palette';
@@ -43,5 +44,6 @@ Alpine.data('stockPicker', stockPicker);
 Alpine.data('variantBuilder', variantBuilder);
 
 initHints();
+initImageLightbox();
 
 Alpine.start();
