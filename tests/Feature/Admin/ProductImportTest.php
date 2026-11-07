@@ -115,6 +115,53 @@ class ProductImportTest extends TestCase
         $this->assertSame(40, Product::where('sku', 'FLT-OLI-STD')->value('stock'));
     }
 
+    public function test_the_template_imports_even_when_the_guide_sheet_comes_first(): void
+    {
+        $response = $this->actingAs($this->admin)->get(route('admin.products.import.template'));
+
+        $path = tempnam(sys_get_temp_dir(), 'template').'.xlsx';
+        file_put_contents($path, $response->streamedContent());
+
+        // Lembar Petunjuk digeser ke depan (atau ada lembar lain di depan
+        // lembar data) sebelum berkas disimpan.
+        $book = IOFactory::load($path);
+        $sheet = $book->getSheetByName('Data Barang');
+        $sheet->removeRow(2, 2);
+        foreach ([
+            ['GMS-ALM-1-M', 'Gamis Almira Hitam M', '', 'Gamis', 'pcs', 'R-01', 2, 12, 'Gamis Almira', 'Hitam', 'M', 85000],
+            ['GMS-ALM-1-L', 'Gamis Almira Hitam L', '', 'Gamis', 'pcs', 'R-01', 2, 7, 'Gamis Almira', 'Hitam', 'L', 85000],
+        ] as $r => $row) {
+            foreach ($row as $c => $value) {
+                $sheet->setCellValue([$c + 1, $r + 2], $value);
+            }
+        }
+        $book->setIndexByName('Petunjuk', 0);
+        $book->setActiveSheetIndex(0);
+        (new Xlsx($book))->save($path);
+
+        $this->actingAs($this->admin)->post(route('admin.products.import.store'), [
+            'file' => new UploadedFile($path, 'template-import-barang.xlsx', null, null, true),
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(2, Product::count());
+        $product = Product::where('sku', 'GMS-ALM-1-M')->firstOrFail();
+        $this->assertSame(12, $product->stock);
+        $this->assertSame('Gamis Almira - Hitam / M', $product->name);
+        $this->assertSame(85000.0, (float) $product->cost);
+    }
+
+    public function test_a_csv_stock_with_a_thousands_separator_is_read_as_thousands(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'barang').'.csv';
+        file_put_contents($path, "SKU;Nama Barang;Stok\nKRD-01;Kerudung Polos;1.250\n");
+
+        $this->actingAs($this->admin)->post(route('admin.products.import.store'), [
+            'file' => new UploadedFile($path, 'barang.csv', null, null, true),
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(1250, Product::where('sku', 'KRD-01')->value('stock'));
+    }
+
     /* --------------------------------------------------- isi berkas ------ */
 
     public function test_products_are_created_with_their_stock(): void

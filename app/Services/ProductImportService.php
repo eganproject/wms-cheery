@@ -159,14 +159,35 @@ class ProductImportService
         try {
             $reader = IOFactory::createReaderForFile($file->getRealPath());
             $reader->setReadDataOnly(true);
-            $sheet = $reader->load($file->getRealPath())->getActiveSheet();
+            $book = $reader->load($file->getRealPath());
         } catch (\Throwable) {
             throw ValidationException::withMessages([
                 'file' => 'Berkas tidak bisa dibaca. Pastikan formatnya .xlsx, .xls, atau .csv.',
             ]);
         }
 
-        return $this->clean(collect($sheet->toArray(null, true, false, false)));
+        /*
+            Lembar data belum tentu lembar pertama.
+
+            Template kita punya lembar "Petunjuk". Bila lembar itu tergeser ke
+            depan, atau orang menambah lembar catatan sendiri di depan, import
+            menolak berkasnya karena kolom SKU "tidak ditemukan" — padahal
+            datanya ada di lembar sebelah. Jadi lembar pertama dicoba lebih
+            dulu, lalu lembar lain sampai ketemu yang punya judul kolom SKU
+            dan Nama Barang.
+        */
+        $active = $book->getActiveSheet();
+        $sheets = array_merge([$active], array_filter($book->getAllSheets(), fn ($sheet) => $sheet !== $active));
+
+        foreach ($sheets as $sheet) {
+            $rows = $this->clean(collect($sheet->toArray(null, true, false, false)));
+
+            if ($rows->isNotEmpty() && $this->locateHeader($rows)[0] !== []) {
+                return $rows;
+            }
+        }
+
+        return $this->clean(collect($active->toArray(null, true, false, false)));
     }
 
     /**
@@ -408,7 +429,11 @@ class ProductImportService
             return null;
         }
 
-        return (int) round((float) str_replace(',', '.', preg_replace('/[^0-9,.\-]/', '', $value)));
+        // "1.000" pada berkas CSV berarti seribu, bukan satu. Money::parse
+        // sudah memahami pemisah ribuan gaya Indonesia.
+        $number = \App\Support\Money::parse($value);
+
+        return $number === null ? null : (int) round($number);
     }
 
     protected function boolean(?string $value): bool
