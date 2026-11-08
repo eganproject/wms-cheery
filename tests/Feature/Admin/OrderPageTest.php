@@ -183,6 +183,30 @@ class OrderPageTest extends TestCase
             ->assertRedirect(route('admin.orders.index', ['unmatched' => 1]));
     }
 
+    public function test_every_unknown_sku_can_be_listed_and_exported(): void
+    {
+        foreach (range(1, 15) as $number) {
+            $this->order('RESIASING'.$number)->items()->create([
+                'sku' => 'ASING-'.str_pad((string) $number, 2, '0', STR_PAD_LEFT),
+                'product_name' => 'Barang Asing '.$number,
+                'quantity' => 1,
+                'product_id' => null,
+            ]);
+        }
+
+        $this->actingAs($this->admin)->get(route('admin.orders.index'))
+            ->assertOk()
+            ->assertSee('Lihat semua SKU (15)')
+            ->assertSee('dan 3 SKU lainnya')
+            ->assertSee('SKU belum cocok dengan master barang')
+            ->assertSee('ASING-15')
+            ->assertSee(route('admin.orders.unknown-skus.export'), false);
+
+        $this->actingAs($this->admin)->get(route('admin.orders.unknown-skus.export'))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
+
     public function test_the_warning_is_hidden_when_every_sku_is_known(): void
     {
         $this->order('RESIEMPTY');

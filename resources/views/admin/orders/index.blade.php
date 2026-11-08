@@ -149,7 +149,7 @@
         di-QC sampai SKU-nya didaftarkan dan dicocokkan ulang.
     --}}
     @if ($unknownSkus->isNotEmpty())
-        <div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4" data-unknown-skus>
+        <div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4" data-unknown-skus x-data="{ allSkus: false }">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-start">
                 <x-icon name="warning" class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
                 <div class="min-w-0 flex-1">
@@ -179,6 +179,10 @@
                         @if ($unknownSkus->count() > 12)
                             <span class="self-center text-xs text-amber-800">dan {{ $unknownSkus->count() - 12 }} SKU lainnya</span>
                         @endif
+                        <button type="button" @click="allSkus = true"
+                                class="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 hover:bg-amber-200">
+                            <x-icon name="list" class="h-3.5 w-3.5" /> Lihat semua SKU ({{ $unknownSkus->count() }})
+                        </button>
                     </div>
                 </div>
                 <div class="flex shrink-0 flex-wrap items-center gap-2">
@@ -200,6 +204,8 @@
                     @endcan
                 </div>
             </div>
+
+            @include('admin.orders.partials.unknown-skus-modal')
         </div>
     @endif
 

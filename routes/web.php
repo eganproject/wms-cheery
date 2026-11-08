@@ -179,6 +179,7 @@ Route::middleware('auth')
 
         // Import resi dari TikTok Shop
         Route::get('orders/export', [OrderController::class, 'export'])->name('orders.export');
+        Route::get('orders/unknown-skus/export', [OrderController::class, 'exportUnknownSkus'])->name('orders.unknown-skus.export');
         Route::get('orders/priority', [OrderPriorityController::class, 'create'])->name('orders.priority');
         Route::post('orders/priority', [OrderPriorityController::class, 'store'])->name('orders.priority.store');
         Route::put('orders/{order}/deadline', [ShipmentOrderDeadlineController::class, 'update'])->name('orders.deadline');

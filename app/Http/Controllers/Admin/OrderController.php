@@ -209,18 +209,9 @@ class OrderController extends Controller implements HasMiddleware
             }
         };
 
-        $notes = collect([
-            'Tahap: '.(self::STAGE_LABELS[$stage] ?? 'Semua'),
-            'Tanggal unggah: '.($this->dateApplies($request) ? DateRange::fromRequest($request)->label() : 'semua'),
-            $request->filled('marketplace') ? 'Marketplace: '.$request->string('marketplace') : null,
-            $request->filled('store') ? 'Toko: '.$request->string('store') : null,
-            $request->filled('courier') ? 'Kurir: '.$request->string('courier') : null,
-            $request->boolean('duplicate') ? 'Hanya resi kembar' : null,
-            $request->boolean('unmatched') ? 'Hanya SKU belum terdaftar' : null,
-            isset(self::READY_FILTERS[(string) $request->input('ready')]) ? self::READY_FILTERS[(string) $request->input('ready')] : null,
-            isset(self::DEADLINE_FILTERS[(string) $request->input('deadline')]) ? 'Batas kirim: '.mb_strtolower(self::DEADLINE_FILTERS[(string) $request->input('deadline')]) : null,
-            count($this->terms($request)) ? 'Cari: '.Str::limit(implode(', ', $this->terms($request)), 80) : null,
-        ])->filter()->implode(' · ');
+        $notes = collect(['Tahap: '.(self::STAGE_LABELS[$stage] ?? 'Semua')])
+            ->merge($this->filterNotes($request))
+            ->implode(' · ');
 
         return TableExport::make('Daftar Pesanan')
             ->note($notes)
@@ -262,6 +253,52 @@ class OrderController extends Controller implements HasMiddleware
                 ['Terdaftar di Master', 'text'],
             ], $items())
             ->download('pesanan-'.now()->format('Y-m-d-Hi').'.xlsx');
+    }
+
+    /**
+     * Excel seluruh SKU di resi yang belum dikenal sistem, untuk saringan yang
+     * sedang aktif (tanpa tab), sama dengan isi peringatan di halaman Pesanan.
+     */
+    public function exportUnknownSkus(Request $request): StreamedResponse
+    {
+        $rows = $this->unknownSkus($request)->values()->map(fn ($unknown, $index) => [
+            $index + 1,
+            $unknown->sku,
+            $unknown->product_name,
+            (int) $unknown->orders,
+            (int) $unknown->units,
+        ]);
+
+        return TableExport::make('SKU Belum Dikenal Sistem')
+            ->note(implode(' · ', $this->filterNotes($request, withFlags: false)))
+            ->sheet('SKU Belum Dikenal', [
+                ['No', 'number'],
+                ['SKU', 'text'],
+                ['Nama Barang di Resi', 'text'],
+                ['Jumlah Pesanan', 'number'],
+                ['Total Unit', 'sum'],
+            ], $rows)
+            ->download('sku-belum-dikenal-'.now()->format('Y-m-d-Hi').'.xlsx');
+    }
+
+    /**
+     * Keterangan saringan yang sedang aktif, untuk baris catatan di Excel.
+     *
+     * @return array<int, string>
+     */
+    protected function filterNotes(Request $request, bool $withFlags = true): array
+    {
+        return collect([
+            'Tanggal unggah: '.($this->dateApplies($request) ? DateRange::fromRequest($request)->label() : 'semua'),
+            $request->filled('marketplace') ? 'Marketplace: '.$request->string('marketplace') : null,
+            $request->filled('store') ? 'Toko: '.$request->string('store') : null,
+            $request->filled('courier') ? 'Kurir: '.$request->string('courier') : null,
+            $withFlags && $request->boolean('duplicate') ? 'Hanya resi kembar' : null,
+            $withFlags && $request->boolean('unmatched') ? 'Hanya SKU belum terdaftar' : null,
+            $withFlags && isset(self::READY_FILTERS[(string) $request->input('ready')]) ? self::READY_FILTERS[(string) $request->input('ready')] : null,
+            $withFlags && isset(self::DEADLINE_FILTERS[(string) $request->input('deadline')]) ? 'Batas kirim: '.mb_strtolower(self::DEADLINE_FILTERS[(string) $request->input('deadline')]) : null,
+            count($this->terms($request)) ? 'Cari: '.Str::limit(implode(', ', $this->terms($request)), 80) : null,
+        ])->filter()->values()->all();
     }
 
     /**
