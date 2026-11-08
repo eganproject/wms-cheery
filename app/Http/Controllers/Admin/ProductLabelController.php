@@ -161,6 +161,7 @@ class ProductLabelController extends Controller implements HasMiddleware
         $pdf = Pdf::loadView('admin.products.labels-pdf', [
             'pages' => $pages,
             'layout' => $layout,
+            'showName' => $showName,
         ])
             ->setPaper(QrLabelLayout::paper($layout))
             // Hanya huruf yang dipakai yang disematkan: PDF jadi puluhan KB, bukan 1 MB.
@@ -236,7 +237,13 @@ class ProductLabelController extends Controller implements HasMiddleware
         return [
             'sku' => $product->sku,
             'qr' => QrCode::file($product->sku),
-            'name' => $showName ? Str::limit($title, $variant !== '' ? (int) ($chars * 0.7) : $chars, '…') : '',
+            // Label bertumpuk (thermal): "Nama · Varian" satu baris di bawah
+            // QR; varian ditulis utuh, namanya yang dipendekkan.
+            'name' => $showName ? Str::limit($title, match (true) {
+                $variant === '' => $chars,
+                $layout['stacked'] => max(8, $chars - mb_strlen(Str::limit($variant, (int) ($chars * 0.5), '')) - 3),
+                default => (int) ($chars * 0.7),
+            }, '…') : '',
             'variant' => $showName ? Str::limit($variant, (int) ($chars * 0.5), '…') : '',
         ];
     }

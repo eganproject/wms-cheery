@@ -38,14 +38,17 @@ class QrLabelLayout
                 'hint' => 'Printer label thermal, satu label per lembar.',
                 'sheet' => false,
                 'width' => 50, 'height' => 30,
-                'font' => 6, 'sku_font' => 7.5, 'name_chars' => 40, 'pad' => 2,
+                // QR di atas, SKU dan nama rata tengah di bawahnya.
+                'stacked' => true,
+                'font' => 6, 'sku_font' => 8, 'name_chars' => 38, 'pad' => 1.5,
             ],
             'thermal-40x30' => [
                 'label' => 'Thermal 40 × 30 mm',
                 'hint' => 'Printer label thermal, satu label per lembar.',
                 'sheet' => false,
                 'width' => 40, 'height' => 30,
-                'font' => 5, 'sku_font' => 6, 'name_chars' => 28, 'pad' => 1.5,
+                'stacked' => true,
+                'font' => 5.5, 'sku_font' => 7.5, 'name_chars' => 31, 'pad' => 1.5,
             ],
         ];
     }
@@ -78,6 +81,7 @@ class QrLabelLayout
             $layout['page_height'] = $layout['height'];
         }
 
+        $layout['stacked'] ??= false;
         $layout['per_page'] = $layout['cols'] * $layout['rows'];
         $layout['qr'] = round(min($layout['height'] - 2 * $layout['pad'], $layout['width'] * 0.45), 2);
 
