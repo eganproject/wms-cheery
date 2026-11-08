@@ -17,7 +17,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
-use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -107,7 +106,7 @@ class ShipmentImportController extends Controller implements HasMiddleware
         return view('admin.imports.create');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         // Diperiksa lewat akhiran berkas, bukan tebakan isi.
         //
@@ -124,11 +123,7 @@ class ShipmentImportController extends Controller implements HasMiddleware
             'file.max' => 'Ukuran berkas melebihi 20 MB.',
         ], ['file' => 'berkas']);
 
-        try {
-            $import = $this->importer->import($request->file('file'));
-        } catch (ValidationException $exception) {
-            throw $exception;
-        }
+        $import = $this->importer->import($request->file('file'));
 
         $message = "{$import->order_count} resi baru dan {$import->item_count} baris barang berhasil diimport.";
 
@@ -144,9 +139,24 @@ class ShipmentImportController extends Controller implements HasMiddleware
             $message .= " {$import->failed_row_count} baris gagal diimport — unduh daftarnya untuk melihat alasannya.";
         }
 
+        $level = $import->unmatched_sku_count > 0 || $import->failed_row_count > 0 ? 'error' : 'success';
+
+        // Form import mengunggah lewat AJAX (tanpa memuat ulang halaman) dan
+        // meminta JSON. Pesannya tetap disimpan ke sesi supaya tampil di
+        // halaman detail yang dibuka sesudahnya. Kesalahan validasi otomatis
+        // dijawab 422 berisi JSON oleh Laravel.
+        if ($request->expectsJson()) {
+            session()->flash($level, $message);
+
+            return response()->json([
+                'redirect' => route('admin.imports.show', $import),
+                'message' => $message,
+            ]);
+        }
+
         return redirect()
             ->route('admin.imports.show', $import)
-            ->with($import->unmatched_sku_count > 0 || $import->failed_row_count > 0 ? 'error' : 'success', $message);
+            ->with($level, $message);
     }
 
     /**

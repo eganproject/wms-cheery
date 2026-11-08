@@ -4,18 +4,19 @@
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div class="lg:col-span-2">
-            {{-- Form upload harus multipart, jadi dikirim biasa tanpa AJAX. --}}
+            {{-- Diunggah lewat AJAX (importUpload) tanpa memuat ulang halaman;
+                 tanpa JavaScript, form tetap terkirim biasa. --}}
             <form method="POST" action="{{ route('admin.imports.store') }}" enctype="multipart/form-data" data-no-ajax
-                  x-data="{ name: '', drag: false }">
+                  x-data="importUpload({ maxMb: 20 })" @submit.prevent="submit()">
                 @csrf
 
                 <x-ui.card title="Berkas Eksport TikTok Shop" subtitle="Unggah langsung berkas Excel (.xlsx / .xls) hasil eksport — CSV juga diterima. Maksimal 20 MB.">
-                    <label class="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-12 text-center transition"
-                           :class="drag ? 'border-ink-950 bg-ink-50' : 'border-ink-200 hover:border-ink-300 hover:bg-ink-50/50'"
-                           @dragover.prevent="drag = true" @dragleave.prevent="drag = false"
-                           @drop="drag = false; name = $event.dataTransfer.files[0]?.name ?? ''">
-                        <input type="file" name="file" accept=".xlsx,.xls,.csv,.txt" class="sr-only" required
-                               @change="name = $event.target.files[0]?.name ?? ''">
+                    <label class="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-12 text-center transition"
+                           :class="busy ? 'cursor-wait border-ink-200 opacity-60' : (drag ? 'cursor-pointer border-ink-950 bg-ink-50' : 'cursor-pointer border-ink-200 hover:border-ink-300 hover:bg-ink-50/50')"
+                           @dragover.prevent="drag = ! busy" @dragleave.prevent="drag = false"
+                           @drop.prevent="drop($event)">
+                        <input type="file" name="file" accept=".xlsx,.xls,.csv,.txt" class="sr-only" required x-ref="file"
+                               :disabled="busy" @change="pick($event.target.files)">
 
                         <span class="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-control text-ink-700">
                             <x-icon name="document" class="h-6 w-6" />
@@ -29,16 +30,36 @@
                         <span class="mt-1 block text-xs text-ink-500" x-show="! name">
                             atau tarik berkasnya ke sini &middot; .xlsx, .xls, .csv
                         </span>
-                        <span class="mt-1 block text-xs text-emerald-600" x-show="name" x-cloak>
+                        <span class="mt-1 block text-xs text-emerald-600" x-show="name && ! busy" x-cloak>
                             Berkas siap diimport
                         </span>
                     </label>
 
+                    {{-- Indikator proses: unggah (persen) lalu baca & cocokkan isi berkas. --}}
+                    <div x-show="busy" x-cloak class="mt-4 rounded-xl border border-ink-100 bg-ink-50/60 p-4" role="status" aria-live="polite">
+                        <div class="flex items-center gap-3">
+                            <span class="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-ink-950 border-t-transparent"></span>
+                            <p class="text-sm font-semibold text-ink-950"
+                               x-text="phase === 'upload' ? `Mengunggah berkas… ${percent}%` : 'Memproses berkas — membaca resi dan mencocokkan SKU…'"></p>
+                        </div>
+                        <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-ink-100">
+                            <div class="h-full rounded-full bg-ink-950 transition-all duration-200"
+                                 :class="phase === 'process' && 'animate-pulse'"
+                                 :style="`width: ${phase === 'upload' ? percent : 100}%`"></div>
+                        </div>
+                        <p class="mt-2 text-xs text-ink-500">Berkas besar bisa memakan waktu beberapa menit. Jangan tutup atau pindah halaman sampai selesai.</p>
+                    </div>
+
+                    <p x-show="error" x-cloak x-text="error" class="mt-3 text-sm text-red-600"></p>
                     <x-input-error :messages="$errors->get('file')" class="mt-3" />
 
                     <div class="mt-5 flex flex-col gap-2 sm:flex-row">
-                        <x-ui.button type="submit" icon="check" class="flex-1">Proses Import</x-ui.button>
-                        <x-ui.button :href="route('admin.imports.index')" variant="secondary" class="flex-1">Batal</x-ui.button>
+                        <x-ui.button type="submit" icon="check" class="flex-1"
+                                     x-bind:disabled="busy" x-bind:data-busy="busy ? 'true' : null">
+                            <span x-text="busy ? 'Sedang Memproses…' : 'Proses Import'">Proses Import</span>
+                        </x-ui.button>
+                        <x-ui.button :href="route('admin.imports.index')" variant="secondary" class="flex-1"
+                                     x-bind:class="busy && 'pointer-events-none opacity-50'" x-bind:aria-disabled="busy">Batal</x-ui.button>
                     </div>
                 </x-ui.card>
             </form>

@@ -89,6 +89,44 @@ class ShipmentImportTest extends TestCase
         $this->assertDatabaseCount('shipment_orders', 0);
     }
 
+    /* ------------------------------------- unggah tanpa muat ulang ------ */
+
+    public function test_ajax_import_answers_json_with_the_detail_page_and_flashes_the_message(): void
+    {
+        $response = $this->uploadCsv([
+            ['Order ID', 'Tracking ID', 'Seller SKU', 'Product Name', 'Quantity'],
+            ['INV-001', 'SPXID111', 'FLT-OLI-STD', 'Filter Oli', '2'],
+        ], json: true);
+
+        $import = \App\Models\ShipmentImport::firstOrFail();
+
+        $response->assertOk()
+            ->assertJsonPath('redirect', route('admin.imports.show', $import))
+            ->assertJsonPath('message', fn ($message) => str_contains($message, '1 resi baru'));
+
+        // Pesan ikut tampil di halaman detail yang dibuka sesudahnya.
+        $this->assertSame(session('success'), $response->json('message'));
+        $this->assertDatabaseCount('shipment_orders', 1);
+    }
+
+    public function test_ajax_import_returns_validation_errors_as_json(): void
+    {
+        $this->uploadCsv([
+            ['Order ID', 'Seller SKU', 'Quantity'],
+            ['INV-001', 'FLT-OLI-STD', '2'],
+        ], json: true)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('file');
+
+        $this->actingAs($this->admin)
+            ->postJson(route('admin.imports.store'), [])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('file');
+
+        $this->assertDatabaseCount('shipment_orders', 0);
+        $this->assertDatabaseCount('shipment_imports', 0);
+    }
+
     public function test_re_importing_the_same_waybill_is_skipped_and_keeps_the_old_data(): void
     {
         $this->uploadCsv([
@@ -318,16 +356,18 @@ class ShipmentImportTest extends TestCase
     /**
      * @param  array<int, array<int, string>>  $rows
      */
-    protected function uploadCsv(array $rows)
+    protected function uploadCsv(array $rows, bool $json = false)
     {
         $csv = collect($rows)->map(fn (array $row) => implode(',', $row))->implode("\n");
 
         $path = tempnam(sys_get_temp_dir(), 'tiktok').'.csv';
         file_put_contents($path, $csv);
 
-        return $this->actingAs($this->admin)->post(route('admin.imports.store'), [
-            'file' => new UploadedFile($path, 'tiktok-orders.csv', 'text/csv', null, true),
-        ]);
+        $file = ['file' => new UploadedFile($path, 'tiktok-orders.csv', 'text/csv', null, true)];
+
+        return $json
+            ? $this->actingAs($this->admin)->post(route('admin.imports.store'), $file, ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'])
+            : $this->actingAs($this->admin)->post(route('admin.imports.store'), $file);
     }
 
     protected function giveStock(Product $product, int $quantity): void
