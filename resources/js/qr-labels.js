@@ -8,6 +8,23 @@ export default function qrLabels(config) {
         items: config.items ?? [],
         perPage: config.perPage ?? {},
         layout: config.layout ?? '',
+        stacked: config.stacked ?? {},
+
+        /* Posisi tulisan mengikuti bawaan ukuran label (thermal: di bawah,
+           A4: di kanan) sampai pengguna memilihnya sendiri. */
+        position: '',
+        positionTouched: false,
+
+        init() {
+            this.position = this.defaultPosition();
+            this.$watch('layout', () => {
+                if (! this.positionTouched) this.position = this.defaultPosition();
+            });
+        },
+
+        defaultPosition() {
+            return this.stacked[this.layout] ? 'below' : 'right';
+        },
         maxLabels: config.maxLabels ?? 3000,
         maxCopies: config.maxCopies ?? 500,
         bulkCopies: 1,

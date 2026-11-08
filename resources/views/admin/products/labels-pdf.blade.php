@@ -53,7 +53,8 @@
             .cell { border: 0.2mm dashed #c8c8c8; width: {{ $w - 0.4 }}mm; height: {{ $h - 0.4 }}mm; }
         @endif
         .qr { position: absolute; left: {{ $pad }}mm; top: {{ ($h - $qr) / 2 }}mm; width: {{ $qr }}mm; height: {{ $qr }}mm; }
-        .text { position: absolute; left: {{ $textLeft }}mm; top: {{ $pad }}mm; width: {{ $textWidth }}mm; height: {{ $h - 2 * $pad }}mm; overflow: hidden; }
+        {{-- Tulisan di kanan dimulai sejajar tepi atas QR, supaya rapi segaris. --}}
+        .text { position: absolute; left: {{ $textLeft }}mm; top: {{ ($h - $qr) / 2 }}mm; width: {{ $textWidth }}mm; height: {{ $h - ($h - $qr) / 2 - $pad / 2 }}mm; overflow: hidden; }
         .sku { font-family: "DejaVu Sans Mono", monospace; font-weight: bold; font-size: {{ $layout['sku_font'] }}pt; line-height: 1.15; word-wrap: break-word; }
         .name { font-size: {{ $layout['font'] }}pt; line-height: 1.2; margin-top: 0.8mm; word-wrap: break-word; }
         .variant { font-size: {{ $layout['font'] }}pt; line-height: 1.2; font-weight: bold; margin-top: 0.5mm; word-wrap: break-word; }

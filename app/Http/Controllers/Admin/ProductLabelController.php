@@ -107,6 +107,7 @@ class ProductLabelController extends Controller implements HasMiddleware
             'items.*.copies' => ['required', 'integer', 'min:1', 'max:'.self::MAX_COPIES],
             'layout' => ['nullable', 'string'],
             'show_name' => ['nullable', 'boolean'],
+            'text_position' => ['nullable', 'in:below,right'],
             'skip' => ['nullable', 'integer', 'min:0', 'max:99'],
         ], [
             'items.required' => 'Pilih minimal satu barang untuk dicetak.',
@@ -134,6 +135,12 @@ class ProductLabelController extends Controller implements HasMiddleware
         }
 
         $layout = QrLabelLayout::get($data['layout'] ?? null);
+
+        // Posisi teks bisa dipilih di layar: di bawah QR (bertumpuk) atau di
+        // kanannya. Tanpa pilihan, ikut bawaan ukuran labelnya.
+        if (isset($data['text_position'])) {
+            $layout['stacked'] = $data['text_position'] === 'below';
+        }
         $showName = (bool) ($data['show_name'] ?? true);
 
         // Lembar A4 yang sebagian labelnya sudah terpakai: lewati sejumlah

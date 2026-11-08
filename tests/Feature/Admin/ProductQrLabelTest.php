@@ -83,6 +83,31 @@ class ProductQrLabelTest extends TestCase
         $this->assertSame(4, preg_match_all('/\/Type\s*\/Page\b/', $response->getContent()));
     }
 
+    public function test_text_position_can_be_chosen(): void
+    {
+        $id = Product::where('sku', 'TOPI-01')->value('id');
+
+        foreach (['below', 'right'] as $position) {
+            $this->actingAs($this->admin)->post(route('admin.products.labels.pdf'), [
+                'items' => [['id' => $id, 'copies' => 1]],
+                'layout' => 'a4-40',
+                'text_position' => $position,
+            ])->assertOk();
+        }
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.products.labels'))
+            ->assertSee('Di bawah QR')
+            ->assertSee('Di kanan QR');
+
+        $this->actingAs($this->admin)
+            ->from(route('admin.products.labels'))
+            ->post(route('admin.products.labels.pdf'), [
+                'items' => [['id' => $id, 'copies' => 1]],
+                'text_position' => 'atas',
+            ])->assertSessionHasErrors('text_position');
+    }
+
     public function test_label_count_is_capped(): void
     {
         $id = Product::where('sku', 'TOPI-01')->value('id');

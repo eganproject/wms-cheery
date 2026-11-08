@@ -12,6 +12,7 @@
           x-data="qrLabels({
               items: @js($items),
               perPage: @js($layouts->map(fn ($layout) => $layout['per_page'])),
+              stacked: @js($layouts->map(fn ($layout) => $layout['stacked'])),
               layout: @js(old('layout', $defaultLayout)),
               maxLabels: {{ $maxLabels }},
               maxCopies: {{ $maxCopies }},
@@ -120,6 +121,33 @@
                             </span>
                         </label>
                     @endforeach
+                </div>
+
+                <div class="mt-4 border-t border-ink-100 pt-4">
+                    <p class="text-sm text-ink-950">Posisi tulisan SKU & nama</p>
+                    <div class="mt-2 grid grid-cols-2 gap-2">
+                        @foreach (['below' => ['Di bawah QR', 'QR di atas, tulisan rata tengah'], 'right' => ['Di kanan QR', 'QR di kiri, tulisan di sampingnya']] as $value => [$title, $hint])
+                            <label class="flex cursor-pointer flex-col items-center gap-2 rounded-lg border p-3 text-center transition"
+                                   :class="position === @js($value) ? 'border-ink-950 bg-ink-50/60' : 'border-ink-100 hover:border-ink-300'">
+                                <input type="radio" name="text_position" value="{{ $value }}" x-model="position"
+                                       x-on:change="positionTouched = true" class="sr-only">
+                                {{-- Gambar kecil tata letaknya. --}}
+                                @if ($value === 'below')
+                                    <span class="flex h-10 w-14 flex-col items-center justify-center gap-1 rounded border border-ink-200 bg-white">
+                                        <span class="h-4 w-4 bg-ink-950"></span>
+                                        <span class="h-0.5 w-8 rounded bg-ink-400"></span>
+                                    </span>
+                                @else
+                                    <span class="flex h-10 w-14 items-center justify-center gap-1 rounded border border-ink-200 bg-white">
+                                        <span class="h-5 w-5 bg-ink-950"></span>
+                                        <span class="flex flex-col gap-1"><span class="h-0.5 w-5 rounded bg-ink-400"></span><span class="h-0.5 w-4 rounded bg-ink-300"></span></span>
+                                    </span>
+                                @endif
+                                <span class="text-sm font-medium text-ink-950">{{ $title }}</span>
+                                <span class="text-[11px] leading-tight text-ink-500">{{ $hint }}</span>
+                            </label>
+                        @endforeach
+                    </div>
                 </div>
 
                 <div class="mt-4 space-y-3 border-t border-ink-100 pt-4">
