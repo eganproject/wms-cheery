@@ -38,12 +38,26 @@ class DamagedDisposal extends Model
     /** Barang layak jual yang ternyata rusak: pindah saldo, belum keluar gudang. */
     public const ACTION_WRITE_OFF = 'ditandai_rusak';
 
+    /* Tindak lanjut retur ke pemasok, setelah dokumennya diproses. */
+    public const RETURN_UNSENT = 'belum_dikirim';
+
+    public const RETURN_SENT = 'dikirim';
+
+    public const RETURN_DONE = 'selesai';
+
     protected $fillable = [
         'code',
         'date',
         'bucket',
         'action',
         'supplier_id',
+        'return_status',
+        'shipped_at',
+        'courier',
+        'tracking_number',
+        'closed_at',
+        'closed_by',
+        'close_note',
         'note',
         'status',
         'posted_at',
@@ -62,6 +76,8 @@ class DamagedDisposal extends Model
         return [
             'date' => 'date',
             'posted_at' => 'datetime',
+            'shipped_at' => 'date',
+            'closed_at' => 'datetime',
             'submitted_at' => 'datetime',
             'approved_at' => 'datetime',
             'rejected_at' => 'datetime',
@@ -81,6 +97,101 @@ class DamagedDisposal extends Model
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function replacements(): HasMany
+    {
+        return $this->hasMany(SupplierReplacement::class);
+    }
+
+    public function closer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'closed_by');
+    }
+
+    /* ------------------------------------------- retur ke pemasok -- */
+
+    public function isSupplierReturn(): bool
+    {
+        return $this->action === self::ACTION_RETURN;
+    }
+
+    /** Retur ke pemasok yang sudah diproses dan punya tindak lanjut. */
+    public function tracksSupplierReturn(): bool
+    {
+        return $this->isSupplierReturn() && $this->isPosted() && $this->return_status !== null;
+    }
+
+    public function isReturnUnsent(): bool
+    {
+        return $this->return_status === self::RETURN_UNSENT;
+    }
+
+    public function isReturnSent(): bool
+    {
+        return $this->return_status === self::RETURN_SENT;
+    }
+
+    public function isReturnDone(): bool
+    {
+        return $this->return_status === self::RETURN_DONE;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function returnStatuses(): array
+    {
+        return [
+            self::RETURN_UNSENT => 'Belum dikirim',
+            self::RETURN_SENT => 'Dikirim, menunggu pemasok',
+            self::RETURN_DONE => 'Selesai',
+        ];
+    }
+
+    public function returnStatusLabel(): string
+    {
+        return self::returnStatuses()[$this->return_status] ?? '—';
+    }
+
+    public function returnStatusVariant(): string
+    {
+        return match ($this->return_status) {
+            self::RETURN_UNSENT => 'warning',
+            self::RETURN_SENT => 'info',
+            self::RETURN_DONE => 'success',
+            default => 'outline',
+        };
+    }
+
+    /** Hari sejak dikirim ke pemasok, selama belum selesai. */
+    public function daysWithSupplier(): ?int
+    {
+        if (! $this->isReturnSent() || ! $this->shipped_at) {
+            return null;
+        }
+
+        return (int) $this->shipped_at->startOfDay()->diffInDays(now()->startOfDay());
+    }
+
+    public function replacedQuantity(): int
+    {
+        return (int) $this->items->sum('replaced_quantity');
+    }
+
+    public function rejectedQuantity(): int
+    {
+        return (int) $this->items->sum('rejected_quantity');
+    }
+
+    public function outstandingQuantity(): int
+    {
+        return (int) $this->items->sum(fn (DamagedDisposalItem $item) => $item->outstandingQuantity());
+    }
+
+    public function scopeSupplierReturns(Builder $query): Builder
+    {
+        return $query->where('action', self::ACTION_RETURN)->whereNotNull('return_status');
     }
 
     public function isDraft(): bool
@@ -263,8 +374,12 @@ class DamagedDisposal extends Model
         return 'RSK-'.now()->format('Ym').'-';
     }
 
+    /**
+     * Retur ke pemasok yang stoknya sudah keluar tetapi masih menunggu
+     * pemasok belum boleh terbaca "Selesai".
+     */
     protected function postedLabel(): string
     {
-        return 'Selesai';
+        return $this->tracksSupplierReturn() && ! $this->isReturnDone() ? 'Diproses' : 'Selesai';
     }
 }

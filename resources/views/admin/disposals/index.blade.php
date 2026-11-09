@@ -45,6 +45,7 @@
         $tabs = [
             'saldo' => ['label' => 'Saldo Barang Rusak', 'count' => $summary['skus']],
             'riwayat' => ['label' => 'Riwayat Pengeluaran', 'count' => $summary['documents']],
+            'pemasok' => ['label' => 'Retur ke Pemasok', 'count' => $summary['open_returns']],
         ];
     @endphp
     <div class="scrollbar-none mb-4 mt-5 flex gap-1 overflow-x-auto border-b border-ink-200 text-sm" data-disposal-tabs>
@@ -133,6 +134,96 @@
                 </div>
 
                 <x-ui.pagination :paginator="$damaged" />
+            @endif
+        </div>
+    @elseif ($tab === 'pemasok')
+        {{-- ======================================= Retur ke pemasok ====== --}}
+        <form method="GET" action="{{ route('admin.disposals.index') }}" data-auto-submit
+              class="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-ink-100 bg-white p-4">
+            <input type="hidden" name="tab" value="pemasok">
+            <div class="min-w-0 flex-1 sm:max-w-xs">
+                <input type="search" name="search" value="{{ request('search') }}" class="form-control"
+                       placeholder="Cari nomor dokumen, catatan, atau pemasok…">
+            </div>
+            <x-ui.select name="return_status" class="sm:w-56">
+                <option value="open" @selected(request('return_status', 'open') === 'open')>Belum selesai</option>
+                @foreach (App\Models\DamagedDisposal::returnStatuses() as $value => $label)
+                    <option value="{{ $value }}" @selected(request('return_status') === $value)>{{ $label }}</option>
+                @endforeach
+                <option value="all" @selected(request('return_status') === 'all')>Semua status</option>
+            </x-ui.select>
+            <x-ui.select name="supplier_id" class="sm:w-56">
+                <option value="">Semua pemasok</option>
+                @foreach ($suppliers as $supplier)
+                    <option value="{{ $supplier->id }}" @selected((int) request('supplier_id') === $supplier->id)>{{ $supplier->name }}</option>
+                @endforeach
+            </x-ui.select>
+            <x-ui.button type="submit" variant="secondary" icon="filter">Terapkan</x-ui.button>
+            @if (request()->hasAny(['search', 'return_status', 'supplier_id']))
+                <x-ui.button :href="route('admin.disposals.index', ['tab' => 'pemasok'])"
+                             variant="ghost" size="icon" title="Reset filter">
+                    <x-icon name="refresh" class="h-4 w-4" />
+                </x-ui.button>
+            @endif
+        </form>
+
+        <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
+            @if ($returns->isEmpty())
+                <x-ui.empty-state icon="truck" title="Tidak ada retur ke pemasok"
+                                  description="Retur muncul di sini setelah dokumen &quot;Dikembalikan ke pemasok&quot; diproses." />
+            @else
+                <div class="overflow-x-auto">
+                    <table class="erp-table">
+                        <thead>
+                            <tr>
+                                <th><x-ui.sort key="date" for="retur" first="desc">Dokumen</x-ui.sort></th>
+                                <th>Pemasok</th>
+                                <th><x-ui.sort key="shipped" for="retur" first="desc">Dikirim</x-ui.sort></th>
+                                <th class="text-right"><x-ui.sort key="quantity" for="retur" first="desc">Dikirim (unit)</x-ui.sort></th>
+                                <th class="text-right">Diganti</th>
+                                <th class="text-right">Ditolak</th>
+                                <th class="text-right">Sisa Ditunggu</th>
+                                <th><x-ui.sort key="status" for="retur">Status</x-ui.sort></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($returns as $return)
+                                @php
+                                    $sent = (int) $return->items_sum_quantity;
+                                    $replaced = (int) $return->items_sum_replaced_quantity;
+                                    $rejected = (int) $return->items_sum_rejected_quantity;
+                                    $days = $return->daysWithSupplier();
+                                @endphp
+                                <tr>
+                                    <td>
+                                        <a href="{{ route('admin.disposals.show', $return) }}"
+                                           class="font-mono text-sm font-medium text-ink-950 underline-offset-4 hover:underline">
+                                            {{ $return->code }}
+                                        </a>
+                                        <p class="text-xs text-ink-400">{{ $return->date->translatedFormat('d M Y') }} · {{ $return->bucketLabel() }}</p>
+                                    </td>
+                                    <td class="text-sm text-ink-700">{{ $return->supplier?->name ?? '—' }}</td>
+                                    <td class="text-sm text-ink-600">
+                                        {{ $return->shipped_at?->translatedFormat('d M Y') ?? '—' }}
+                                        @if ($return->tracking_number)
+                                            <p class="font-mono text-xs text-ink-400">{{ $return->courier ? $return->courier.' · ' : '' }}{{ $return->tracking_number }}</p>
+                                        @endif
+                                        @if ($days !== null)
+                                            <p @class(['text-xs', 'font-medium text-red-600' => $days > 14, 'text-ink-400' => $days <= 14])>{{ $days }} hari di pemasok</p>
+                                        @endif
+                                    </td>
+                                    <td class="text-right text-sm tabular-nums">{{ number_format($sent, 0, ',', '.') }}</td>
+                                    <td class="text-right text-sm tabular-nums text-emerald-700">{{ number_format($replaced, 0, ',', '.') }}</td>
+                                    <td class="text-right text-sm tabular-nums text-red-600">{{ number_format($rejected, 0, ',', '.') }}</td>
+                                    <td class="text-right text-sm font-semibold tabular-nums text-ink-950">{{ number_format(max(0, $sent - $replaced - $rejected), 0, ',', '.') }}</td>
+                                    <td><x-ui.badge :variant="$return->returnStatusVariant()">{{ $return->returnStatusLabel() }}</x-ui.badge></td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                <x-ui.pagination :paginator="$returns" />
             @endif
         </div>
     @else
@@ -225,6 +316,9 @@
                                         <x-ui.badge :variant="$disposal->statusVariant()" :icon="$disposal->statusIcon()">
                                             {{ $disposal->statusLabel() }}
                                         </x-ui.badge>
+                                        @if ($disposal->tracksSupplierReturn())
+                                            <p class="mt-1 text-xs text-ink-400">{{ $disposal->returnStatusLabel() }}</p>
+                                        @endif
                                     </td>
                                     <td>
                                         <div class="flex justify-end">

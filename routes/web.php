@@ -164,6 +164,9 @@ Route::middleware('auth')
         Route::post('disposals/{disposal}/submit', [DamagedStockController::class, 'submit'])->name('disposals.submit');
         Route::post('disposals/{disposal}/approve', [DamagedStockController::class, 'approve'])->name('disposals.approve');
         Route::post('disposals/{disposal}/withdraw', [DamagedStockController::class, 'withdraw'])->name('disposals.withdraw');
+        Route::post('disposals/{disposal}/ship', [DamagedStockController::class, 'ship'])->name('disposals.ship');
+        Route::post('disposals/{disposal}/replace', [DamagedStockController::class, 'replace'])->name('disposals.replace');
+        Route::post('disposals/{disposal}/reject-return', [DamagedStockController::class, 'reject'])->name('disposals.reject-return');
         Route::resource('disposals', DamagedStockController::class)->except(['edit', 'update']);
 
         Route::get('opnames/{opname}/export', [StockOpnameController::class, 'export'])->name('opnames.export');

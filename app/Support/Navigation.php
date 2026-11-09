@@ -124,7 +124,7 @@ class Navigation
                         ['label' => 'Barang Rusak', 'icon' => 'damaged', 'route' => 'admin.disposals.index',
                             'match' => 'admin.disposals.*', 'can' => 'disposals.view',
                             'create' => ['route' => 'admin.disposals.create', 'can' => 'disposals.create'],
-                            'keywords' => 'rusak pemusnahan disposal damaged'],
+                            'keywords' => 'rusak pemusnahan disposal damaged retur pemasok supplier return klaim'],
                     ]],
                 ],
             ],

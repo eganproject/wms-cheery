@@ -13,12 +13,24 @@ class DamagedDisposalItem extends Model
         'damaged_disposal_id',
         'product_id',
         'quantity',
+        'replaced_quantity',
+        'rejected_quantity',
         'note',
     ];
 
     protected function casts(): array
     {
-        return ['quantity' => 'integer'];
+        return [
+            'quantity' => 'integer',
+            'replaced_quantity' => 'integer',
+            'rejected_quantity' => 'integer',
+        ];
+    }
+
+    /** Unit yang dikirim ke pemasok tetapi belum diganti maupun ditolak. */
+    public function outstandingQuantity(): int
+    {
+        return max(0, $this->quantity - $this->replaced_quantity - $this->rejected_quantity);
     }
 
     public function disposal(): BelongsTo

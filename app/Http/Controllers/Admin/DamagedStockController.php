@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\Supplier;
 use App\Services\ApprovalService;
+use App\Services\StockService;
 use App\Services\TableExport;
 use App\Support\Listing;
 use Illuminate\Http\RedirectResponse;
@@ -34,7 +35,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class DamagedStockController extends Controller implements HasMiddleware
 {
-    public function __construct(protected ApprovalService $approvals)
+    public function __construct(protected ApprovalService $approvals, protected StockService $stock)
     {
     }
 
@@ -44,7 +45,7 @@ class DamagedStockController extends Controller implements HasMiddleware
             new Middleware('can:disposals.view', only: ['index', 'show', 'export']),
             new Middleware('can:disposals.create', only: ['create', 'store']),
             new Middleware('can:disposals.delete', only: ['destroy']),
-            new Middleware('can:disposals.post', only: ['submit', 'withdraw']),
+            new Middleware('can:disposals.post', only: ['submit', 'withdraw', 'ship', 'replace', 'reject']),
             new Middleware('can:disposals.approve', only: ['approve']),
         ];
     }
@@ -60,6 +61,7 @@ class DamagedStockController extends Controller implements HasMiddleware
 
         $damaged = null;
         $disposals = null;
+        $returns = null;
 
         if ($tab === 'saldo') {
             $damaged = Product::query()
@@ -73,6 +75,20 @@ class DamagedStockController extends Controller implements HasMiddleware
                     'stock' => 'stock',
                 ], ['damaged', 'desc'], 'stok'))
                 ->paginate(Listing::perPage($request, pageName: 'stok'), ['*'], 'stok')
+                ->withQueryString();
+        } elseif ($tab === 'pemasok') {
+            $returns = $this->filteredSupplierReturns($request)
+                ->with('supplier')
+                ->withSum('items', 'quantity')
+                ->withSum('items', 'replaced_quantity')
+                ->withSum('items', 'rejected_quantity')
+                ->tap(fn ($query) => Listing::sort($query, $request, [
+                    'date' => fn ($query, $dir) => $query->orderBy('date', $dir)->orderBy('id', $dir),
+                    'shipped' => 'shipped_at',
+                    'status' => 'return_status',
+                    'quantity' => 'items_sum_quantity',
+                ], ['date', 'desc'], 'retur'))
+                ->paginate(Listing::perPage($request, pageName: 'retur'), ['*'], 'retur')
                 ->withQueryString();
         } else {
             $disposals = $this->filteredDisposals($request)
@@ -97,7 +113,10 @@ class DamagedStockController extends Controller implements HasMiddleware
             'tab' => $tab,
             'damaged' => $damaged,
             'disposals' => $disposals,
+            'returns' => $returns,
+            'suppliers' => $tab === 'pemasok' ? Supplier::orderBy('name')->get(['id', 'name']) : collect(),
             'summary' => [
+                'open_returns' => DamagedDisposal::supplierReturns()->where('return_status', '!=', DamagedDisposal::RETURN_DONE)->count(),
                 'units' => (int) Product::sum('damaged_stock'),
                 'skus' => $skus,
                 'pending' => DamagedDisposal::pending()->count(),
@@ -139,6 +158,10 @@ class DamagedStockController extends Controller implements HasMiddleware
                     ['Stok Rusak', 'sum'],
                 ], $rows())
                 ->download('saldo-barang-rusak-'.$stamp.'.xlsx');
+        }
+
+        if ($this->tabFrom($request) === 'pemasok') {
+            return $this->exportSupplierReturns($request, $stamp);
         }
 
         $documents = function () use ($request) {
@@ -218,6 +241,90 @@ class DamagedStockController extends Controller implements HasMiddleware
             ->download('penanganan-barang-rusak-'.$stamp.'.xlsx');
     }
 
+    protected function exportSupplierReturns(Request $request, string $stamp): StreamedResponse
+    {
+        $documents = function () use ($request) {
+            $number = 0;
+
+            foreach ($this->filteredSupplierReturns($request)->with('supplier')
+                ->withSum('items', 'quantity')->withSum('items', 'replaced_quantity')->withSum('items', 'rejected_quantity')
+                ->lazy(500) as $disposal) {
+                $sent = (int) $disposal->items_sum_quantity;
+                $replaced = (int) $disposal->items_sum_replaced_quantity;
+                $rejected = (int) $disposal->items_sum_rejected_quantity;
+
+                yield [
+                    ++$number,
+                    $disposal->date,
+                    $disposal->code,
+                    $disposal->supplier?->name,
+                    $disposal->bucketLabel(),
+                    $disposal->returnStatusLabel(),
+                    $disposal->shipped_at,
+                    $disposal->courier,
+                    $disposal->tracking_number,
+                    $disposal->daysWithSupplier(),
+                    $sent,
+                    $replaced,
+                    $rejected,
+                    max(0, $sent - $replaced - $rejected),
+                    $disposal->closed_at,
+                    $disposal->close_note,
+                ];
+            }
+        };
+
+        $items = function () use ($request) {
+            foreach ($this->filteredSupplierReturns($request)->with('items.product', 'supplier')->lazy(500) as $disposal) {
+                foreach ($disposal->items as $item) {
+                    yield [
+                        $disposal->code,
+                        $disposal->supplier?->name,
+                        $disposal->returnStatusLabel(),
+                        $item->product?->sku,
+                        $item->product?->name,
+                        $item->quantity,
+                        $item->replaced_quantity,
+                        $item->rejected_quantity,
+                        $item->outstandingQuantity(),
+                    ];
+                }
+            }
+        };
+
+        return TableExport::make('Retur ke Pemasok')
+            ->sheet('Dokumen', [
+                ['No', 'number'],
+                ['Tanggal', 'date'],
+                ['No. Dokumen', 'text'],
+                ['Pemasok', 'text'],
+                ['Asal Stok', 'text'],
+                ['Status', 'text'],
+                ['Tanggal Kirim', 'date'],
+                ['Ekspedisi', 'text'],
+                ['No. Resi', 'text'],
+                ['Hari di Pemasok', 'number'],
+                ['Dikirim', 'sum'],
+                ['Diganti', 'sum'],
+                ['Ditolak', 'sum'],
+                ['Sisa Ditunggu', 'sum'],
+                ['Selesai', 'date'],
+                ['Alasan Ditolak', 'text'],
+            ], $documents())
+            ->sheet('Detail Barang', [
+                ['No. Dokumen', 'text'],
+                ['Pemasok', 'text'],
+                ['Status', 'text'],
+                ['SKU', 'text'],
+                ['Nama Barang', 'text'],
+                ['Dikirim', 'sum'],
+                ['Diganti', 'sum'],
+                ['Ditolak', 'sum'],
+                ['Sisa Ditunggu', 'sum'],
+            ], $items())
+            ->download('retur-ke-pemasok-'.$stamp.'.xlsx');
+    }
+
     /**
      * Saringan dokumen penanganan, sama untuk tabel dan berkas export.
      */
@@ -237,11 +344,30 @@ class DamagedStockController extends Controller implements HasMiddleware
             ->latest('id');
     }
 
+    /**
+     * Saringan tab Retur ke Pemasok. Bawaannya hanya yang belum selesai,
+     * karena itulah yang perlu dikejar.
+     */
+    protected function filteredSupplierReturns(Request $request): \Illuminate\Database\Eloquent\Builder
+    {
+        $status = $request->string('return_status')->value() ?: 'open';
+        $supplier = $request->integer('supplier_id');
+
+        return DamagedDisposal::query()
+            ->supplierReturns()
+            ->search($request->string('search')->trim()->value())
+            ->when($status === 'open', fn ($query) => $query->where('return_status', '!=', DamagedDisposal::RETURN_DONE))
+            ->when(array_key_exists($status, DamagedDisposal::returnStatuses()), fn ($query) => $query->where('return_status', $status))
+            ->when($supplier > 0, fn ($query) => $query->where('supplier_id', $supplier))
+            ->latest('date')
+            ->latest('id');
+    }
+
     protected function tabFrom(Request $request): string
     {
         $tab = $request->string('tab')->value();
 
-        if (in_array($tab, ['saldo', 'riwayat'], true)) {
+        if (in_array($tab, ['saldo', 'riwayat', 'pemasok'], true)) {
             return $tab;
         }
 
@@ -336,7 +462,7 @@ class DamagedStockController extends Controller implements HasMiddleware
 
     public function show(DamagedDisposal $disposal): View
     {
-        $disposal->load('items.product', 'user', 'supplier');
+        $disposal->load('items.product', 'user', 'supplier', 'closer', 'replacements.items.product', 'replacements.user');
 
         return view('admin.disposals.show', compact('disposal'));
     }
@@ -387,6 +513,71 @@ class DamagedStockController extends Controller implements HasMiddleware
     protected function columnFor(string $bucket): string
     {
         return $bucket === StockMovement::BUCKET_GOOD ? 'stock' : 'damaged_stock';
+    }
+
+    /* ------------------------------------------- retur ke pemasok -- */
+
+    /**
+     * Catat pengiriman barang ke pemasok. Bisa diulang untuk membetulkan
+     * ekspedisi atau resi selama returnya belum selesai.
+     */
+    public function ship(Request $request, DamagedDisposal $disposal): RedirectResponse
+    {
+        if (! $disposal->tracksSupplierReturn() || $disposal->isReturnDone()) {
+            return back()->with('error', 'Dokumen ini bukan retur ke pemasok yang masih berjalan.');
+        }
+
+        $data = $request->validate([
+            'shipped_at' => ['required', 'date'],
+            'courier' => ['nullable', 'string', 'max:100'],
+            'tracking_number' => ['nullable', 'string', 'max:100'],
+        ], [], ['shipped_at' => 'tanggal kirim', 'courier' => 'ekspedisi', 'tracking_number' => 'nomor resi']);
+
+        $updated = DamagedDisposal::whereKey($disposal->id)
+            ->whereIn('return_status', [DamagedDisposal::RETURN_UNSENT, DamagedDisposal::RETURN_SENT])
+            ->update($data + ['return_status' => DamagedDisposal::RETURN_SENT]);
+
+        if (! $updated) {
+            return back()->with('error', 'Retur ini sudah selesai, data pengiriman tidak bisa diubah.');
+        }
+
+        return back()->with('success', "Retur {$disposal->code} tercatat dikirim ke pemasok.");
+    }
+
+    public function replace(Request $request, DamagedDisposal $disposal): RedirectResponse
+    {
+        $data = $request->validate([
+            'date' => ['required', 'date'],
+            'note' => ['nullable', 'string', 'max:1000'],
+            'replacements' => ['array'],
+            'replacements.*' => ['nullable', 'integer', 'min:0'],
+        ], [], ['replacements.*' => 'jumlah pengganti']);
+
+        try {
+            $this->stock->receiveSupplierReplacement($disposal, $data['date'], $data['note'] ?? null, $data['replacements'] ?? []);
+        } catch (ValidationException $exception) {
+            return back()->withInput()->with('error', collect($exception->errors())->flatten()->implode(' '));
+        }
+
+        return back()->with('success', $disposal->isReturnDone()
+            ? "Barang pengganti diterima dan masuk stok layak jual. Retur {$disposal->code} selesai."
+            : 'Barang pengganti diterima dan masuk stok layak jual.');
+    }
+
+    public function reject(Request $request, DamagedDisposal $disposal): RedirectResponse
+    {
+        $data = $request->validate([
+            'close_note' => ['required', 'string', 'max:1000'],
+            'back_to_warehouse' => ['nullable', 'boolean'],
+        ], ['close_note.required' => 'Tulis alasan pemasok menolak.']);
+
+        try {
+            $this->stock->rejectSupplierReturn($disposal, $data['close_note'], $request->boolean('back_to_warehouse'));
+        } catch (ValidationException $exception) {
+            return back()->with('error', collect($exception->errors())->flatten()->implode(' '));
+        }
+
+        return back()->with('success', "Sisa retur {$disposal->code} ditutup sebagai ditolak pemasok.");
     }
 
     public function withdraw(DamagedDisposal $disposal): RedirectResponse

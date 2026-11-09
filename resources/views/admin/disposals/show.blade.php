@@ -112,4 +112,8 @@
             </div>
         </x-ui.card>
     </div>
+
+    @if ($disposal->tracksSupplierReturn())
+        @include('admin.disposals.partials.supplier-return')
+    @endif
 </x-app-layout>

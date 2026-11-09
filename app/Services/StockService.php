@@ -10,6 +10,7 @@ use App\Models\ProductImport;
 use App\Models\ReturnReceipt;
 use App\Models\StockAdjustment;
 use App\Models\StockMovement;
+use App\Models\SupplierReplacement;
 use App\Models\StockOpname;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -285,8 +286,142 @@ class StockService
             $disposal->forceFill([
                 'status' => DamagedDisposal::STATUS_POSTED,
                 'posted_at' => now(),
+                // Retur ke pemasok belum berakhir saat stoknya keluar: barangnya
+                // masih harus dikirim dan ditunggu penggantinya.
+                'return_status' => $disposal->isSupplierReturn() ? DamagedDisposal::RETURN_UNSENT : null,
             ])->save();
         });
+    }
+
+    /**
+     * Terima barang pengganti dari pemasok atas dokumen retur.
+     *
+     * Barang pengganti selalu layak jual, jadi masuk ke saldo layak jual dan
+     * tercatat di kartu stok dengan nomor dokumen retur yang sama. Jumlahnya
+     * tidak boleh melebihi unit yang masih ditunggu dari pemasok.
+     *
+     * @param  array<int|string, int|string|null>  $quantities  id baris dokumen => jumlah
+     */
+    public function receiveSupplierReplacement(DamagedDisposal $disposal, string $date, ?string $note, array $quantities): SupplierReplacement
+    {
+        return DB::transaction(function () use ($disposal, $date, $note, $quantities) {
+            $this->lockSupplierReturn($disposal);
+
+            if (! $disposal->isReturnSent()) {
+                throw ValidationException::withMessages([
+                    'replacement' => 'Barang pengganti hanya bisa diterima setelah retur ditandai dikirim dan sebelum selesai.',
+                ]);
+            }
+
+            $lines = collect($quantities)->map(fn ($quantity) => (int) $quantity)->filter(fn ($quantity) => $quantity > 0);
+
+            if ($lines->isEmpty()) {
+                throw ValidationException::withMessages(['replacement' => 'Isi jumlah barang pengganti pada minimal satu barang.']);
+            }
+
+            $items = $disposal->items->keyBy('id');
+
+            foreach ($lines as $itemId => $quantity) {
+                $item = $items->get((int) $itemId);
+
+                if (! $item) {
+                    throw ValidationException::withMessages(['replacement' => 'Barang tidak ada pada dokumen ini.']);
+                }
+
+                if ($quantity > $item->outstandingQuantity()) {
+                    throw ValidationException::withMessages([
+                        'replacement' => "Pengganti {$item->product->name} melebihi sisa yang ditunggu ({$item->outstandingQuantity()} {$item->product->unit}).",
+                    ]);
+                }
+            }
+
+            $replacement = $disposal->replacements()->create([
+                'date' => $date,
+                'note' => $note,
+                'user_id' => auth()->id(),
+            ]);
+
+            foreach ($lines as $itemId => $quantity) {
+                $item = $items->get((int) $itemId);
+
+                $replacement->items()->create([
+                    'damaged_disposal_item_id' => $item->id,
+                    'product_id' => $item->product_id,
+                    'quantity' => $quantity,
+                ]);
+
+                $item->increment('replaced_quantity', $quantity);
+
+                $this->move($item->product_id, 'in', $quantity, $disposal,
+                    "Pengganti dari pemasok {$disposal->code}", StockMovement::BUCKET_GOOD);
+            }
+
+            $this->finishSupplierReturnIfSettled($disposal);
+
+            return $replacement;
+        });
+    }
+
+    /**
+     * Tutup sisa retur yang tidak diganti pemasok sebagai ditolak.
+     *
+     * Bila barangnya dikirim balik oleh pemasok, unitnya masuk lagi ke saldo
+     * asalnya; bila tidak, barangnya memang sudah tidak ada di gudang.
+     */
+    public function rejectSupplierReturn(DamagedDisposal $disposal, string $note, bool $backToWarehouse): void
+    {
+        DB::transaction(function () use ($disposal, $note, $backToWarehouse) {
+            $this->lockSupplierReturn($disposal);
+
+            if (! $disposal->isReturnSent()) {
+                throw ValidationException::withMessages([
+                    'reject' => 'Hanya retur yang sudah dikirim dan belum selesai yang bisa ditutup sebagai ditolak.',
+                ]);
+            }
+
+            if ($disposal->outstandingQuantity() === 0) {
+                throw ValidationException::withMessages(['reject' => 'Tidak ada sisa unit yang menunggu pemasok.']);
+            }
+
+            foreach ($disposal->items as $item) {
+                $remaining = $item->outstandingQuantity();
+
+                if ($remaining === 0) {
+                    continue;
+                }
+
+                $item->increment('rejected_quantity', $remaining);
+
+                if ($backToWarehouse) {
+                    $this->move($item->product_id, 'in', $remaining, $disposal,
+                        "Ditolak pemasok, kembali ke gudang {$disposal->code}", $disposal->sourceBucket());
+                }
+            }
+
+            $disposal->forceFill(['close_note' => $note])->save();
+
+            $this->finishSupplierReturnIfSettled($disposal);
+        });
+    }
+
+    protected function lockSupplierReturn(DamagedDisposal $disposal): void
+    {
+        $fresh = DamagedDisposal::lockForUpdate()->findOrFail($disposal->getKey());
+        $disposal->setRawAttributes($fresh->getAttributes(), true);
+        $disposal->load('items.product');
+    }
+
+    protected function finishSupplierReturnIfSettled(DamagedDisposal $disposal): void
+    {
+        $disposal->load('items');
+
+        if ($disposal->outstandingQuantity() === 0) {
+            $disposal->forceFill([
+                'return_status' => DamagedDisposal::RETURN_DONE,
+                'closed_at' => now(),
+                'closed_by' => auth()->id(),
+            ])->save();
+        }
     }
 
     /**
