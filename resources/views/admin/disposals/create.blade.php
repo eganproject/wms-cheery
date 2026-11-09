@@ -35,6 +35,10 @@
     $initial = (object) collect(old('quantities', []))
         ->filter(fn ($quantity) => (int) $quantity > 0)
         ->all();
+
+    if (! session()->hasOldInput() && $preselected) {
+        $initial = (object) [$preselected->id => (int) ($fromGood ? $preselected->stock : $preselected->damaged_stock)];
+    }
 @endphp
 
 <x-app-layout :title="$title">
@@ -267,7 +271,8 @@
 
                             <div x-show="action === '{{ DamagedDisposal::ACTION_RETURN }}'" x-cloak>
                                 <x-input-label for="supplier_id" value="Pemasok tujuan" />
-                                <x-ui.select id="supplier_id" name="supplier_id" class="mt-1.5 w-full">
+                                <x-ui.select id="supplier_id" name="supplier_id" class="mt-1.5 w-full"
+                                             x-bind:required="action === '{{ DamagedDisposal::ACTION_RETURN }}'">
                                     <option value="">Pilih pemasok…</option>
                                     @foreach ($suppliers as $supplier)
                                         <option value="{{ $supplier->id }}" @selected(old('supplier_id') == $supplier->id)>
@@ -275,6 +280,7 @@
                                         </option>
                                     @endforeach
                                 </x-ui.select>
+                                <x-input-error :messages="$errors->get('supplier_id')" class="mt-1.5" />
                             </div>
 
                             <div>

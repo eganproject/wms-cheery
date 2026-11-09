@@ -112,7 +112,13 @@
                                         {{ number_format($product->stock, 0, ',', '.') }}
                                     </td>
                                     <td>
-                                        <div class="flex justify-end">
+                                        <div class="flex justify-end gap-1">
+                                            @can('disposals.create')
+                                                <x-ui.button :href="route('admin.disposals.create', ['product' => $product->id])"
+                                                             variant="secondary" size="xs">
+                                                    Tangani
+                                                </x-ui.button>
+                                            @endcan
                                             <a href="{{ route('admin.movements.index', ['bucket' => 'damaged', 'search' => $product->sku]) }}"
                                                title="Kartu stok rusak"
                                                class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-950">
@@ -138,7 +144,7 @@
             <div class="grid grid-cols-1 gap-3 sm:flex sm:items-center">
                 <div class="min-w-0 sm:w-72">
                     <input type="search" name="search" value="{{ request('search') }}" class="form-control"
-                           placeholder="Cari nomor dokumen atau catatan…">
+                           placeholder="Cari nomor dokumen, catatan, atau pemasok…">
                 </div>
 
                 <x-ui.select name="bucket" class="sm:w-48">
@@ -204,7 +210,12 @@
                                             {{ $disposal->bucketLabel() }}
                                         </x-ui.badge>
                                     </td>
-                                    <td class="text-sm text-ink-700">{{ $disposal->actionLabel() }}</td>
+                                    <td class="text-sm text-ink-700">
+                                        {{ $disposal->actionLabel() }}
+                                        @if ($disposal->supplier)
+                                            <p class="text-xs text-ink-400">{{ $disposal->supplier->name }}</p>
+                                        @endif
+                                    </td>
                                     <td class="text-right text-sm tabular-nums text-ink-600">{{ $disposal->items_count }}</td>
                                     <td class="text-right text-sm font-semibold tabular-nums text-ink-950">
                                         {{ number_format((int) $disposal->items_sum_quantity, 0, ',', '.') }}

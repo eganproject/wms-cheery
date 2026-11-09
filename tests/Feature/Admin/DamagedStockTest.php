@@ -221,6 +221,55 @@ class DamagedStockTest extends TestCase
 
     /* --------------------------------------------------- helpers --------- */
 
+    /* --------------------------------------------- pemasok & tampilan -- */
+
+    public function test_returning_to_a_supplier_requires_naming_the_supplier(): void
+    {
+        $this->receiveReturn(good: 0, damaged: 4);
+
+        $this->actingAs($this->admin)->post(route('admin.disposals.store'), [
+            'date' => now()->toDateString(),
+            'action' => DamagedDisposal::ACTION_RETURN,
+            'quantities' => [$this->product->id => 2],
+        ])->assertSessionHasErrors('supplier_id');
+
+        $this->assertSame(0, DamagedDisposal::count());
+    }
+
+    public function test_the_tangani_button_preselects_the_product_with_its_damaged_balance(): void
+    {
+        $this->receiveReturn(good: 0, damaged: 4);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.disposals.index', ['tab' => 'saldo']))
+            ->assertOk()
+            ->assertSee(route('admin.disposals.create', ['product' => $this->product->id]), false);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.disposals.create', ['product' => $this->product->id]))
+            ->assertOk()
+            ->assertSee('\\u0022'.$this->product->id.'\\u0022:4', false);
+    }
+
+    public function test_a_draft_does_not_claim_the_stock_has_already_moved(): void
+    {
+        $this->receiveReturn(good: 0, damaged: 4);
+
+        $disposal = $this->makeDisposal(DamagedDisposal::ACTION_DISCARD, 2);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.disposals.show', $disposal))
+            ->assertOk()
+            ->assertSee('Saat diproses, stok rusak berkurang.')
+            ->assertDontSee('Stok rusak sudah berkurang.');
+
+        $this->actingAs($this->admin)->post(route('admin.disposals.submit', $disposal));
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.disposals.show', $disposal))
+            ->assertSee('Stok rusak sudah berkurang.');
+    }
+
     protected function receiveReturn(int $good, int $damaged): ReturnReceipt
     {
         $return = ReturnReceipt::create([

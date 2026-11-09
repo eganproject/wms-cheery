@@ -32,7 +32,7 @@
                     <thead>
                         <tr>
                             <th>Barang</th>
-                            <th class="text-right"><span class="inline-flex items-center gap-1">Sisa Rusak <x-ui.hint text="Unit rusak yang belum ditangani." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1">{{ $disposal->isFromDamaged() ? 'Saldo Rusak' : 'Saldo Layak Jual' }} <x-ui.hint text="Saldo asal barang ini di gudang saat ini." /></span></th>
                             <th class="text-right"><span class="inline-flex items-center gap-1">Ditangani <x-ui.hint text="Unit yang ditangani lewat dokumen ini (dimusnahkan, dikembalikan, dll)." /></span></th>
                         </tr>
                     </thead>
@@ -47,7 +47,7 @@
                                     <div class="mt-1"><x-ui.sku :value="$item->product->sku" /></div>
                                 </td>
                                 <td class="text-right text-sm tabular-nums text-ink-500">
-                                    {{ $item->product->damaged_stock }} {{ $item->product->unit }}
+                                    {{ number_format($disposal->isFromDamaged() ? $item->product->damaged_stock : $item->product->stock, 0, ',', '.') }} {{ $item->product->unit }}
                                 </td>
                                 <td class="text-right">
                                     <span class="text-sm font-semibold tabular-nums text-ink-950">
@@ -102,7 +102,7 @@
                 @else
                     <p class="flex items-start gap-2 rounded-xl bg-ink-50 px-3 py-2.5 text-[11px] leading-relaxed text-ink-600 ring-1 ring-inset ring-ink-200">
                         <x-icon name="info" class="mt-px h-3.5 w-3.5 shrink-0" />
-                        <span>{{ $disposal->postedSummary() }} Unitnya keluar dari gudang untuk selamanya.</span>
+                        <span>{{ $disposal->postedSummary() }} {{ $disposal->isPosted() ? 'Unitnya sudah keluar dari gudang.' : 'Unitnya akan keluar dari gudang.' }}</span>
                     </p>
                 @endif
 

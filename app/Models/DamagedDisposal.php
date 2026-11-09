@@ -194,15 +194,28 @@ class DamagedDisposal extends Model
         };
     }
 
-    /** Kalimat yang menjelaskan apa yang terjadi pada saldo setelah diposting. */
+    /**
+     * Kalimat yang menjelaskan apa yang terjadi pada saldo. Sebelum diproses
+     * kalimatnya berbentuk rencana, supaya draft tidak terbaca seolah stoknya
+     * sudah bergerak.
+     */
     public function postedSummary(): string
     {
+        $done = $this->isPosted();
+
         return match ($this->targetBucket()) {
-            StockMovement::BUCKET_GOOD => 'Stok rusak berkurang, stok layak jual bertambah.',
-            StockMovement::BUCKET_DAMAGED => 'Stok layak jual berkurang, stok rusak bertambah.',
-            default => $this->isFromDamaged()
-                ? 'Stok rusak sudah berkurang.'
-                : 'Stok layak jual sudah berkurang.',
+            StockMovement::BUCKET_GOOD => $done
+                ? 'Stok rusak berkurang, stok layak jual bertambah.'
+                : 'Saat diproses, stok rusak berkurang dan stok layak jual bertambah.',
+            StockMovement::BUCKET_DAMAGED => $done
+                ? 'Stok layak jual berkurang, stok rusak bertambah.'
+                : 'Saat diproses, stok layak jual berkurang dan stok rusak bertambah.',
+            default => match (true) {
+                $done && $this->isFromDamaged() => 'Stok rusak sudah berkurang.',
+                $done => 'Stok layak jual sudah berkurang.',
+                $this->isFromDamaged() => 'Saat diproses, stok rusak berkurang.',
+                default => 'Saat diproses, stok layak jual berkurang.',
+            },
         };
     }
 
@@ -236,7 +249,8 @@ class DamagedDisposal extends Model
         return $query->when($term, function (Builder $query, string $term) {
             $query->where(function (Builder $query) use ($term) {
                 $query->where('code', 'like', "%{$term}%")
-                    ->orWhere('note', 'like', "%{$term}%");
+                    ->orWhere('note', 'like', "%{$term}%")
+                    ->orWhereHas('supplier', fn (Builder $query) => $query->where('name', 'like', "%{$term}%"));
             });
         });
     }

@@ -76,7 +76,7 @@ class DamagedStockController extends Controller implements HasMiddleware
                 ->withQueryString();
         } else {
             $disposals = $this->filteredDisposals($request)
-                ->with('user')
+                ->with('user', 'supplier')
                 ->withCount('items')
                 ->withSum('items', 'quantity')
                 ->tap(fn ($query) => Listing::sort($query, $request, [
@@ -252,10 +252,15 @@ class DamagedStockController extends Controller implements HasMiddleware
     {
         $bucket = $this->bucketFrom($request);
 
+        $products = Product::where($this->columnFor($bucket), '>', 0)->orderBy('name')->get();
+
         return view('admin.disposals.create', [
             'code' => DamagedDisposal::nextCode(),
             'bucket' => $bucket,
-            'products' => Product::where($this->columnFor($bucket), '>', 0)->orderBy('name')->get(),
+            'products' => $products,
+            // Dibuka dari tombol "Tangani" di tab saldo: barangnya langsung
+            // masuk daftar dengan seluruh saldonya, tinggal disesuaikan.
+            'preselected' => $products->firstWhere('id', $request->integer('product')),
             'suppliers' => Supplier::where('is_active', true)->orderBy('name')->get(),
         ]);
     }
@@ -273,11 +278,13 @@ class DamagedStockController extends Controller implements HasMiddleware
             // Tindakannya harus masuk akal bagi saldo asal: memperbaiki barang
             // yang memang layak jual tidak punya arti.
             'action' => ['required', Rule::in(array_keys(DamagedDisposal::actionsFor($bucket)))],
-            'supplier_id' => ['nullable', 'exists:suppliers,id'],
+            // Barang yang dikembalikan harus jelas pergi ke pemasok mana;
+            // tanpa itu tidak ada yang bisa ditagih atau ditelusuri.
+            'supplier_id' => ['nullable', Rule::requiredIf(fn () => $request->input('action') === DamagedDisposal::ACTION_RETURN), 'exists:suppliers,id'],
             'note' => ['nullable', 'string', 'max:1000'],
             'quantities' => ['array'],
             'quantities.*' => ['nullable', 'integer', 'min:0'],
-        ], [], ['quantities.*' => 'jumlah']);
+        ], ['supplier_id.required' => 'Pilih pemasok tujuan untuk barang yang dikembalikan.'], ['quantities.*' => 'jumlah']);
 
         $lines = collect($data['quantities'] ?? [])
             ->filter(fn ($quantity) => (int) $quantity > 0);
