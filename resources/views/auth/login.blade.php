@@ -30,4 +30,11 @@
 
         <x-ui.button type="submit" class="w-full">Masuk</x-ui.button>
     </form>
+
+    <div class="mt-5 border-t border-ink-100 pt-4 text-center">
+        <a href="{{ route('app.download-page') }}" class="inline-flex items-center gap-1.5 text-sm text-ink-600 hover:text-ink-950">
+            <x-icon name="download" class="h-4 w-4" />
+            Unduh aplikasi Android
+        </a>
+    </div>
 </x-guest-layout>

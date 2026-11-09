@@ -88,9 +88,11 @@ class AppVersionController extends Controller
     }
 
     /**
+     * Versi terbaru yang ditawarkan (juga dipakai halaman unduh /unduh-aplikasi).
+     *
      * @return array{version_code:int, version_name:string, download_url:string, size:?int, notes:?string, published_at:?string, asset_api_url:?string, release?:MobileAppRelease}|null
      */
-    private function latest(): ?array
+    public function latest(): ?array
     {
         // APK yang diunggah admin (Pengaturan > Aplikasi Android) selalu
         // didahulukan; GitHub hanya cadangan bila belum ada unggahan.

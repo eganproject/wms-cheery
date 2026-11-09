@@ -53,7 +53,30 @@ class MobileAppReleaseTest extends TestCase
             ->get(route('admin.mobile-app.index'))
             ->assertOk()
             ->assertSee('Unggah versi baru')
-            ->assertSee(route('mobile.app-download'));
+            ->assertSee(route('app.download-page'))
+            ->assertSee('QR halaman unduh aplikasi', false);
+    }
+
+    public function test_public_download_page_without_login(): void
+    {
+        config(['services.mobile_app.github_repo' => null, 'services.mobile_app.version_code' => null]);
+
+        $this->get(route('app.download-page'))
+            ->assertOk()
+            ->assertSee('Aplikasi belum tersedia');
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.mobile-app.store'), ['apk' => $this->apk(), 'notes' => 'Scan lebih cepat.'])
+            ->assertSessionHasNoErrors();
+        auth()->logout();
+
+        $this->get(route('app.download-page'))
+            ->assertOk()
+            ->assertSee('1.0.16')
+            ->assertSee('Scan lebih cepat.')
+            ->assertSee(url('/api/mobile/app-download'));
+
+        $this->get(route('login'))->assertSee(route('app.download-page'));
     }
 
     public function test_upload_apk_and_phone_gets_it_without_github(): void

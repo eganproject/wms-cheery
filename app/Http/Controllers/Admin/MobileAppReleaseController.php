@@ -47,6 +47,7 @@ class MobileAppReleaseController extends Controller implements HasMiddleware
             'latest' => MobileAppRelease::latestActive(),
             'requiredCode' => MobileAppRelease::requiredVersionCode(),
             'downloadUrl' => route('mobile.app-download'),
+            'pageUrl' => route('app.download-page'),
             'maxUploadMb' => $this->maxUploadMb(),
         ]);
     }

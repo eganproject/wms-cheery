@@ -47,10 +47,17 @@ use App\Http\Controllers\Admin\AttendanceSettingController;
 use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\WorkShiftController;
 use App\Http\Controllers\Attendance\IclockController;
+use App\Http\Controllers\AppDownloadPageController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/admin');
+
+// Halaman unduh aplikasi Android untuk pemasangan pertama (tanpa login,
+// dibuka dari browser HP atau lewat QR di Pengaturan > Aplikasi Android).
+Route::get('unduh-aplikasi', AppDownloadPageController::class)
+    ->middleware('throttle:60,1')
+    ->name('app.download-page');
 
 // Mesin fingerprint ZKTeco (protokol push iclock). Tanpa login: yang dilayani
 // hanya nomor seri yang terdaftar di Lokasi & Mesin Absen.
