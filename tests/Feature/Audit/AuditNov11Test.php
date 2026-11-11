@@ -55,4 +55,29 @@ class AuditNov11Test extends TestCase
 
         $this->assertNull($supplier->fresh());
     }
+
+    /**
+     * form.action / form.method / form.submit tertimpa oleh input yang
+     * namanya sama (mis. pilihan "action" di Barang Rusak, filter "method"
+     * di Karyawan, tombol name="submit" di form dokumen). Skrip harus
+     * membaca atributnya lewat getAttribute().
+     */
+    public function test_scripts_do_not_read_form_properties_that_inputs_can_shadow(): void
+    {
+        $offenders = [];
+
+        foreach (glob(resource_path('js/*.js')) as $file) {
+            foreach (file($file) as $number => $line) {
+                if (preg_match('#^\s*(//|\*|/\*)#', $line)) {
+                    continue;
+                }
+
+                if (preg_match('/\b(form|target|\$el)\.(action|method|submit\(\))/', $line)) {
+                    $offenders[] = basename($file).':'.($number + 1).' '.trim($line);
+                }
+            }
+        }
+
+        $this->assertSame([], $offenders);
+    }
 }
