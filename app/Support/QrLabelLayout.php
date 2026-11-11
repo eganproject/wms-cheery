@@ -42,6 +42,19 @@ class QrLabelLayout
                 'stacked' => true,
                 'font' => 6, 'sku_font' => 8, 'name_chars' => 38, 'pad' => 1.5,
             ],
+            // Rol "2 line": dua label berdampingan di satu baris kertas.
+            // Satu halaman PDF = satu baris (dua label), jadi printer cukup
+            // diatur ke ukuran baris itu dan sensor celah memisahkan barisnya.
+            'thermal-33x15-2' => [
+                'label' => 'Thermal 33 × 15 mm – 2 kolom',
+                'hint' => 'Rol "2 line" untuk Zebra ZD230 dan printer label sejenis. Satu baris berisi dua label.',
+                'sheet' => false,
+                'width' => 33, 'height' => 15,
+                'cols' => 2, 'gap_x' => 2,
+                // Label pendek: QR di kiri, SKU di kanannya supaya QR tetap besar.
+                'stacked' => false,
+                'font' => 4.5, 'sku_font' => 6, 'name_chars' => 22, 'pad' => 1,
+            ],
             'thermal-40x30' => [
                 'label' => 'Thermal 40 × 30 mm',
                 'hint' => 'Printer label thermal, satu label per lembar.',
@@ -72,18 +85,38 @@ class QrLabelLayout
             // Dibulatkan ke bawah supaya pembulatan tidak mendorong baris
             // terakhir ke halaman berikutnya.
             $layout['height'] = floor((297 - 2 * $layout['margin_y']) / $layout['rows'] * 100) / 100;
+            $layout['gap_x'] = 0;
         } else {
-            $layout['cols'] = 1;
+            // Rol thermal: satu halaman = satu baris label. Rol berkolom
+            // (mis. 2 line) punya celah kosong di antara labelnya.
+            $layout['cols'] ??= 1;
             $layout['rows'] = 1;
+            $layout['gap_x'] ??= 0;
             $layout['margin_x'] = 0;
             $layout['margin_y'] = 0;
-            $layout['page_width'] = $layout['width'];
+            $layout['page_width'] = $layout['cols'] * $layout['width'] + ($layout['cols'] - 1) * $layout['gap_x'];
             $layout['page_height'] = $layout['height'];
         }
 
         $layout['stacked'] ??= false;
         $layout['per_page'] = $layout['cols'] * $layout['rows'];
         $layout['qr'] = round(min($layout['height'] - 2 * $layout['pad'], $layout['width'] * 0.45), 2);
+
+        return $layout;
+    }
+
+    /**
+     * Ubah jarak antar kolom rol berkolom (celah tiap merek rol bisa beda
+     * sedikit). Lebar halaman ikut dihitung ulang.
+     */
+    public static function withGap(array $layout, float $gap): array
+    {
+        if ($layout['sheet'] || $layout['cols'] < 2) {
+            return $layout;
+        }
+
+        $layout['gap_x'] = round(max(0, min($gap, 10)), 1);
+        $layout['page_width'] = $layout['cols'] * $layout['width'] + ($layout['cols'] - 1) * $layout['gap_x'];
 
         return $layout;
     }

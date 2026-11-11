@@ -9,6 +9,9 @@ export default function qrLabels(config) {
         perPage: config.perPage ?? {},
         layout: config.layout ?? '',
         stacked: config.stacked ?? {},
+        sheets: config.sheets ?? {},
+        gaps: config.gaps ?? {},
+        gap: null,
 
         /* Posisi tulisan mengikuti bawaan ukuran label (thermal: di bawah,
            A4: di kanan) sampai pengguna memilihnya sendiri. */
@@ -16,10 +19,30 @@ export default function qrLabels(config) {
         positionTouched: false,
 
         init() {
+            // Ukuran terakhir yang dipakai diingat di browser ini, supaya
+            // printer label yang sama tidak perlu dipilih ulang tiap cetak.
+            try {
+                const saved = localStorage.getItem('qr-label-layout');
+                if (saved && saved in this.perPage) this.layout = saved;
+                const gap = localStorage.getItem('qr-label-gap');
+                if (gap !== null && gap !== '') this.gap = gap;
+            } catch (e) { /* penyimpanan browser tidak tersedia */ }
+
+            if (this.gap === null) this.gap = this.gapDefault;
             this.position = this.defaultPosition();
-            this.$watch('layout', () => {
+            this.$watch('layout', (value) => {
                 if (! this.positionTouched) this.position = this.defaultPosition();
+                if (this.gap === null || this.gap === '') this.gap = this.gapDefault;
+                try { localStorage.setItem('qr-label-layout', value); } catch (e) { /* abaikan */ }
             });
+            this.$watch('gap', (value) => {
+                try { localStorage.setItem('qr-label-gap', value ?? ''); } catch (e) { /* abaikan */ }
+            });
+        },
+
+        /** Jarak antar kolom bawaan untuk rol berkolom; null = bukan rol berkolom. */
+        get gapDefault() {
+            return this.gaps[this.layout] ?? null;
         },
 
         defaultPosition() {
@@ -35,7 +58,7 @@ export default function qrLabels(config) {
         },
 
         get sheet() {
-            return (this.perPage[this.layout] ?? 1) > 1;
+            return Boolean(this.sheets[this.layout]);
         },
 
         get pages() {

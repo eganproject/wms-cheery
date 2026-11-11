@@ -83,6 +83,30 @@ class ProductQrLabelTest extends TestCase
         $this->assertSame(4, preg_match_all('/\/Type\s*\/Page\b/', $response->getContent()));
     }
 
+    public function test_two_column_thermal_roll_puts_two_labels_per_page(): void
+    {
+        $layout = QrLabelLayout::get('thermal-33x15-2');
+        $this->assertSame(2, $layout['per_page']);
+        $this->assertEquals(68, $layout['page_width']);
+        $this->assertEquals(15, $layout['page_height']);
+        $this->assertEquals(69, QrLabelLayout::withGap($layout, 3)['page_width']);
+
+        $ids = Product::pluck('id', 'sku');
+
+        $response = $this->actingAs($this->admin)->post(route('admin.products.labels.pdf'), [
+            'items' => [
+                ['id' => $ids['KAOS-MRH'], 'copies' => 3],
+                ['id' => $ids['TOPI-01'], 'copies' => 2],
+            ],
+            'layout' => 'thermal-33x15-2',
+            'gap' => 2.5,
+        ]);
+
+        $response->assertOk();
+        // 5 label, dua per baris → 3 halaman (baris terakhir berisi satu label).
+        $this->assertSame(3, preg_match_all('/\/Type\s*\/Page\b/', $response->getContent()));
+    }
+
     public function test_text_position_can_be_chosen(): void
     {
         $id = Product::where('sku', 'TOPI-01')->value('id');

@@ -45,7 +45,7 @@
     <style>
         @page { margin: {{ $layout['margin_y'] }}mm {{ $layout['margin_x'] }}mm; }
         body { margin: 0; padding: 0; font-family: "DejaVu Sans", sans-serif; color: #000; }
-        .page { position: relative; width: {{ $w * $layout['cols'] }}mm; height: {{ $h * $layout['rows'] }}mm; overflow: hidden; }
+        .page { position: relative; width: {{ $layout['page_width'] - 2 * $layout['margin_x'] }}mm; height: {{ $h * $layout['rows'] }}mm; overflow: hidden; }
         .break { page-break-after: always; }
         .cell { position: absolute; width: {{ $w }}mm; height: {{ $h }}mm; overflow: hidden; }
         @if ($sheet)
@@ -72,7 +72,7 @@
     <div class="page{{ $loop->last ? '' : ' break' }}">
         @foreach ($labels as $i => $label)
             @php
-                $left = ($i % $layout['cols']) * $w;
+                $left = ($i % $layout['cols']) * ($w + $layout['gap_x']);
                 $top = intdiv($i, $layout['cols']) * $h;
             @endphp
             @if ($label)
@@ -82,9 +82,11 @@
                         @php
                             // SKU panjang dikecilkan hurufnya supaya tetap satu baris
                             // (huruf mono: lebar tiap karakter ±0,6 × ukuran huruf).
+                            // Tulisan di kanan QR: SKU boleh dua baris, lebih dari itu dikecilkan.
                             $skuFont = $stacked
                                 ? min($layout['sku_font'], round($textWidth / max(mb_strlen($label['sku']), 1) / 0.6 / $pt, 1))
-                                : null;
+                                : max(4, min($layout['sku_font'], round(2 * $textWidth / max(mb_strlen($label['sku']), 1) / 0.6 / $pt, 1)));
+                            $skuFont = $skuFont == $layout['sku_font'] ? null : $skuFont;
                         @endphp
                         <div class="sku" @if ($skuFont) style="font-size: {{ $skuFont }}pt;" @endif>{{ $label['sku'] }}</div>
                         @if ($stacked)

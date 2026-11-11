@@ -13,6 +13,8 @@
               items: @js($items),
               perPage: @js($layouts->map(fn ($layout) => $layout['per_page'])),
               stacked: @js($layouts->map(fn ($layout) => $layout['stacked'])),
+              sheets: @js($layouts->map(fn ($layout) => $layout['sheet'])),
+              gaps: @js($layouts->map(fn ($layout) => $layout['sheet'] || $layout['cols'] < 2 ? null : $layout['gap_x'])),
               layout: @js(old('layout', $defaultLayout)),
               maxLabels: {{ $maxLabels }},
               maxCopies: {{ $maxCopies }},
@@ -154,6 +156,13 @@
                     <x-ui.toggle name="show_name" :checked="true" label="Tampilkan nama barang & varian"
                                  description="Matikan untuk label kecil yang hanya berisi QR dan SKU." />
 
+                    <label x-show="gapDefault !== null" x-cloak class="block">
+                        <span class="text-sm text-ink-950">Jarak antar kolom (mm)</span>
+                        <span class="block text-xs text-ink-500">Celah kosong di antara dua label dalam satu baris rol. Ukur dengan penggaris bila hasil cetak bergeser ke samping.</span>
+                        <input type="number" name="gap" min="0" max="10" step="0.5" x-model="gap" inputmode="decimal"
+                               :disabled="gapDefault === null" class="form-control mt-1.5 w-24">
+                    </label>
+
                     <label x-show="sheet" class="block">
                         <span class="text-sm text-ink-950">Lewati label pertama</span>
                         <span class="block text-xs text-ink-500">Untuk memakai lembar stiker A4 yang sebagian sudah terpakai.</span>
@@ -171,7 +180,7 @@
                     </div>
                     <p class="text-right text-xs text-ink-500" x-show="total > 0">
                         <span x-text="pages.toLocaleString('id-ID')"></span>
-                        <span x-text="sheet ? 'lembar A4' : 'label di printer'"></span>
+                        <span x-text="sheet ? 'lembar A4' : (perPage[layout] > 1 ? 'baris label di printer' : 'label di printer')"></span>
                     </p>
                 </div>
 
@@ -184,6 +193,10 @@
                     Buat PDF Label
                 </button>
                 <p class="mt-2 text-center text-xs text-ink-400">PDF terbuka di tab baru, siap dicetak. Saat mencetak, pilih skala 100% / ukuran asli.</p>
+                <div x-show="layout === 'thermal-33x15-2'" x-cloak class="mt-3 rounded-lg bg-ink-50 p-3 text-xs leading-relaxed text-ink-600">
+                    <p class="font-medium text-ink-950">Zebra ZD230, rol 33 × 15 mm 2 line</p>
+                    <p class="mt-1">Di driver ZDesigner (Preferensi Pencetakan → Page Setup) buat ukuran kertas lebar <b x-text="(66 + (parseFloat(gap) || 0)).toLocaleString('id-ID')"></b> mm × tinggi 15 mm, kertas <i>Labels with gaps</i>, Darkness ±20. Lalu cetak PDF dengan skala 100% / Actual size.</p>
+                </div>
             </div>
         </div>
     </form>

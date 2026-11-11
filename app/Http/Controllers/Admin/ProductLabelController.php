@@ -109,6 +109,7 @@ class ProductLabelController extends Controller implements HasMiddleware
             'show_name' => ['nullable', 'boolean'],
             'text_position' => ['nullable', 'in:below,right'],
             'skip' => ['nullable', 'integer', 'min:0', 'max:99'],
+            'gap' => ['nullable', 'numeric', 'min:0', 'max:10'],
         ], [
             'items.required' => 'Pilih minimal satu barang untuk dicetak.',
         ], [
@@ -135,6 +136,11 @@ class ProductLabelController extends Controller implements HasMiddleware
         }
 
         $layout = QrLabelLayout::get($data['layout'] ?? null);
+
+        // Rol berkolom: celah antar kolom bisa disesuaikan dengan rolnya.
+        if (isset($data['gap'])) {
+            $layout = QrLabelLayout::withGap($layout, (float) $data['gap']);
+        }
 
         // Posisi teks bisa dipilih di layar: di bawah QR (bertumpuk) atau di
         // kanannya. Tanpa pilihan, ikut bawaan ukuran labelnya.
