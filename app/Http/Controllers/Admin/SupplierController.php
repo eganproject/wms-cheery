@@ -89,6 +89,13 @@ class SupplierController extends Controller implements HasMiddleware
             return back()->with('error', 'Pemasok sudah dipakai pada dokumen penerimaan barang. Nonaktifkan saja bila tidak dipakai lagi.');
         }
 
+        // Tanpa ini pemasoknya terhapus diam-diam dari dokumen barang rusak
+        // (kunci asingnya null on delete), dan retur yang masih menunggu
+        // barang pengganti tidak lagi tahu harus ditagih ke siapa.
+        if ($supplier->disposals()->exists()) {
+            return back()->with('error', 'Pemasok sudah dipakai pada dokumen barang rusak (retur ke pemasok). Nonaktifkan saja bila tidak dipakai lagi.');
+        }
+
         $supplier->delete();
 
         return redirect()

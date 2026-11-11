@@ -34,6 +34,12 @@ class Supplier extends Model
         return $this->hasMany(Inbound::class);
     }
 
+    /** Dokumen barang rusak, termasuk retur ke pemasok yang masih ditunggu. */
+    public function disposals(): HasMany
+    {
+        return $this->hasMany(DamagedDisposal::class);
+    }
+
     public function scopeSearch(Builder $query, ?string $term): Builder
     {
         return $query->when($term, function (Builder $query, string $term) {
