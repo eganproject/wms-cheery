@@ -271,12 +271,16 @@ document.addEventListener('submit', (event) => {
     const form = event.target;
     if (!content()) return;
     if (event.defaultPrevented || form.dataset.noAjax !== undefined) return;
-    if (!isInternal(form.action)) return;
+    // Baca atributnya langsung: form.action / form.method tertimpa bila form
+    // punya input bernama "action" atau "method" (mis. pilihan tindakan di
+    // Barang Rusak), dan berubah menjadi "[object RadioNodeList]".
+    const action = new URL(form.getAttribute('action') || location.href, location.href).toString();
+    if (!isInternal(action)) return;
 
     event.preventDefault();
 
     const source = event.submitter;
-    const method = (form.method || 'get').toUpperCase();
+    const method = (form.getAttribute('method') || 'get').toUpperCase();
 
     if (method === 'GET') {
         const query = new URLSearchParams(new FormData(form));
@@ -284,7 +288,7 @@ document.addEventListener('submit', (event) => {
         // Buang filter kosong supaya URL tetap rapi.
         [...query.entries()].forEach(([key, value]) => value === '' && query.delete(key));
 
-        const url = new URL(form.action, location.href);
+        const url = new URL(action);
         url.search = query.toString();
 
         visit(url.toString(), { source, scroll: false });
@@ -294,7 +298,7 @@ document.addEventListener('submit', (event) => {
     const body = new FormData(form);
     if (source?.name) body.append(source.name, source.value);
 
-    visit(form.action, { method: 'POST', body, source });
+    visit(action, { method: 'POST', body, source });
 });
 
 /** Pencarian & filter langsung mengirim ulang tanpa menunggu tombol ditekan. */

@@ -79,7 +79,7 @@ export default function importUpload(config = {}) {
             this.percent = 0;
 
             const xhr = new XMLHttpRequest();
-            xhr.open('POST', form.action);
+            xhr.open('POST', form.getAttribute('action') || location.href);
             xhr.setRequestHeader('Accept', 'application/json');
             xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
 
