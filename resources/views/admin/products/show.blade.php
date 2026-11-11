@@ -14,7 +14,7 @@
             @if (! $isBundle)
                 @can('movements.view')
                     {{-- Kartu stok ini hanya satu barang; mutasi seluruh gudang ada di halaman sendiri. --}}
-                    <x-ui.button :href="route('admin.movements.index', ['product_id' => $product->id])"
+                    <x-ui.button :href="route('admin.movements.index', ['product_id' => $product->id, 'range' => \App\Support\DateRange::ALL])"
                                  variant="secondary" icon="chart">
                         Mutasi Stok
                     </x-ui.button>

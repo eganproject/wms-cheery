@@ -245,6 +245,11 @@ class DamagedStockTest extends TestCase
             ->assertOk()
             ->assertSee(route('admin.disposals.create', ['product' => $this->product->id]), false);
 
+        // Kartu stok rusak dibuka untuk semua tanggal, bukan hanya hari ini.
+        $this->actingAs($this->admin)
+            ->get(route('admin.disposals.index', ['tab' => 'saldo']))
+            ->assertSee(e(route('admin.movements.index', ['bucket' => 'damaged', 'search' => $this->product->sku, 'range' => 'semua'])), false);
+
         $this->actingAs($this->admin)
             ->get(route('admin.disposals.create', ['product' => $this->product->id]))
             ->assertOk()

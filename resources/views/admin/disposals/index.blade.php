@@ -120,7 +120,7 @@
                                                     Tangani
                                                 </x-ui.button>
                                             @endcan
-                                            <a href="{{ route('admin.movements.index', ['bucket' => 'damaged', 'search' => $product->sku]) }}"
+                                            <a href="{{ route('admin.movements.index', ['bucket' => 'damaged', 'search' => $product->sku, 'range' => \App\Support\DateRange::ALL]) }}"
                                                title="Kartu stok rusak"
                                                class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-950">
                                                 <x-icon name="eye" class="h-4 w-4" />
