@@ -1,7 +1,9 @@
 {{--
-    Barang rusak dalam satu menu dengan dua tab:
+    Barang rusak dalam satu menu dengan beberapa tab:
 
     - Saldo     : barang apa saja yang rusak dan masih ada fisiknya di gudang.
+    - Masuk     : unit yang masuk ke saldo rusak (penerimaan barang, retur,
+                  opname, dll.), dibaca dari kartu stok.
     - Riwayat   : dokumen pengeluaran — dibuang, dikembalikan ke pemasok,
                   diperbaiki, atau dipindah antar saldo.
 
@@ -44,6 +46,7 @@
     @php
         $tabs = [
             'saldo' => ['label' => 'Saldo Barang Rusak', 'count' => $summary['skus']],
+            'masuk' => ['label' => 'Barang Rusak Masuk', 'count' => null],
             'riwayat' => ['label' => 'Riwayat Pengeluaran', 'count' => $summary['documents']],
             'pemasok' => ['label' => 'Retur ke Pemasok', 'count' => $summary['open_returns']],
         ];
@@ -53,7 +56,9 @@
             <a href="{{ route('admin.disposals.index', ['tab' => $value]) }}"
                @class(['-mb-px whitespace-nowrap border-b-2 px-3 py-2', 'border-brand-500 font-medium text-ink-950' => $tab === $value, 'border-transparent text-ink-500 hover:text-ink-700' => $tab !== $value])>
                 {{ $item['label'] }}
-                <span class="ml-1 text-xs text-ink-400">{{ number_format($item['count'], 0, ',', '.') }}</span>
+                @if ($item['count'] !== null)
+                    <span class="ml-1 text-xs text-ink-400">{{ number_format($item['count'], 0, ',', '.') }}</span>
+                @endif
             </a>
         @endforeach
     </div>
@@ -134,6 +139,105 @@
                 </div>
 
                 <x-ui.pagination :paginator="$damaged" />
+            @endif
+        </div>
+    @elseif ($tab === 'masuk')
+        {{-- ================================== Barang rusak masuk ========= --}}
+        <form method="GET" action="{{ route('admin.disposals.index') }}" data-auto-submit
+              class="mb-4 space-y-3 rounded-2xl border border-ink-100 bg-white p-4">
+            <input type="hidden" name="tab" value="masuk">
+
+            <div class="grid grid-cols-1 gap-3 sm:flex sm:items-center">
+                <div class="min-w-0 sm:w-72">
+                    <input type="search" name="search" value="{{ request('search') }}" class="form-control"
+                           placeholder="Cari SKU, nama barang, atau nomor dokumen…">
+                </div>
+
+                <x-ui.select name="source" class="sm:w-56">
+                    <option value="">Semua asal</option>
+                    @foreach (['inbound', 'return', 'opname', 'adjustment', 'disposal'] as $key)
+                        @isset(\App\Models\StockMovement::SOURCES[$key])
+                            <option value="{{ $key }}" @selected(request('source') === $key)>{{ \App\Models\StockMovement::SOURCES[$key]['label'] }}</option>
+                        @endisset
+                    @endforeach
+                </x-ui.select>
+            </div>
+
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <x-ui.date-filter label="Tanggal masuk" />
+
+                <div class="flex items-center gap-2">
+                    <x-ui.button type="submit" variant="secondary" icon="filter" class="flex-1 sm:flex-none">Terapkan</x-ui.button>
+                    @if (request()->hasAny(['search', 'source', 'from', 'to', 'range']))
+                        <x-ui.button :href="route('admin.disposals.index', ['tab' => 'masuk'])"
+                                     variant="ghost" size="icon" title="Reset filter">
+                            <x-icon name="refresh" class="h-4 w-4" />
+                        </x-ui.button>
+                    @endif
+                </div>
+            </div>
+        </form>
+
+        <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
+            @if ($incoming->isEmpty())
+                <x-ui.empty-state icon="document" title="Tidak ada barang rusak masuk"
+                                  description="Barang rusak dari penerimaan barang, penerimaan retur, dan stok opname tercatat di sini. Coba ubah rentang tanggalnya." />
+            @else
+                <div class="overflow-x-auto">
+                    <table class="erp-table">
+                        <thead>
+                            <tr>
+                                <th>Waktu</th>
+                                <th>Barang</th>
+                                <th>Asal</th>
+                                <th class="text-right">Masuk</th>
+                                <th class="text-right">Saldo Rusak</th>
+                                <th>Oleh</th>
+                                <th class="text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($incoming as $movement)
+                                <tr>
+                                    <td class="whitespace-nowrap text-sm text-ink-600">{{ $movement->created_at->translatedFormat('d M Y H:i') }}</td>
+                                    <td>
+                                        @if ($movement->product)
+                                            <a href="{{ route('admin.products.show', $movement->product_id) }}"
+                                               class="text-sm font-medium text-ink-950 underline-offset-4 hover:underline">{{ $movement->product->name }}</a>
+                                            <div class="mt-1"><x-ui.sku :value="$movement->product->sku" /></div>
+                                        @else
+                                            <span class="text-sm text-ink-400">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-sm text-ink-700">
+                                        {{ $movement->sourceLabel() }}
+                                        @if ($url = $movement->sourceUrl())
+                                            <a href="{{ $url }}" class="block font-mono text-xs text-ink-500 underline-offset-4 hover:underline">{{ $movement->reference?->code ?? 'Lihat dokumen' }}</a>
+                                        @endif
+                                    </td>
+                                    <td class="text-right text-sm font-semibold tabular-nums text-red-600">
+                                        +{{ number_format($movement->quantity, 0, ',', '.') }}
+                                        <span class="text-xs font-normal text-ink-400">{{ $movement->product?->unit }}</span>
+                                    </td>
+                                    <td class="text-right text-sm tabular-nums text-ink-600">{{ number_format($movement->balance_after, 0, ',', '.') }}</td>
+                                    <td class="text-sm text-ink-600">{{ $movement->user?->name ?? '—' }}</td>
+                                    <td>
+                                        <div class="flex justify-end">
+                                            @if ($movement->product?->damaged_stock > 0)
+                                                @can('disposals.create')
+                                                    <x-ui.button :href="route('admin.disposals.create', ['product' => $movement->product_id])"
+                                                                 variant="secondary" size="xs">Tangani</x-ui.button>
+                                                @endcan
+                                            @endif
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                <x-ui.pagination :paginator="$incoming" />
             @endif
         </div>
     @elseif ($tab === 'pemasok')

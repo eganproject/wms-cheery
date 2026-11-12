@@ -137,6 +137,11 @@ function swap(html, { scroll }) {
     // Bukan potongan halaman (mis. sesi habis lalu diarahkan ke login).
     if (!fragment || !region) return false;
 
+    // Aplikasi sudah diperbarui sejak tab ini dibuka: skrip yang berjalan
+    // masih versi lama. Muat ulang penuh supaya perbaikan langsung terpakai.
+    const loaded = document.querySelector('meta[name="asset-version"]')?.content;
+    if (loaded && fragment.dataset.assets && fragment.dataset.assets !== loaded) return false;
+
     const focus = captureFocus();
 
     document.title = fragment.dataset.title ?? document.title;

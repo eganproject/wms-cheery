@@ -80,4 +80,44 @@ class AuditNov11Test extends TestCase
 
         $this->assertSame([], $offenders);
     }
+
+    public function test_damaged_units_from_an_inbound_show_in_the_incoming_tab(): void
+    {
+        $supplier = Supplier::create(['code' => 'SUP-0001', 'name' => 'PT Sumber']);
+        $product = \App\Models\Product::create(['sku' => 'KAOS-1', 'name' => 'Kaos Merah', 'unit' => 'pcs']);
+        $this->actingAs($this->admin);
+
+        $inbound = \App\Models\Inbound::create([
+            'code' => \App\Models\Inbound::nextCode(), 'date' => now()->toDateString(),
+            'supplier_id' => $supplier->id, 'status' => \App\Models\Inbound::STATUS_DRAFT,
+        ]);
+        $inbound->items()->create(['product_id' => $product->id, 'quantity' => 10, 'damaged_quantity' => 4]);
+        app(\App\Services\StockService::class)->postInbound($inbound->fresh());
+
+        $this->get(route('admin.disposals.index', ['tab' => 'masuk']))
+            ->assertOk()
+            ->assertSee('Barang Rusak Masuk')
+            ->assertSee('Kaos Merah')
+            ->assertSee($inbound->code)
+            ->assertSee('+4');
+
+        $this->get(route('admin.disposals.index', ['tab' => 'masuk', 'source' => 'return']))
+            ->assertOk()
+            ->assertDontSee($inbound->code);
+
+        $this->get(route('admin.disposals.export', ['tab' => 'masuk']))
+            ->assertOk()
+            ->assertDownload();
+    }
+
+    public function test_pages_carry_the_asset_version_so_stale_tabs_reload(): void
+    {
+        $this->actingAs($this->admin)->get(route('admin.disposals.index'))
+            ->assertOk()
+            ->assertSee('name="asset-version"', false);
+
+        $this->actingAs($this->admin)->get(route('admin.disposals.index'), ['X-Page-Fragment' => '1'])
+            ->assertOk()
+            ->assertSee('data-assets="', false);
+    }
 }

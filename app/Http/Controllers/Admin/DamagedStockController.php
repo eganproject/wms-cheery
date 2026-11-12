@@ -62,8 +62,14 @@ class DamagedStockController extends Controller implements HasMiddleware
         $damaged = null;
         $disposals = null;
         $returns = null;
+        $incoming = null;
 
-        if ($tab === 'saldo') {
+        if ($tab === 'masuk') {
+            $incoming = $this->incomingDamaged($request)
+                ->with(['product:id,sku,name,unit,damaged_stock', 'user:id,name', 'reference'])
+                ->paginate(Listing::perPage($request, pageName: 'masuk'), ['*'], 'masuk')
+                ->withQueryString();
+        } elseif ($tab === 'saldo') {
             $damaged = Product::query()
                 ->where('damaged_stock', '>', 0)
                 ->search($search)
@@ -114,6 +120,7 @@ class DamagedStockController extends Controller implements HasMiddleware
             'damaged' => $damaged,
             'disposals' => $disposals,
             'returns' => $returns,
+            'incoming' => $incoming,
             'suppliers' => $tab === 'pemasok' ? Supplier::orderBy('name')->get(['id', 'name']) : collect(),
             'summary' => [
                 'open_returns' => DamagedDisposal::supplierReturns()->where('return_status', '!=', DamagedDisposal::RETURN_DONE)->count(),
@@ -162,6 +169,46 @@ class DamagedStockController extends Controller implements HasMiddleware
 
         if ($this->tabFrom($request) === 'pemasok') {
             return $this->exportSupplierReturns($request, $stamp);
+        }
+
+        if ($this->tabFrom($request) === 'masuk') {
+            $rows = function () use ($request) {
+                $number = 0;
+
+                foreach ($this->incomingDamaged($request)->with(['product', 'user', 'reference'])->lazy(500) as $movement) {
+                    yield [
+                        ++$number,
+                        $movement->created_at,
+                        $movement->sourceLabel(),
+                        $movement->reference?->code,
+                        $movement->product?->sku,
+                        $movement->product?->name,
+                        (int) $movement->quantity,
+                        (int) $movement->balance_after,
+                        $movement->description,
+                        $movement->user?->name,
+                    ];
+                }
+            };
+
+            return TableExport::make('Barang Rusak Masuk')
+                ->note(collect([
+                    'Tanggal: '.DateRange::fromRequest($request)->label(),
+                    $search !== '' ? 'Cari: '.$search : null,
+                ])->filter()->implode(' · '))
+                ->sheet('Barang Rusak Masuk', [
+                    ['No', 'number'],
+                    ['Waktu', 'datetime'],
+                    ['Asal', 'text'],
+                    ['No. Dokumen', 'text'],
+                    ['SKU', 'text'],
+                    ['Nama Barang', 'text'],
+                    ['Qty', 'sum'],
+                    ['Saldo Rusak Sesudah', 'number'],
+                    ['Keterangan', 'text'],
+                    ['Oleh', 'text'],
+                ], $rows())
+                ->download('barang-rusak-masuk-'.$stamp.'.xlsx');
         }
 
         $documents = function () use ($request) {
@@ -345,6 +392,26 @@ class DamagedStockController extends Controller implements HasMiddleware
     }
 
     /**
+     * Unit yang masuk ke saldo rusak dari mana pun: penerimaan barang,
+     * penerimaan retur, temuan opname, penyesuaian, atau barang layak jual
+     * yang ditandai rusak. Dibaca dari kartu stok, jadi tidak ada yang
+     * terlewat walau dokumen asalnya bukan dokumen Barang Rusak.
+     */
+    protected function incomingDamaged(Request $request): \Illuminate\Database\Eloquent\Builder
+    {
+        $range = DateRange::fromRequest($request);
+
+        return StockMovement::query()
+            ->where('bucket', StockMovement::BUCKET_DAMAGED)
+            ->where('type', 'in')
+            ->search($request->string('search')->trim()->value())
+            ->fromSource($request->string('source')->value() ?: null)
+            ->tap(fn ($query) => DateRange::constrain($query, 'created_at', $range->from, $range->to))
+            ->latest('created_at')
+            ->latest('id');
+    }
+
+    /**
      * Saringan tab Retur ke Pemasok. Bawaannya hanya yang belum selesai,
      * karena itulah yang perlu dikejar.
      */
@@ -367,7 +434,7 @@ class DamagedStockController extends Controller implements HasMiddleware
     {
         $tab = $request->string('tab')->value();
 
-        if (in_array($tab, ['saldo', 'riwayat', 'pemasok'], true)) {
+        if (in_array($tab, ['saldo', 'masuk', 'riwayat', 'pemasok'], true)) {
             return $tab;
         }
 

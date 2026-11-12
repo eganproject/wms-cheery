@@ -1,11 +1,14 @@
 @php
     $pageTitle = $title ?? 'Beranda';
     $documentTitle = $pageTitle.' — '.config('app.name', 'WMS');
+    // Versi aset hasil build. Tab yang masih memuat skrip lama (dibuka
+    // sebelum aplikasi diperbarui) dimuat ulang penuh saat versinya beda.
+    $assetVersion = once(fn () => is_file($manifest = public_path('build/manifest.json')) ? substr(md5_file($manifest), 0, 12) : '');
 @endphp
 
 {{-- Permintaan AJAX hanya menerima potongan halaman, bukan dokumen penuh. --}}
 @if (request()->header('X-Page-Fragment') === '1')
-    <div id="page-fragment" data-title="{{ $documentTitle }}" data-heading="{{ $pageTitle }}">
+    <div id="page-fragment" data-title="{{ $documentTitle }}" data-heading="{{ $pageTitle }}" data-assets="{{ $assetVersion }}">
         <template data-fragment="nav">@include('layouts.nav')</template>
         <template data-fragment="bottom-nav">@include('layouts.bottom-nav')</template>
         <template data-fragment="breadcrumbs">@include('layouts.breadcrumbs', ['pageTitle' => $pageTitle])</template>
@@ -20,6 +23,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="asset-version" content="{{ $assetVersion }}">
     <meta name="theme-color" content="#ffffff">
 
     <title>{{ $documentTitle }}</title>
