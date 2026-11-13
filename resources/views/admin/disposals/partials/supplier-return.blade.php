@@ -4,7 +4,7 @@
     ditolak pemasok. Dokumen selesai saat tidak ada unit yang masih ditunggu.
 --}}
 @php
-    $canAct = auth()->user()->can('disposals.post') && ! $disposal->isReturnDone();
+    $canAct = auth()->user()->can('disposals.post') && ! $disposal->isReturnClosed();
     $panel = $errors->has('shipped_at') || $errors->has('courier') || $errors->has('tracking_number') ? 'ship' : null;
 @endphp
 
@@ -14,10 +14,23 @@
                padding="p-0">
         <x-slot name="actions">
             <x-ui.badge :variant="$disposal->returnStatusVariant()">{{ $disposal->returnStatusLabel() }}</x-ui.badge>
+            @if ($disposal->isReturnOverdue())
+                <x-ui.badge variant="danger">Terlambat</x-ui.badge>
+            @endif
+            @unless ($disposal->isReturnCancelled())
+                <x-ui.button :href="route('admin.disposals.delivery-note', $disposal)" variant="secondary" icon="document" data-no-ajax>
+                    Surat Jalan
+                </x-ui.button>
+            @endunless
             @if ($canAct)
                 <x-ui.button type="button" variant="secondary" icon="truck" x-on:click="panel = panel === 'ship' ? null : 'ship'">
                     {{ $disposal->isReturnUnsent() ? 'Tandai Dikirim' : 'Ubah Pengiriman' }}
                 </x-ui.button>
+                @if ($disposal->isReturnUnsent())
+                    <x-ui.button type="button" variant="danger-soft" icon="x-circle" x-on:click="panel = panel === 'cancel' ? null : 'cancel'">
+                        Batal Kirim
+                    </x-ui.button>
+                @endif
                 @if ($disposal->isReturnSent())
                     <x-ui.button type="button" icon="login" x-on:click="panel = panel === 'replace' ? null : 'replace'">
                         Terima Pengganti
@@ -75,6 +88,24 @@
                 </div>
                 <x-ui.button type="submit" icon="check">Simpan Pengiriman</x-ui.button>
             </form>
+
+            @if ($disposal->isReturnUnsent())
+                {{-- Form: batal kirim --}}
+                <form x-show="panel === 'cancel'" x-cloak method="POST" action="{{ route('admin.disposals.cancel-return', $disposal) }}"
+                      class="space-y-3 border-b border-ink-100 bg-red-50/40 px-4 py-4 sm:px-5">
+                    @csrf
+                    <p class="text-sm text-ink-700">
+                        Barangnya tidak jadi dikirim ke pemasok.
+                        <span class="font-semibold">{{ number_format($disposal->outstandingQuantity(), 0, ',', '.') }} unit</span>
+                        kembali ke {{ $disposal->isFromDamaged() ? 'stok rusak' : 'stok layak jual' }}, dan retur ini ditutup.
+                    </p>
+                    <div>
+                        <x-input-label for="cancel_note" value="Alasan (opsional)" />
+                        <x-text-input id="cancel_note" name="cancel_note" class="mt-1.5 w-full" placeholder="Misal: pemasok minta barang dimusnahkan saja." />
+                    </div>
+                    <x-ui.button type="submit" variant="danger" icon="x-circle">Batalkan Retur</x-ui.button>
+                </form>
+            @endif
 
             @if ($disposal->isReturnSent())
                 {{-- Form: penutupan sebagai ditolak --}}
@@ -161,7 +192,7 @@
             @endif
         </form>
 
-        @if ($disposal->replacements->isNotEmpty() || $disposal->close_note)
+        @if ($disposal->replacements->isNotEmpty() || $disposal->close_note || $disposal->isReturnCancelled())
             <div class="space-y-2 border-t border-ink-100 px-4 py-3 text-sm sm:px-5">
                 <p class="text-xs font-medium uppercase tracking-wide text-ink-400">Riwayat tindak lanjut</p>
                 @foreach ($disposal->replacements->sortBy('date') as $replacement)
@@ -172,7 +203,9 @@
                         @if ($replacement->note) <span class="text-ink-500">— {{ $replacement->note }}</span> @endif
                     </p>
                 @endforeach
-                @if ($disposal->close_note)
+                @if ($disposal->isReturnCancelled())
+                    <p class="text-ink-700"><span class="font-medium text-ink-950">Batal dikirim:</span> unitnya kembali ke {{ $disposal->isFromDamaged() ? 'stok rusak' : 'stok layak jual' }}.{{ $disposal->close_note ? ' '.$disposal->close_note : '' }}</p>
+                @elseif ($disposal->close_note)
                     <p class="text-ink-700"><span class="font-medium text-red-600">Ditolak pemasok:</span> {{ $disposal->close_note }}</p>
                 @endif
             </div>

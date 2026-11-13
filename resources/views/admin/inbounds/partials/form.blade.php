@@ -22,6 +22,9 @@
                                   :value="old('date', $inbound?->date?->format('Y-m-d') ?? now()->format('Y-m-d'))" required />
                 </x-ui.field>
 
+                <div x-data="{ supplier: @js((string) old('supplier_id', $inbound?->supplier_id ?? '')), returns: @js((object) ($openReturns ?? [])) }"
+                     x-on:change="if ($event.target.name === 'supplier_id') supplier = $event.target.value"
+                     class="space-y-2">
                 <x-ui.field label="Pemasok" info="Pemasok asal barang. Boleh dikosongkan untuk penerimaan non-pembelian." for="supplier_id" :error="$errors->get('supplier_id')">
                     <x-ui.select id="supplier_id" name="supplier_id" data-placeholder="Pilih pemasok…">
                         <option value="">Pilih pemasok…</option>
@@ -38,6 +41,24 @@
                         </p>
                     @endcan
                 </x-ui.field>
+
+                {{-- Pengingat retur yang masih ditunggu dari pemasok ini. --}}
+                <template x-if="returns[supplier] && returns[supplier].length">
+                    <div class="rounded-lg bg-amber-50 px-3 py-2.5 text-xs text-amber-900 ring-1 ring-inset ring-amber-200" data-open-returns>
+                        <p class="font-semibold"
+                           x-text="`Ada ${returns[supplier].reduce((sum, item) => sum + item.units, 0)} unit retur dari pemasok ini yang belum diganti.`"></p>
+                        <p class="mt-0.5">Bila barang yang datang adalah pengganti retur, catat lewat tombol <span class="font-medium">Terima Pengganti</span> di dokumen returnya, bukan di sini, supaya returnya ikut tertutup.</p>
+                        <ul class="mt-1.5 space-y-0.5">
+                            <template x-for="item in returns[supplier]" :key="item.code">
+                                <li>
+                                    <a :href="item.url" target="_blank" class="font-mono font-medium underline underline-offset-2" x-text="item.code"></a>
+                                    <span x-text="` · ${item.units} unit · ${item.status}`"></span>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
+                </template>
+                </div>
 
                 <x-ui.field label="Nomor Referensi" info="Nomor surat jalan atau faktur dari pemasok, supaya dokumen mudah dicocokkan." for="reference" :error="$errors->get('reference')"
                             hint="Nomor surat jalan / faktur pemasok.">

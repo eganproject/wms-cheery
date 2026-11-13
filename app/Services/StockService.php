@@ -404,6 +404,43 @@ class StockService
         });
     }
 
+    /**
+     * Batalkan retur yang sudah diproses tetapi belum dikirim ke pemasok.
+     * Unitnya kembali ke saldo asal, dan returnya tidak lagi ditunggu.
+     */
+    public function cancelSupplierReturn(DamagedDisposal $disposal, ?string $note): void
+    {
+        DB::transaction(function () use ($disposal, $note) {
+            $this->lockSupplierReturn($disposal);
+
+            if (! $disposal->isReturnUnsent()) {
+                throw ValidationException::withMessages([
+                    'cancel' => 'Hanya retur yang belum dikirim yang bisa dibatalkan.',
+                ]);
+            }
+
+            foreach ($disposal->items as $item) {
+                $remaining = $item->outstandingQuantity();
+
+                if ($remaining === 0) {
+                    continue;
+                }
+
+                $item->increment('cancelled_quantity', $remaining);
+
+                $this->move($item->product_id, 'in', $remaining, $disposal,
+                    "Batal kirim ke pemasok {$disposal->code}", $disposal->sourceBucket());
+            }
+
+            $disposal->forceFill([
+                'return_status' => DamagedDisposal::RETURN_CANCELLED,
+                'closed_at' => now(),
+                'closed_by' => auth()->id(),
+                'close_note' => $note,
+            ])->save();
+        });
+    }
+
     protected function lockSupplierReturn(DamagedDisposal $disposal): void
     {
         $fresh = DamagedDisposal::lockForUpdate()->findOrFail($disposal->getKey());

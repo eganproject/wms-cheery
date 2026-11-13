@@ -45,7 +45,9 @@ class DamagedStockController extends Controller implements HasMiddleware
             new Middleware('can:disposals.view', only: ['index', 'show', 'export']),
             new Middleware('can:disposals.create', only: ['create', 'store']),
             new Middleware('can:disposals.delete', only: ['destroy']),
-            new Middleware('can:disposals.post', only: ['submit', 'withdraw', 'ship', 'replace', 'reject']),
+            new Middleware('can:disposals.post', only: ['submit', 'withdraw', 'ship', 'replace', 'reject', 'cancelReturn']),
+            new Middleware('can:disposals.view', only: ['deliveryNote']),
+            new Middleware('can:disposals.approve', only: ['saveReturnSettings']),
             new Middleware('can:disposals.approve', only: ['approve']),
         ];
     }
@@ -88,6 +90,7 @@ class DamagedStockController extends Controller implements HasMiddleware
                 ->withSum('items', 'quantity')
                 ->withSum('items', 'replaced_quantity')
                 ->withSum('items', 'rejected_quantity')
+                ->withSum('items', 'cancelled_quantity')
                 ->tap(fn ($query) => Listing::sort($query, $request, [
                     'date' => fn ($query, $dir) => $query->orderBy('date', $dir)->orderBy('id', $dir),
                     'shipped' => 'shipped_at',
@@ -122,8 +125,10 @@ class DamagedStockController extends Controller implements HasMiddleware
             'returns' => $returns,
             'incoming' => $incoming,
             'suppliers' => $tab === 'pemasok' ? Supplier::orderBy('name')->get(['id', 'name']) : collect(),
+            'alertDays' => \App\Models\AppSetting::supplierReturnAlertDays(),
             'summary' => [
-                'open_returns' => DamagedDisposal::supplierReturns()->where('return_status', '!=', DamagedDisposal::RETURN_DONE)->count(),
+                'open_returns' => DamagedDisposal::openSupplierReturns()->count(),
+                'overdue_returns' => DamagedDisposal::overdueSupplierReturns()->count(),
                 'units' => (int) Product::sum('damaged_stock'),
                 'skus' => $skus,
                 'pending' => DamagedDisposal::pending()->count(),
@@ -294,7 +299,7 @@ class DamagedStockController extends Controller implements HasMiddleware
             $number = 0;
 
             foreach ($this->filteredSupplierReturns($request)->with('supplier')
-                ->withSum('items', 'quantity')->withSum('items', 'replaced_quantity')->withSum('items', 'rejected_quantity')
+                ->withSum('items', 'quantity')->withSum('items', 'replaced_quantity')->withSum('items', 'rejected_quantity')->withSum('items', 'cancelled_quantity')
                 ->lazy(500) as $disposal) {
                 $sent = (int) $disposal->items_sum_quantity;
                 $replaced = (int) $disposal->items_sum_replaced_quantity;
@@ -314,7 +319,7 @@ class DamagedStockController extends Controller implements HasMiddleware
                     $sent,
                     $replaced,
                     $rejected,
-                    max(0, $sent - $replaced - $rejected),
+                    max(0, $sent - $replaced - $rejected - (int) $disposal->items_sum_cancelled_quantity),
                     $disposal->closed_at,
                     $disposal->close_note,
                 ];
@@ -423,7 +428,8 @@ class DamagedStockController extends Controller implements HasMiddleware
         return DamagedDisposal::query()
             ->supplierReturns()
             ->search($request->string('search')->trim()->value())
-            ->when($status === 'open', fn ($query) => $query->where('return_status', '!=', DamagedDisposal::RETURN_DONE))
+            ->when($status === 'open', fn ($query) => $query->whereIn('return_status', DamagedDisposal::OPEN_RETURN_STATUSES))
+            ->when($status === 'overdue', fn ($query) => $query->overdueSupplierReturns())
             ->when(array_key_exists($status, DamagedDisposal::returnStatuses()), fn ($query) => $query->where('return_status', $status))
             ->when($supplier > 0, fn ($query) => $query->where('supplier_id', $supplier))
             ->latest('date')
@@ -590,7 +596,7 @@ class DamagedStockController extends Controller implements HasMiddleware
      */
     public function ship(Request $request, DamagedDisposal $disposal): RedirectResponse
     {
-        if (! $disposal->tracksSupplierReturn() || $disposal->isReturnDone()) {
+        if (! $disposal->tracksSupplierReturn() || $disposal->isReturnClosed()) {
             return back()->with('error', 'Dokumen ini bukan retur ke pemasok yang masih berjalan.');
         }
 
@@ -645,6 +651,48 @@ class DamagedStockController extends Controller implements HasMiddleware
         }
 
         return back()->with('success', "Sisa retur {$disposal->code} ditutup sebagai ditolak pemasok.");
+    }
+
+    public function cancelReturn(Request $request, DamagedDisposal $disposal): RedirectResponse
+    {
+        $data = $request->validate(['cancel_note' => ['nullable', 'string', 'max:1000']]);
+
+        try {
+            $this->stock->cancelSupplierReturn($disposal, $data['cancel_note'] ?? null);
+        } catch (ValidationException $exception) {
+            return back()->with('error', collect($exception->errors())->flatten()->implode(' '));
+        }
+
+        return back()->with('success', "Retur {$disposal->code} dibatalkan. Unitnya kembali ke {$disposal->bucketLabel()}.");
+    }
+
+    /**
+     * Surat jalan retur untuk dikirim bersama barangnya: bukti bagi pemasok,
+     * dan nomor yang dicocokkan saat barang penggantinya datang.
+     */
+    public function deliveryNote(DamagedDisposal $disposal): \Illuminate\Http\Response|RedirectResponse
+    {
+        if (! $disposal->tracksSupplierReturn()) {
+            return back()->with('error', 'Surat jalan hanya untuk retur ke pemasok yang sudah diproses.');
+        }
+
+        $disposal->load('items.product', 'supplier', 'user');
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.disposals.delivery-note-pdf', [
+            'disposal' => $disposal,
+            'qr' => \App\Support\QrCode::file(route('admin.disposals.show', $disposal)),
+        ])->setPaper('a4')->download('surat-jalan-retur-'.$disposal->code.'.pdf');
+    }
+
+    public function saveReturnSettings(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'alert_days' => ['required', 'integer', 'min:1', 'max:365'],
+        ], [], ['alert_days' => 'batas hari']);
+
+        \App\Models\AppSetting::put(\App\Models\AppSetting::SUPPLIER_RETURN_ALERT_DAYS, (string) $data['alert_days']);
+
+        return back()->with('success', "Retur kini ditandai terlambat setelah {$data['alert_days']} hari.");
     }
 
     public function withdraw(DamagedDisposal $disposal): RedirectResponse

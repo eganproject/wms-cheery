@@ -161,6 +161,9 @@ Route::middleware('auth')
         Route::resource('adjustments', StockAdjustmentController::class);
 
         Route::get('disposals/export', [DamagedStockController::class, 'export'])->name('disposals.export');
+        Route::post('disposals/return-settings', [DamagedStockController::class, 'saveReturnSettings'])->name('disposals.return-settings');
+        Route::get('disposals/{disposal}/surat-jalan', [DamagedStockController::class, 'deliveryNote'])->name('disposals.delivery-note');
+        Route::post('disposals/{disposal}/cancel-return', [DamagedStockController::class, 'cancelReturn'])->name('disposals.cancel-return');
         Route::post('disposals/{disposal}/submit', [DamagedStockController::class, 'submit'])->name('disposals.submit');
         Route::post('disposals/{disposal}/approve', [DamagedStockController::class, 'approve'])->name('disposals.approve');
         Route::post('disposals/{disposal}/withdraw', [DamagedStockController::class, 'withdraw'])->name('disposals.withdraw');

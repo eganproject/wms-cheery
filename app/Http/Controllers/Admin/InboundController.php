@@ -101,6 +101,7 @@ class InboundController extends Controller implements HasMiddleware
             'code' => Inbound::nextCode(),
             'products' => $this->products(),
             'suppliers' => $this->suppliers(),
+            'openReturns' => $this->openSupplierReturns(),
         ]);
     }
 
@@ -157,6 +158,7 @@ class InboundController extends Controller implements HasMiddleware
             'code' => $inbound->code,
             'products' => $this->products(),
             'suppliers' => $this->suppliers(),
+            'openReturns' => $this->openSupplierReturns(),
         ]);
     }
 
@@ -304,6 +306,30 @@ class InboundController extends Controller implements HasMiddleware
     protected function products()
     {
         return Product::singles()->where('is_active', true)->orderBy('name')->get();
+    }
+
+    /**
+     * Retur ke pemasok yang masih ditunggu, dikelompokkan per pemasok.
+     * Ditampilkan di form saat pemasoknya dipilih, supaya barang pengganti
+     * dicatat di dokumen returnya, bukan sebagai barang masuk biasa.
+     *
+     * @return array<int, array<int, array<string, mixed>>>
+     */
+    protected function openSupplierReturns(): array
+    {
+        return \App\Models\DamagedDisposal::openSupplierReturns()
+            ->whereNotNull('supplier_id')
+            ->with('items')
+            ->oldest('date')
+            ->get()
+            ->groupBy('supplier_id')
+            ->map(fn ($returns) => $returns->map(fn ($return) => [
+                'code' => $return->code,
+                'url' => route('admin.disposals.show', $return),
+                'status' => $return->returnStatusLabel(),
+                'units' => $return->outstandingQuantity(),
+            ])->values()->all())
+            ->all();
     }
 
     protected function suppliers()

@@ -8,6 +8,30 @@
         </x-slot>
     </x-ui.page-header>
 
+    @if ($returnSummary && $returnSummary['sent'] > 0)
+        @php $num = fn ($value) => number_format((int) $value, 0, ',', '.'); @endphp
+        <section class="mb-6" data-supplier-returns>
+            <div class="mb-2 flex items-center justify-between gap-3">
+                <h2 class="section-head !mb-0">Retur ke Pemasok</h2>
+                <a href="{{ route('admin.disposals.index', ['tab' => 'pemasok', 'supplier_id' => $supplier->id, 'return_status' => 'all']) }}"
+                   class="text-xs font-medium text-ink-600 underline-offset-4 hover:underline">Lihat semua retur</a>
+            </div>
+            <div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                <x-ui.stat-card label="Retur Berjalan" :value="$returnSummary['open']" icon="truck"
+                                :hint="$num($returnSummary['waiting']).' unit masih ditunggu'.($returnSummary['late'] > 0 ? ' · '.$returnSummary['late'].' terlambat' : '')"
+                                :href="route('admin.disposals.index', ['tab' => 'pemasok', 'supplier_id' => $supplier->id])" />
+                <x-ui.stat-card label="Unit Dikirim" :value="$num($returnSummary['sent'])" icon="outbound"
+                                :hint="$num($returnSummary['replaced']).' sudah diganti'" />
+                <x-ui.stat-card label="Rata-rata Penggantian" info="Rata-rata hari dari barang dikirim sampai returnya selesai."
+                                :value="$returnSummary['average_days'] !== null ? str_replace('.', ',', $returnSummary['average_days']).' hari' : '—'" icon="clock"
+                                hint="Dari retur yang sudah selesai" />
+                <x-ui.stat-card label="Ditolak Pemasok" info="Bagian unit yang ditolak, dari unit yang sudah diputuskan pemasok (diganti atau ditolak)."
+                                :value="$returnSummary['rejected_rate'] !== null ? $returnSummary['rejected_rate'].'%' : '—'" icon="x-circle"
+                                :hint="$num($returnSummary['rejected']).' unit ditolak'" />
+            </div>
+        </section>
+    @endif
+
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <x-ui.card title="Informasi Kontak">
             <dl class="space-y-4 text-sm">

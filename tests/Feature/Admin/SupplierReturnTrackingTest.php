@@ -178,6 +178,100 @@ class SupplierReturnTrackingTest extends TestCase
             ->assertOk()->assertDownload();
     }
 
+    /* -------------------------------------------- pengingat & tindak lanjut -- */
+
+    public function test_late_returns_show_on_the_dashboard_bell_and_filter(): void
+    {
+        $disposal = $this->processedReturn(10);
+        $this->actingAs($this->admin)->post(route('admin.disposals.ship', $disposal), [
+            'shipped_at' => now()->subDays(20)->toDateString(),
+        ]);
+
+        $fresh = $this->processedReturn(3);
+
+        $this->assertSame(1, DamagedDisposal::overdueSupplierReturns()->count());
+
+        $this->actingAs($this->admin)->get(route('admin.dashboard'))
+            ->assertOk()->assertSee('1 retur ke pemasok terlambat');
+
+        $this->actingAs($this->admin)->get(route('admin.disposals.index', ['tab' => 'pemasok', 'return_status' => 'overdue']))
+            ->assertOk()->assertSee($disposal->code)->assertDontSee($fresh->code);
+
+        // Batas hari bisa diatur.
+        $this->actingAs($this->admin)->post(route('admin.disposals.return-settings'), ['alert_days' => 30])
+            ->assertSessionHas('success');
+        $this->assertSame(0, DamagedDisposal::overdueSupplierReturns()->count());
+    }
+
+    public function test_an_unsent_return_can_be_cancelled_back_to_its_balance(): void
+    {
+        $disposal = $this->processedReturn(10);
+        $this->assertSame(40, $this->product->refresh()->stock);
+
+        $this->actingAs($this->admin)->post(route('admin.disposals.cancel-return', $disposal), [
+            'cancel_note' => 'Pemasok minta dimusnahkan',
+        ])->assertSessionHas('success');
+
+        $disposal->refresh()->load('items');
+        $this->assertSame(DamagedDisposal::RETURN_CANCELLED, $disposal->return_status);
+        $this->assertSame(0, $disposal->outstandingQuantity());
+        $this->assertSame(50, $this->product->refresh()->stock);
+        $this->assertSame(0, DamagedDisposal::openSupplierReturns()->count());
+
+        $this->actingAs($this->admin)->get(route('admin.disposals.show', $disposal))
+            ->assertOk()->assertSee('Batal dikirim');
+
+        // Tidak bisa dibatalkan dua kali, dan tidak bisa dikirim lagi.
+        $this->actingAs($this->admin)->post(route('admin.disposals.cancel-return', $disposal))->assertSessionHas('error');
+        $this->actingAs($this->admin)->post(route('admin.disposals.ship', $disposal), ['shipped_at' => now()->toDateString()])
+            ->assertSessionHas('error');
+        $this->assertSame(50, $this->product->refresh()->stock);
+    }
+
+    public function test_a_shipped_return_cannot_be_cancelled(): void
+    {
+        $disposal = $this->processedReturn(10);
+        $this->actingAs($this->admin)->post(route('admin.disposals.ship', $disposal), ['shipped_at' => now()->toDateString()]);
+
+        $this->actingAs($this->admin)->post(route('admin.disposals.cancel-return', $disposal))->assertSessionHas('error');
+        $this->assertSame(40, $this->product->refresh()->stock);
+    }
+
+    public function test_the_delivery_note_downloads_as_pdf(): void
+    {
+        $disposal = $this->processedReturn(10);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.disposals.delivery-note', $disposal));
+
+        $response->assertOk();
+        $this->assertStringContainsString('application/pdf', $response->headers->get('Content-Type'));
+    }
+
+    public function test_the_inbound_form_lists_open_returns_per_supplier(): void
+    {
+        $disposal = $this->processedReturn(10);
+
+        $this->actingAs($this->admin)->get(route('admin.inbounds.create'))
+            ->assertOk()->assertSee('data-open-returns', false)->assertSee($disposal->code);
+    }
+
+    public function test_the_supplier_page_summarises_its_returns(): void
+    {
+        $disposal = $this->processedReturn(10);
+        $item = $disposal->items->first();
+        $this->actingAs($this->admin)->post(route('admin.disposals.ship', $disposal), ['shipped_at' => now()->subDays(4)->toDateString()]);
+        $this->actingAs($this->admin)->post(route('admin.disposals.replace', $disposal), [
+            'date' => now()->toDateString(), 'replacements' => [$item->id => 6],
+        ]);
+        $this->actingAs($this->admin)->post(route('admin.disposals.reject-return', $disposal), ['close_note' => 'tidak cacat']);
+
+        $this->actingAs($this->admin)->get(route('admin.suppliers.show', $this->supplier))
+            ->assertOk()
+            ->assertSee('data-supplier-returns', false)
+            ->assertSee('40%')
+            ->assertSee('4 hari');
+    }
+
     protected function processedReturn(int $quantity): DamagedDisposal
     {
         $this->actingAs($this->admin)->post(route('admin.disposals.store'), [

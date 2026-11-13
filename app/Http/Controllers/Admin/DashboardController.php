@@ -48,6 +48,8 @@ class DashboardController extends Controller implements HasMiddleware
             'stock_units' => (int) Product::singles()->sum('stock'),
             'low_stock' => Product::lowStock()->count(),
             'damaged_units' => (int) Product::singles()->sum('damaged_stock'),
+            'late_returns' => $request->user()->can('disposals.view') ? \App\Models\DamagedDisposal::overdueCount() : 0,
+            'late_return_days' => \App\Models\AppSetting::supplierReturnAlertDays(),
             // Draft milik pesanan batal bukan pengiriman yang menunggu:
             // termasuk dokumen yang batal setelah serah terima, yang kembali
             // ke draft dan disimpan selamanya sebagai jejak kartu stok.

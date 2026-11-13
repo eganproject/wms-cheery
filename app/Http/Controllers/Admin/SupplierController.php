@@ -63,7 +63,42 @@ class SupplierController extends Controller implements HasMiddleware
         return view('admin.suppliers.show', [
             'supplier' => $supplier,
             'inbounds' => $supplier->inbounds()->withSum('items', 'quantity')->latest('date')->latest('id')->paginate(Listing::perPage(request())),
+            'returnSummary' => request()->user()->can('disposals.view') ? $this->returnSummary($supplier) : null,
         ]);
+    }
+
+    /**
+     * Ringkasan retur ke pemasok ini: yang masih ditunggu, dan seberapa
+     * cepat serta seberapa sering pemasok mengganti barang.
+     *
+     * @return array<string, int|float|null>
+     */
+    protected function returnSummary(Supplier $supplier): array
+    {
+        $returns = \App\Models\DamagedDisposal::supplierReturns()
+            ->where('supplier_id', $supplier->id)
+            ->with('items')
+            ->get();
+
+        $items = $returns->flatMap->items;
+        $sent = (int) $items->sum(fn ($item) => $item->quantity - $item->cancelled_quantity);
+        $replaced = (int) $items->sum('replaced_quantity');
+        $rejected = (int) $items->sum('rejected_quantity');
+
+        $durations = $returns
+            ->filter(fn ($return) => $return->isReturnDone() && $return->shipped_at && $return->closed_at)
+            ->map(fn ($return) => $return->shipped_at->startOfDay()->diffInDays($return->closed_at->startOfDay()));
+
+        return [
+            'open' => $returns->filter(fn ($return) => ! $return->isReturnClosed())->count(),
+            'late' => $returns->filter(fn ($return) => $return->isReturnOverdue())->count(),
+            'waiting' => (int) $returns->filter(fn ($return) => ! $return->isReturnClosed())->sum(fn ($return) => $return->outstandingQuantity()),
+            'sent' => $sent,
+            'replaced' => $replaced,
+            'rejected' => $rejected,
+            'rejected_rate' => ($replaced + $rejected) > 0 ? round($rejected / ($replaced + $rejected) * 100) : null,
+            'average_days' => $durations->isNotEmpty() ? round($durations->avg(), 1) : null,
+        ];
     }
 
     public function edit(Supplier $supplier): View

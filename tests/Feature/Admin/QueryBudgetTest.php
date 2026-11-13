@@ -44,7 +44,7 @@ class QueryBudgetTest extends TestCase
     public static function pages(): array
     {
         return [
-            'dashboard' => ['admin.dashboard', 22],
+            'dashboard' => ['admin.dashboard', 24], // +2: retur terlambat (hitungan + batas hari)
             'barang & stok' => ['admin.products.index', 15],
             'mutasi stok' => ['admin.movements.index', 15],
             'pemasok' => ['admin.suppliers.index', 12],
@@ -64,7 +64,7 @@ class QueryBudgetTest extends TestCase
             'resi per hari' => ['admin.imports.daily', 16],
             'per ekspedisi' => ['admin.imports.couriers', 16],
             // Tiap jenis dokumen berhalaman sendiri, jadi ada satu query hitung per jenis.
-            'persetujuan' => ['admin.approvals.index', 26],
+            'persetujuan' => ['admin.approvals.index', 27], // +1: lonceng retur terlambat
             'pengguna' => ['admin.users.index', 14],
             'role' => ['admin.roles.index', 14],
             'hak akses' => ['admin.permissions.index', 14],

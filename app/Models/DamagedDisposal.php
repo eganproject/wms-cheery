@@ -45,6 +45,9 @@ class DamagedDisposal extends Model
 
     public const RETURN_DONE = 'selesai';
 
+    /** Sudah diproses tetapi tidak jadi dikirim; unitnya kembali ke saldo asal. */
+    public const RETURN_CANCELLED = 'batal';
+
     protected $fillable = [
         'code',
         'date',
@@ -137,6 +140,35 @@ class DamagedDisposal extends Model
         return $this->return_status === self::RETURN_DONE;
     }
 
+    public function isReturnCancelled(): bool
+    {
+        return $this->return_status === self::RETURN_CANCELLED;
+    }
+
+    /** Tidak ada lagi yang perlu ditindaklanjuti: selesai atau batal dikirim. */
+    public function isReturnClosed(): bool
+    {
+        return $this->isReturnDone() || $this->isReturnCancelled();
+    }
+
+    /** Status yang masih perlu dikejar. */
+    public const OPEN_RETURN_STATUSES = [self::RETURN_UNSENT, self::RETURN_SENT];
+
+    /**
+     * Retur terlambat: sudah di pemasok lebih lama dari batas hari, atau
+     * sudah diproses tetapi tidak juga dikirim selama batas yang sama.
+     */
+    public function isReturnOverdue(?int $days = null): bool
+    {
+        $cutoff = now()->startOfDay()->subDays($days ?? AppSetting::supplierReturnAlertDays());
+
+        return match ($this->return_status) {
+            self::RETURN_SENT => $this->shipped_at !== null && $this->shipped_at->lte($cutoff),
+            self::RETURN_UNSENT => $this->date !== null && $this->date->lte($cutoff),
+            default => false,
+        };
+    }
+
     /**
      * @return array<string, string>
      */
@@ -146,6 +178,7 @@ class DamagedDisposal extends Model
             self::RETURN_UNSENT => 'Belum dikirim',
             self::RETURN_SENT => 'Dikirim, menunggu pemasok',
             self::RETURN_DONE => 'Selesai',
+            self::RETURN_CANCELLED => 'Batal dikirim',
         ];
     }
 
@@ -160,6 +193,7 @@ class DamagedDisposal extends Model
             self::RETURN_UNSENT => 'warning',
             self::RETURN_SENT => 'info',
             self::RETURN_DONE => 'success',
+            self::RETURN_CANCELLED => 'outline',
             default => 'outline',
         };
     }
@@ -192,6 +226,34 @@ class DamagedDisposal extends Model
     public function scopeSupplierReturns(Builder $query): Builder
     {
         return $query->where('action', self::ACTION_RETURN)->whereNotNull('return_status');
+    }
+
+    public function scopeOpenSupplierReturns(Builder $query): Builder
+    {
+        return $query->supplierReturns()->whereIn('return_status', self::OPEN_RETURN_STATUSES);
+    }
+
+    /** Jumlah retur terlambat, dihitung sekali per permintaan (lonceng + Beranda). */
+    public static function overdueCount(): int
+    {
+        $attributes = request()->attributes;
+
+        if (! $attributes->has('overdue_supplier_returns')) {
+            $attributes->set('overdue_supplier_returns', static::overdueSupplierReturns()->count());
+        }
+
+        return (int) $attributes->get('overdue_supplier_returns');
+    }
+
+    /** Kebalikan isReturnOverdue() dalam bentuk kueri. */
+    public function scopeOverdueSupplierReturns(Builder $query, ?int $days = null): Builder
+    {
+        $cutoff = now()->startOfDay()->subDays($days ?? AppSetting::supplierReturnAlertDays())->toDateString();
+
+        return $query->supplierReturns()->where(function (Builder $query) use ($cutoff) {
+            $query->where(fn (Builder $query) => $query->where('return_status', self::RETURN_SENT)->whereDate('shipped_at', '<=', $cutoff))
+                ->orWhere(fn (Builder $query) => $query->where('return_status', self::RETURN_UNSENT)->whereDate('date', '<=', $cutoff));
+        });
     }
 
     public function isDraft(): bool
@@ -380,6 +442,6 @@ class DamagedDisposal extends Model
      */
     protected function postedLabel(): string
     {
-        return $this->tracksSupplierReturn() && ! $this->isReturnDone() ? 'Diproses' : 'Selesai';
+        return $this->tracksSupplierReturn() && ! $this->isReturnClosed() ? 'Diproses' : 'Selesai';
     }
 }

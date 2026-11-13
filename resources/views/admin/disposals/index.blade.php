@@ -251,6 +251,7 @@
             </div>
             <x-ui.select name="return_status" class="sm:w-56">
                 <option value="open" @selected(request('return_status', 'open') === 'open')>Belum selesai</option>
+                <option value="overdue" @selected(request('return_status') === 'overdue')>Terlambat (lebih dari {{ $alertDays }} hari)</option>
                 @foreach (App\Models\DamagedDisposal::returnStatuses() as $value => $label)
                     <option value="{{ $value }}" @selected(request('return_status') === $value)>{{ $label }}</option>
                 @endforeach
@@ -270,6 +271,32 @@
                 </x-ui.button>
             @endif
         </form>
+
+        {{-- Pengingat retur yang terlambat, dan batas harinya. --}}
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3
+                    {{ $summary['overdue_returns'] > 0 ? 'border-red-200 bg-red-50' : 'border-ink-100 bg-white' }}"
+             data-overdue-returns>
+            <p class="text-sm {{ $summary['overdue_returns'] > 0 ? 'text-red-800' : 'text-ink-600' }}">
+                @if ($summary['overdue_returns'] > 0)
+                    <x-icon name="warning" class="mr-1 inline h-4 w-4 align-[-3px]" />
+                    <span class="font-semibold">{{ $summary['overdue_returns'] }} retur terlambat</span>:
+                    sudah lebih dari {{ $alertDays }} hari di pemasok, atau belum dikirim selama itu.
+                    <a href="{{ route('admin.disposals.index', ['tab' => 'pemasok', 'return_status' => 'overdue']) }}" class="font-medium underline underline-offset-4">Lihat</a>
+                @else
+                    Tidak ada retur yang terlambat. Retur ditandai terlambat setelah {{ $alertDays }} hari.
+                @endif
+            </p>
+            @can('disposals.approve')
+                <form method="POST" action="{{ route('admin.disposals.return-settings') }}" class="flex items-center gap-2 text-sm text-ink-600">
+                    @csrf
+                    <label for="alert_days">Batas terlambat</label>
+                    <input id="alert_days" name="alert_days" type="number" min="1" max="365" value="{{ $alertDays }}" required
+                           class="form-control w-20 text-right tabular-nums">
+                    <span>hari</span>
+                    <x-ui.button type="submit" variant="secondary" size="xs">Simpan</x-ui.button>
+                </form>
+            @endcan
+        </div>
 
         <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
             @if ($returns->isEmpty())
@@ -296,7 +323,9 @@
                                     $sent = (int) $return->items_sum_quantity;
                                     $replaced = (int) $return->items_sum_replaced_quantity;
                                     $rejected = (int) $return->items_sum_rejected_quantity;
+                                    $cancelled = (int) $return->items_sum_cancelled_quantity;
                                     $days = $return->daysWithSupplier();
+                                    $late = $return->isReturnOverdue($alertDays);
                                 @endphp
                                 <tr>
                                     <td>
@@ -313,14 +342,19 @@
                                             <p class="font-mono text-xs text-ink-400">{{ $return->courier ? $return->courier.' · ' : '' }}{{ $return->tracking_number }}</p>
                                         @endif
                                         @if ($days !== null)
-                                            <p @class(['text-xs', 'font-medium text-red-600' => $days > 14, 'text-ink-400' => $days <= 14])>{{ $days }} hari di pemasok</p>
+                                            <p @class(['text-xs', 'font-medium text-red-600' => $late, 'text-ink-400' => ! $late])>{{ $days }} hari di pemasok</p>
                                         @endif
                                     </td>
                                     <td class="text-right text-sm tabular-nums">{{ number_format($sent, 0, ',', '.') }}</td>
                                     <td class="text-right text-sm tabular-nums text-emerald-700">{{ number_format($replaced, 0, ',', '.') }}</td>
                                     <td class="text-right text-sm tabular-nums text-red-600">{{ number_format($rejected, 0, ',', '.') }}</td>
-                                    <td class="text-right text-sm font-semibold tabular-nums text-ink-950">{{ number_format(max(0, $sent - $replaced - $rejected), 0, ',', '.') }}</td>
-                                    <td><x-ui.badge :variant="$return->returnStatusVariant()">{{ $return->returnStatusLabel() }}</x-ui.badge></td>
+                                    <td class="text-right text-sm font-semibold tabular-nums text-ink-950">{{ number_format(max(0, $sent - $replaced - $rejected - $cancelled), 0, ',', '.') }}</td>
+                                    <td>
+                                        <x-ui.badge :variant="$return->returnStatusVariant()">{{ $return->returnStatusLabel() }}</x-ui.badge>
+                                        @if ($late)
+                                            <p class="mt-1 text-xs font-medium text-red-600">Terlambat</p>
+                                        @endif
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>

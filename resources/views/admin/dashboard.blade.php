@@ -52,6 +52,20 @@
         @endcan
     @endif
 
+    @if ($stats['late_returns'] > 0)
+        @can('disposals.view')
+            <a href="{{ route('admin.disposals.index', ['tab' => 'pemasok', 'return_status' => 'overdue']) }}"
+               class="mb-4 flex items-center gap-3 rounded-lg bg-red-50 px-4 py-3 text-red-900 transition hover:bg-red-100" data-late-returns-banner>
+                <x-icon name="truck" class="h-4 w-4 shrink-0 text-red-600" />
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-semibold">{{ $stats['late_returns'] }} retur ke pemasok terlambat</p>
+                    <p class="mt-0.5 text-xs text-red-800">Sudah lebih dari {{ $stats['late_return_days'] }} hari di pemasok, atau belum dikirim selama itu.</p>
+                </div>
+                <x-icon name="chevron-right" class="h-4 w-4 shrink-0" />
+            </a>
+        @endcan
+    @endif
+
     {{-- Kartu angka --}}
     <div class="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5 max-xl:[&>*:last-child:nth-child(odd)]:col-span-2">
         <x-ui.stat-card label="Total Unit Stok" info="Jumlah seluruh unit layak jual di gudang saat ini, dari semua barang aktif." :value="number_format($stats['stock_units'], 0, ',', '.')" icon="box" accent

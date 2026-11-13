@@ -15,6 +15,7 @@ class DamagedDisposalItem extends Model
         'quantity',
         'replaced_quantity',
         'rejected_quantity',
+        'cancelled_quantity',
         'note',
     ];
 
@@ -24,13 +25,14 @@ class DamagedDisposalItem extends Model
             'quantity' => 'integer',
             'replaced_quantity' => 'integer',
             'rejected_quantity' => 'integer',
+            'cancelled_quantity' => 'integer',
         ];
     }
 
     /** Unit yang dikirim ke pemasok tetapi belum diganti maupun ditolak. */
     public function outstandingQuantity(): int
     {
-        return max(0, $this->quantity - $this->replaced_quantity - $this->rejected_quantity);
+        return max(0, $this->quantity - $this->replaced_quantity - $this->rejected_quantity - $this->cancelled_quantity);
     }
 
     public function disposal(): BelongsTo

@@ -25,7 +25,11 @@ class AppSetting extends Model
     /** Potongan marketplace dalam persen, JSON {"TikTok Shop": 8.5}. */
     public const MARKETPLACE_FEES = 'reports.marketplace_fees';
 
+    /** Retur ke pemasok dianggap terlambat setelah sekian hari. */
+    public const SUPPLIER_RETURN_ALERT_DAYS = 'disposals.supplier_return_alert_days';
+
     public const DEFAULTS = [
+        self::SUPPLIER_RETURN_ALERT_DAYS => '14',
         self::NORMAL_SHIP_DAYS => '2',
         self::ATTENDANCE_REQUIRE_SELFIE => '1',
         self::ATTENDANCE_ALLOW_OUTSIDE => '0',
@@ -56,6 +60,11 @@ class AppSetting extends Model
     public static function normalShipDays(): int
     {
         return max(0, (int) static::get(self::NORMAL_SHIP_DAYS));
+    }
+
+    public static function supplierReturnAlertDays(): int
+    {
+        return max(1, (int) static::get(self::SUPPLIER_RETURN_ALERT_DAYS));
     }
 
     public static function flag(string $key): bool
