@@ -33,7 +33,7 @@ class PoPeriodController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('can:imports.view', only: ['index']),
-            new Middleware('can:products.update', only: ['store', 'destroy', 'settings']),
+            new Middleware('can:products.update', only: ['store', 'destroy', 'bulkDestroy', 'settings']),
         ];
     }
 
@@ -121,6 +121,39 @@ class PoPeriodController extends Controller implements HasMiddleware
         return redirect()
             ->route('admin.po-periods.index', $request->only('search'))
             ->with('success', 'Periode lama PO dihapus. Batas kirim resi yang terdampak dihitung ulang.');
+    }
+
+    /**
+     * Hapus semua periode lama PO milik produk yang dicentang sekaligus.
+     */
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'owners' => ['required', 'array', 'min:1'],
+            'owners.*' => ['string', 'regex:/^[gp]\d+$/'],
+        ], [
+            'owners.required' => 'Centang minimal satu produk yang lama PO-nya mau dihapus.',
+        ]);
+
+        $groups = $this->ids($data['owners'], 'g');
+        $products = $this->ids($data['owners'], 'p');
+
+        $periods = ProductPoPeriod::query()
+            ->where(fn ($query) => $query
+                ->whereIn('product_group_id', $groups ?: [0])
+                ->orWhere(fn ($query) => $query->whereNull('product_group_id')->whereIn('product_id', $products ?: [0])))
+            ->get(['id', 'product_group_id', 'product_id']);
+
+        if ($periods->isEmpty()) {
+            return back()->withInput()->withErrors(['owners' => 'Produk yang dicentang belum punya periode lama PO.']);
+        }
+
+        $owners = $periods->map(fn (ProductPoPeriod $period) => $period->ownerKey())->unique()->count();
+        ProductPoPeriod::query()->whereIn('id', $periods->pluck('id'))->delete();
+
+        return redirect()
+            ->route('admin.po-periods.index', $request->only('search'))
+            ->with('success', "{$periods->count()} periode lama PO dari {$owners} produk dihapus. Batas kirim resi yang terdampak dihitung ulang.");
     }
 
     public function settings(Request $request): RedirectResponse

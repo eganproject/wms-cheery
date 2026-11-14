@@ -279,13 +279,15 @@ document.addEventListener('submit', (event) => {
     // Baca atributnya langsung: form.action / form.method tertimpa bila form
     // punya input bernama "action" atau "method" (mis. pilihan tindakan di
     // Barang Rusak), dan berubah menjadi "[object RadioNodeList]".
-    const action = new URL(form.getAttribute('action') || location.href, location.href).toString();
+    // Tombol dengan formaction / formmethod (mis. "Hapus lama PO" di form
+    // Lama PO) menimpa tujuan form, sama seperti kiriman biasa di peramban.
+    const source = event.submitter;
+    const action = new URL(source?.getAttribute('formaction') || form.getAttribute('action') || location.href, location.href).toString();
     if (!isInternal(action)) return;
 
     event.preventDefault();
 
-    const source = event.submitter;
-    const method = (form.getAttribute('method') || 'get').toUpperCase();
+    const method = (source?.getAttribute('formmethod') || form.getAttribute('method') || 'get').toUpperCase();
 
     if (method === 'GET') {
         const query = new URLSearchParams(new FormData(form));

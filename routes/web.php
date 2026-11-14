@@ -200,6 +200,7 @@ Route::middleware('auth')
         Route::get('po-periods', [PoPeriodController::class, 'index'])->name('po-periods.index');
         Route::post('po-periods', [PoPeriodController::class, 'store'])->name('po-periods.store');
         Route::put('po-periods/settings', [PoPeriodController::class, 'settings'])->name('po-periods.settings');
+        Route::post('po-periods/bulk-delete', [PoPeriodController::class, 'bulkDestroy'])->name('po-periods.bulk-destroy');
         Route::delete('po-periods/{period}', [PoPeriodController::class, 'destroy'])->name('po-periods.destroy');
         Route::get('orders/po-deadlines', [PoDeadlineController::class, 'index'])->name('orders.deadlines');
         Route::get('orders/po-deadlines/produksi', [PoDeadlineController::class, 'production'])->name('orders.deadlines.production');

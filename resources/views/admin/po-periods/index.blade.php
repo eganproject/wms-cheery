@@ -91,16 +91,68 @@
                     @endif
                 </form>
 
-                <form method="POST" action="{{ route('admin.po-periods.store') }}" id="po-form" x-data="{ all: false }">
+                <form method="POST" action="{{ route('admin.po-periods.store') }}" id="po-form"
+                      x-data="{
+                          all: false, checked: 0, withPeriod: 0, confirmDelete: false,
+                          sync() {
+                              this.checked = $root.querySelectorAll('[data-owner]:checked').length;
+                              this.withPeriod = $root.querySelectorAll('[data-owner][data-has-period]:checked').length;
+                          },
+                          pickSet() {
+                              $root.querySelectorAll('[data-owner]').forEach(el => el.checked = el.hasAttribute('data-has-period'));
+                              this.sync();
+                          },
+                      }"
+                      x-init="sync()" @change="sync()">
                     @csrf
                     <input type="hidden" name="search" value="{{ $search }}">
+                    @if ($canEdit)
+                        <div class="flex flex-wrap items-center gap-2 border-b border-ink-100 px-3 py-2 text-xs" data-po-bulk>
+                            <span class="text-ink-600" x-show="checked === 0">Centang produk untuk tambah periode atau hapus lama PO.</span>
+                            <span class="text-ink-700" x-show="checked > 0" x-cloak>
+                                <strong x-text="checked"></strong> produk dicentang
+                                · <strong x-text="withPeriod"></strong> punya lama PO
+                            </span>
+                            <div class="ml-auto flex items-center gap-2">
+                                <x-ui.button type="button" variant="ghost" size="sm" icon="check" @click="pickSet()">Centang yang sudah diset</x-ui.button>
+                                <x-ui.button type="button" variant="danger-soft" size="sm" icon="trash"
+                                             x-bind:disabled="withPeriod === 0" @click="confirmDelete = true">Hapus lama PO</x-ui.button>
+                            </div>
+                        </div>
+
+                        {{-- Dialog konfirmasi hapus massal (gaya sama dengan x-ui.confirm-delete). --}}
+                        <template x-teleport="body">
+                            <div x-show="confirmDelete" x-cloak class="fixed inset-0 z-[70] flex items-end justify-center p-3 sm:items-start sm:p-4 sm:pt-[15vh]" role="dialog" aria-modal="true">
+                                <div x-show="confirmDelete" x-transition.opacity @click="confirmDelete = false" class="fixed inset-0 bg-ink-950/30"></div>
+                                <div x-show="confirmDelete" x-transition @keydown.escape.window="confirmDelete = false"
+                                     class="relative w-full max-w-md overflow-hidden rounded-xl bg-white shadow-lift">
+                                    <div class="flex items-center justify-between gap-3 px-5 pt-4">
+                                        <h3 class="text-lg font-semibold text-ink-950">Hapus lama PO <span x-text="withPeriod"></span> produk?</h3>
+                                        <button type="button" @click="confirmDelete = false" class="btn btn-ghost btn-icon -mr-2 text-ink-500">
+                                            <x-icon name="close" class="h-4 w-4" />
+                                            <span class="sr-only">Tutup</span>
+                                        </button>
+                                    </div>
+                                    <p class="px-5 pb-5 pt-2 text-sm text-ink-600">
+                                        Semua periode (riwayat) lama PO produk yang dicentang akan dihapus. Batas kirim resi yang terdampak dihitung ulang,
+                                        dan resi PO-nya bisa menjadi "belum punya batas kirim" sampai lama PO diisi lagi. Tindakan ini tidak dapat dibatalkan.
+                                    </p>
+                                    <div class="flex flex-col-reverse gap-2 border-t border-ink-100 bg-white px-5 py-3 sm:flex-row sm:justify-end">
+                                        <x-ui.button type="button" variant="secondary" @click="confirmDelete = false">Batal</x-ui.button>
+                                        <x-ui.button type="submit" form="po-form" formaction="{{ route('admin.po-periods.bulk-destroy') }}" formnovalidate
+                                                     variant="danger" class="w-full sm:w-auto" data-po-bulk-delete>Ya, hapus</x-ui.button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    @endif
                     <div class="overflow-x-auto">
                         <table class="erp-table" data-po-table>
                             <thead>
                                 <tr>
                                     @if ($canEdit)
                                         <th class="w-8"><input type="checkbox" class="rounded border-ink-300" aria-label="Pilih semua"
-                                                               @change="all = $event.target.checked; $root.querySelectorAll('[data-owner]').forEach(el => el.checked = all)"></th>
+                                                               @change="all = $event.target.checked; $root.querySelectorAll('[data-owner]').forEach(el => el.checked = all); sync()"></th>
                                     @endif
                                     <th><x-ui.sort key="name">Produk</x-ui.sort></th>
                                     <th><span class="inline-flex items-center gap-1"><x-ui.sort key="current" first="desc">Berlaku sekarang</x-ui.sort> <x-ui.hint text="Lama PO untuk pesanan yang dibayar saat ini." /></span></th>
@@ -116,7 +168,7 @@
                                     @endphp
                                     <tr @class(['bg-amber-50/50' => $gap])>
                                         @if ($canEdit)
-                                            <td class="align-top"><input type="checkbox" name="owners[]" value="{{ $owner['key'] }}" data-owner
+                                            <td class="align-top"><input type="checkbox" name="owners[]" value="{{ $owner['key'] }}" data-owner @if ($history->isNotEmpty()) data-has-period @endif
                                                                          class="rounded border-ink-300" @checked(in_array($owner['key'], old('owners', []), true))
                                                                          aria-label="Pilih {{ $owner['name'] }}"></td>
                                         @endif

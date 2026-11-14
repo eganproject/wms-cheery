@@ -313,4 +313,34 @@ class PreOrderPlanningTest extends TestCase
         $this->actingAs($this->admin)->put(route('admin.po-periods.settings'), ['normal_ship_days' => 4])->assertSessionHas('success');
         $this->assertSame(4, AppSetting::normalShipDays());
     }
+
+    public function test_po_periods_of_checked_products_can_be_deleted_at_once(): void
+    {
+        $other = Product::create(['sku' => 'Nara 1', 'name' => 'Nara - 1', 'unit' => 'pcs', 'min_stock' => 0]);
+        $this->period(['product_group_id' => $this->helena->id], '2026-05-01 00:00:00', 7);
+        $this->period(['product_group_id' => $this->helena->id], '2026-06-01 00:00:00', 14);
+        $this->period(['product_id' => $this->kalea->id], '2026-05-01 00:00:00', 10);
+        $this->period(['product_id' => $other->id], '2026-05-01 00:00:00', 5);
+
+        $this->actingAs($this->admin)->get(route('admin.po-periods.index'))
+            ->assertOk()->assertSee('data-po-bulk', false)->assertSee('Hapus lama PO');
+
+        $this->actingAs($this->admin)->post(route('admin.po-periods.bulk-destroy'), [
+            'owners' => ['g'.$this->helena->id, 'p'.$this->kalea->id],
+        ])->assertSessionHas('success', '3 periode lama PO dari 2 produk dihapus. Batas kirim resi yang terdampak dihitung ulang.');
+
+        $this->assertSame([$other->id], ProductPoPeriod::pluck('product_id')->all());
+
+        // Produk tanpa periode: tidak ada yang dihapus.
+        $this->actingAs($this->admin)->post(route('admin.po-periods.bulk-destroy'), [
+            'owners' => ['g'.$this->helena->id],
+        ])->assertSessionHasErrors('owners');
+        $this->assertSame(1, ProductPoPeriod::count());
+
+        $viewer = User::factory()->create();
+        $this->actingAs($viewer)->post(route('admin.po-periods.bulk-destroy'), [
+            'owners' => ['p'.$other->id],
+        ])->assertForbidden();
+        $this->assertSame(1, ProductPoPeriod::count());
+    }
 }
