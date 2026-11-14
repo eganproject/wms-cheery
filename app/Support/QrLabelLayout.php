@@ -55,6 +55,17 @@ class QrLabelLayout
                 'stacked' => false,
                 'font' => 4.5, 'sku_font' => 6, 'name_chars' => 22, 'pad' => 1,
             ],
+            // Rol "3 line": tiga label sebaris. Lebar baris 103 mm, masih
+            // muat di kepala cetak printer 4 inci (ZD230 ±104 mm).
+            'thermal-33x15-3' => [
+                'label' => 'Thermal 33 × 15 mm – 3 kolom',
+                'hint' => 'Rol "3 line" untuk Zebra ZD230 dan printer label sejenis. Satu baris berisi tiga label.',
+                'sheet' => false,
+                'width' => 33, 'height' => 15,
+                'cols' => 3, 'gap_x' => 2,
+                'stacked' => false,
+                'font' => 4.5, 'sku_font' => 6, 'name_chars' => 22, 'pad' => 1,
+            ],
             'thermal-40x30' => [
                 'label' => 'Thermal 40 × 30 mm',
                 'hint' => 'Printer label thermal, satu label per lembar.',

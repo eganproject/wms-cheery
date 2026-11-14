@@ -91,6 +91,10 @@ class ProductQrLabelTest extends TestCase
         $this->assertEquals(15, $layout['page_height']);
         $this->assertEquals(69, QrLabelLayout::withGap($layout, 3)['page_width']);
 
+        $three = QrLabelLayout::get('thermal-33x15-3');
+        $this->assertSame(3, $three['per_page']);
+        $this->assertEquals(103, $three['page_width']);
+
         $ids = Product::pluck('id', 'sku');
 
         $response = $this->actingAs($this->admin)->post(route('admin.products.labels.pdf'), [

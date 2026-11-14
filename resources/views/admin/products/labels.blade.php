@@ -193,9 +193,9 @@
                     Buat PDF Label
                 </button>
                 <p class="mt-2 text-center text-xs text-ink-400">PDF terbuka di tab baru, siap dicetak. Saat mencetak, pilih skala 100% / ukuran asli.</p>
-                <div x-show="layout === 'thermal-33x15-2'" x-cloak class="mt-3 rounded-lg bg-ink-50 p-3 text-xs leading-relaxed text-ink-600">
-                    <p class="font-medium text-ink-950">Zebra ZD230, rol 33 × 15 mm 2 line</p>
-                    <p class="mt-1">Di driver ZDesigner (Preferensi Pencetakan → Page Setup) buat ukuran kertas lebar <b x-text="(66 + (parseFloat(gap) || 0)).toLocaleString('id-ID')"></b> mm × tinggi 15 mm, kertas <i>Labels with gaps</i>, Darkness ±20. Lalu cetak PDF dengan skala 100% / Actual size.</p>
+                <div x-show="gapDefault !== null" x-cloak class="mt-3 rounded-lg bg-ink-50 p-3 text-xs leading-relaxed text-ink-600">
+                    <p class="font-medium text-ink-950">Zebra ZD230, rol 33 × 15 mm <span x-text="perPage[layout]"></span> line</p>
+                    <p class="mt-1">Di driver ZDesigner (Printing Preferences → Page Setup) atur Width <b x-text="(perPage[layout] * 33 + (perPage[layout] - 1) * (parseFloat(gap) || 0)).toLocaleString('id-ID')"></b> mm × Height 15 mm, kertas <i>Labels with gaps</i>, Darkness ±20. Lalu cetak PDF dengan skala 100% / Actual size.</p>
                 </div>
             </div>
         </div>
