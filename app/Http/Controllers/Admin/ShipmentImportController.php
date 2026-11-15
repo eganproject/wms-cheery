@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ShipmentImport;
 use App\Models\ShipmentOrder;
 use App\Models\ShipmentOrderItem;
-use App\Services\TikTokImportService;
+use App\Services\MarketplaceImportService;
 use App\Services\ShipmentImportFailureExportService;
 use App\Services\ShipmentOrderResolver;
 use App\Support\DateRange;
@@ -21,7 +21,7 @@ use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Import nomor resi dari berkas eksport pesanan TikTok Shop.
+ * Import nomor resi dari berkas eksport pesanan TikTok Shop atau Shopee.
  *
  * Data ini menjadi rujukan saat scan resi pada barang keluar marketplace
  * dan pada penerimaan retur.
@@ -29,7 +29,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class ShipmentImportController extends Controller implements HasMiddleware
 {
     public function __construct(
-        protected TikTokImportService $importer,
+        protected MarketplaceImportService $importer,
         protected ShipmentOrderResolver $resolver,
     ) {
     }

@@ -1,5 +1,5 @@
 <x-app-layout title="Import Berkas Resi">
-    <x-ui.page-header title="Import Berkas Resi" subtitle="Unggah hasil eksport pesanan TikTok Shop."
+    <x-ui.page-header title="Import Berkas Resi" subtitle="Unggah hasil eksport pesanan TikTok Shop atau Shopee — asal berkas dikenali otomatis."
                       :back="route('admin.imports.index')" />
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -10,7 +10,7 @@
                   x-data="importUpload({ maxMb: 20 })" @submit.prevent="submit()">
                 @csrf
 
-                <x-ui.card title="Berkas Eksport TikTok Shop" subtitle="Unggah langsung berkas Excel (.xlsx / .xls) hasil eksport — CSV juga diterima. Maksimal 20 MB.">
+                <x-ui.card title="Berkas Eksport TikTok Shop / Shopee" subtitle="Unggah langsung berkas Excel (.xlsx / .xls) hasil eksport — CSV juga diterima. Maksimal 20 MB.">
                     <label class="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-12 text-center transition"
                            :class="busy ? 'cursor-wait border-ink-200 opacity-60' : (drag ? 'cursor-pointer border-ink-950 bg-ink-50' : 'cursor-pointer border-ink-200 hover:border-ink-300 hover:bg-ink-50/50')"
                            @dragover.prevent="drag = ! busy" @dragleave.prevent="drag = false"
@@ -66,46 +66,60 @@
         </div>
 
         <div class="space-y-6">
-            <x-ui.card title="Kolom yang Dibaca" subtitle="Hanya kolom ini yang disimpan. Data pembeli, alamat, dan harga tidak ikut masuk.">
-                <ul class="space-y-2.5 text-sm">
-                    @foreach ([
-                        ['Tracking ID', 'Wajib. Nomor resi, kunci pencocokan saat scan.', true],
-                        ['Seller SKU', 'Wajib. Kunci ke master barang; bila kosong dipakai Variation.', true],
-                        ['Quantity', 'Kuantitas per baris SKU.', false],
-                        ['Order ID', 'Ditampilkan sebagai referensi.', false],
-                        ['Product Name, Variation', 'Cadangan bila SKU belum terdaftar.', false],
-                        ['Normal or Pre-order, Created Time, Paid Time', 'Dasar batas kirim: waktu bayar + lama PO barangnya (atau aturan Normal).', false],
-                        ['Delivery Option', 'Instan / besok sampai ditandai prioritas.', false],
-                        ['Order Status, Shipping Provider Name, Buyer Message', 'Informasi pelengkap.', false],
-                    ] as [$column, $desc, $required])
-                        <li class="flex items-start gap-2.5">
-                            <x-icon :name="$required ? 'check-circle' : 'circle'"
-                                    class="mt-0.5 h-4 w-4 shrink-0 {{ $required ? 'text-ink-950' : 'text-ink-300' }}" />
-                            <span class="min-w-0">
-                                <span class="block text-xs font-semibold text-ink-950">
-                                    {{ $column }}
-                                    @if ($required)
-                                        <span class="ml-1 rounded bg-red-100 px-1 py-px text-[11px] font-medium text-red-700">wajib</span>
-                                    @endif
+            @foreach ([
+                ['Kolom TikTok Shop', 'Pesanan > Kelola Pesanan > Ekspor, setelah Atur Pengiriman.', [
+                    ['Tracking ID', 'Wajib. Nomor resi, kunci pencocokan saat scan.', true],
+                    ['Seller SKU', 'Wajib. Kunci ke master barang; bila kosong dipakai Variation.', true],
+                    ['Quantity', 'Kuantitas per baris SKU.', false],
+                    ['Order ID', 'Ditampilkan sebagai referensi.', false],
+                    ['Product Name, Variation', 'Cadangan bila SKU belum terdaftar.', false],
+                    ['Normal or Pre-order, Created Time, Paid Time', 'Dasar batas kirim: waktu bayar + lama PO barangnya (atau aturan Normal).', false],
+                    ['Delivery Option', 'Instan / besok sampai ditandai prioritas.', false],
+                    ['Order Status, Shipping Provider Name, Buyer Message', 'Informasi pelengkap.', false],
+                ]],
+                ['Kolom Shopee', 'Pesanan Saya > Perlu Dikirim > Ekspor, setelah Atur Pengiriman.', [
+                    ['No. Resi', 'Wajib. Nomor resi, kunci pencocokan saat scan.', true],
+                    ['Nomor Referensi SKU', 'Wajib. Kunci ke master barang; bila kosong dipakai SKU Induk.', true],
+                    ['Jumlah', 'Kuantitas per baris SKU.', false],
+                    ['No. Pesanan', 'Ditampilkan sebagai referensi.', false],
+                    ['Nama Produk, Nama Variasi', 'Cadangan bila SKU belum terdaftar.', false],
+                    ['Pesanan Harus Dikirimkan Sebelum', 'Batas kirim dari Shopee, dipakai apa adanya.', false],
+                    ['Opsi Pengiriman', 'Kurir; Instant / Same Day ditandai prioritas.', false],
+                    ['Status Pesanan, Waktu Pesanan Dibuat, Waktu Pembayaran, Catatan dari Pembeli', 'Informasi pelengkap.', false],
+                ]],
+            ] as [$title, $where, $columns])
+                <x-ui.card :title="$title" :subtitle="$where.' Data pembeli dan alamat tidak ikut disimpan.'">
+                    <ul class="space-y-2.5 text-sm">
+                        @foreach ($columns as [$column, $desc, $required])
+                            <li class="flex items-start gap-2.5">
+                                <x-icon :name="$required ? 'check-circle' : 'circle'"
+                                        class="mt-0.5 h-4 w-4 shrink-0 {{ $required ? 'text-ink-950' : 'text-ink-300' }}" />
+                                <span class="min-w-0">
+                                    <span class="block text-xs font-semibold text-ink-950">
+                                        {{ $column }}
+                                        @if ($required)
+                                            <span class="ml-1 rounded bg-red-100 px-1 py-px text-[11px] font-medium text-red-700">wajib</span>
+                                        @endif
+                                    </span>
+                                    <span class="block text-xs text-ink-500">{{ $desc }}</span>
                                 </span>
-                                <span class="block text-xs text-ink-500">{{ $desc }}</span>
-                            </span>
-                        </li>
-                    @endforeach
-                </ul>
-            </x-ui.card>
+                            </li>
+                        @endforeach
+                    </ul>
+                </x-ui.card>
+            @endforeach
 
             <div class="rounded-2xl border border-ink-100 bg-ink-50/60 p-5">
                 <p class="flex items-center gap-2 text-xs text-ink-400">
                     <x-icon name="info" class="h-3.5 w-3.5" /> Cara kerja
                 </p>
                 <ul class="mt-3 space-y-2 text-xs leading-relaxed text-ink-600">
-                    <li class="flex gap-2"><span class="font-semibold text-ink-950">1.</span> Berkas Excel dibaca langsung — tidak perlu diubah ke CSV lebih dulu.</li>
+                    <li class="flex gap-2"><span class="font-semibold text-ink-950">1.</span> Berkas Excel dibaca langsung — tidak perlu diubah ke CSV lebih dulu. Asal berkas (TikTok Shop atau Shopee) dikenali dari judul kolomnya.</li>
                     <li class="flex gap-2"><span class="font-semibold text-ink-950">2.</span> Baris keterangan kolom dari TikTok otomatis dilewati.</li>
                     <li class="flex gap-2"><span class="font-semibold text-ink-950">3.</span> Beberapa baris dengan nomor resi sama digabung menjadi satu pesanan.</li>
                     <li class="flex gap-2"><span class="font-semibold text-ink-950">4.</span> Setiap SKU dicocokkan ke master barang. SKU yang belum ada ditandai.</li>
                     <li class="flex gap-2"><span class="font-semibold text-ink-950">5.</span> Resi yang sudah ada di sistem dilewati tanpa mengubah datanya, jadi berkas boleh diunggah beberapa kali sehari meski bertumpuk. Resi yang dipakai beberapa pesanan, atau pesanan yang sudah punya resi lain, dicegat sebagai gagal.</li>
-                    <li class="flex gap-2"><span class="font-semibold text-ink-950">6.</span> Baris yang gagal (mis. Tracking ID kosong karena belum Atur Pengiriman) bisa diunduh beserta alasannya dari halaman detail import.</li>
+                    <li class="flex gap-2"><span class="font-semibold text-ink-950">6.</span> Baris yang gagal (mis. resi kosong karena belum Atur Pengiriman) bisa diunduh beserta alasannya dari halaman detail import.</li>
                     <li class="flex gap-2"><span class="font-semibold text-ink-950">7.</span> Saat scan resi, sistem mengambil daftar barang dari data ini.</li>
                 </ul>
             </div>

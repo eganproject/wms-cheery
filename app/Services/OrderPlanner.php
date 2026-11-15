@@ -51,8 +51,11 @@ class OrderPlanner
 
     public const SOURCE_TIKTOK = 'tiktok';
 
+    /** Batas kirim yang tertulis di berkas eksport Shopee. */
+    public const SOURCE_SHOPEE = 'shopee';
+
     /** Sumber batas kirim yang dikunci: tidak ditimpa hitungan sistem. */
-    public const LOCKED_SOURCES = [self::SOURCE_MANUAL, self::SOURCE_TIKTOK];
+    public const LOCKED_SOURCES = [self::SOURCE_MANUAL, self::SOURCE_TIKTOK, self::SOURCE_SHOPEE];
 
     /** Penggalan nama layanan kirim yang harus berangkat hari itu juga. */
     public const EXPRESS_MARKERS = ['instan', 'instant', 'same day', 'sameday', 'besok sampai', 'next day'];

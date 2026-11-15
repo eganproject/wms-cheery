@@ -25,9 +25,10 @@ class XlsxStreamReader
      * belum bisa ditentukan. Selama null, semua kolom tetap disimpan.
      *
      * @param  callable(array<int, array<int, string>>): ?array<int, int>  $pick
+     * @param  int|null  $stopAfterRow  berhenti setelah baris ini (null = seluruh lembar)
      * @return array<int, array<int, string>> nomor baris => [indeks kolom => nilai]
      */
-    public function read(string $path, callable $pick, int $probeRows = 10): array
+    public function read(string $path, callable $pick, int $probeRows = 10, ?int $stopAfterRow = null): array
     {
         $zip = new ZipArchive;
 
@@ -92,6 +93,12 @@ class XlsxStreamReader
 
                     $next = $index + 1;
                     $type = (string) $reader->getAttribute('t');
+
+                    // Hanya perlu beberapa baris awal (mis. mengenali asal
+                    // berkas): berhenti tanpa membaca sisa lembar.
+                    if ($stopAfterRow !== null && $line > $stopAfterRow) {
+                        break 2;
+                    }
 
                     if ($line > $maxLine) {
                         // Baris baru dimulai: putuskan kolom yang disimpan

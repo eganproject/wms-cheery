@@ -1,6 +1,6 @@
 <x-app-layout title="Import Resi">
     <x-ui.page-header title="Import Resi" icon="document"
-                      subtitle="Data resi hasil eksport TikTok Shop yang dipakai saat QC Kemas dan retur.">
+                      subtitle="Data resi hasil eksport TikTok Shop dan Shopee yang dipakai saat QC Kemas dan retur.">
         <x-slot name="actions">
             @can('imports.create')
                 <x-ui.button :href="route('admin.imports.create')" icon="plus">Import Excel</x-ui.button>
@@ -108,7 +108,7 @@
 
         @if ($orders->isEmpty())
             <x-ui.empty-state icon="document" title="Belum ada data resi"
-                              description="Import berkas eksport pesanan TikTok Shop agar resi bisa dipakai saat scan.">
+                              description="Import berkas eksport pesanan TikTok Shop atau Shopee agar resi bisa dipakai saat scan.">
                 @can('imports.create')
                     <x-slot name="action">
                         <x-ui.button :href="route('admin.imports.create')" icon="plus">Import Excel</x-ui.button>

@@ -384,7 +384,7 @@
                                         @if ($order->ship_by && $orderStage !== ShipmentOrder::STAGE_SHIPPED && $orderStage !== ShipmentOrder::STAGE_CANCELLED)
                                             @php [$dlText, $dlTone] = $order->deadlineState(); @endphp
                                             <span class="inline-flex items-center gap-1" data-deadline
-                                                  title="{{ $order->isShipByLocked() ? ($order->ship_by_source === 'tiktok' ? 'Dikunci menurut TikTok' : 'Diubah manual') : 'Waktu bayar + '.(OrderController::orderKind($order) ?: 'aturan') }}">
+                                                  title="{{ $order->isShipByLocked() ? ($order->ship_by_source === 'tiktok' ? 'Dikunci menurut TikTok' : ($order->ship_by_source === 'shopee' ? 'Batas kirim dari Shopee' : 'Diubah manual')) : 'Waktu bayar + '.(OrderController::orderKind($order) ?: 'aturan') }}">
                                                 Kirim sebelum <span class="font-medium text-ink-800">{{ $order->ship_by->format('d/m/Y H:i') }}</span>
                                                 <x-ui.badge :variant="$dlTone">{{ $dlText }}</x-ui.badge>
                                             </span>
