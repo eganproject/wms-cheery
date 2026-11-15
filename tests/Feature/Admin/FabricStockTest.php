@@ -66,6 +66,13 @@ class FabricStockTest extends TestCase
             'sku' => 'RND-01', 'name' => 'Renda', 'unit' => 'lainnya', 'unit_other' => 'lembar', 'is_active' => '1',
         ])->assertSessionHasNoErrors();
 
+        // Isian minimal: stok minimum, pemasok, dan catatan dikosongkan.
+        $this->actingAs($this->admin)->post(route('admin.fabrics.store'), [
+            'sku' => 'SFN-MRH', 'name' => 'Satin', 'color' => 'Merah', 'unit' => 'meter', 'unit_other' => '',
+            'min_stock' => '', 'supplier_id' => '', 'note' => '', 'is_active' => '1',
+        ])->assertSessionHasNoErrors()->assertRedirect();
+        $this->assertSame(0.0, Fabric::where('sku', 'SFN-MRH')->firstOrFail()->min_stock);
+
         $this->assertSame('kg', Fabric::where('sku', 'KTN-PTH')->value('unit'));
         $this->assertSame('lembar', Fabric::where('sku', 'RND-01')->value('unit'));
 

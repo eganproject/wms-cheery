@@ -228,10 +228,11 @@ class FabricController extends Controller implements HasMiddleware
             ]);
         }
 
-        return $data + [
+        // array_merge, bukan +: kolom kosong (null) dari form harus tertimpa.
+        return array_merge($data, [
             'min_stock' => (float) ($data['min_stock'] ?? 0),
             'is_active' => $request->boolean('is_active'),
-        ];
+        ]);
     }
 
     /** @return array<string, mixed> */
