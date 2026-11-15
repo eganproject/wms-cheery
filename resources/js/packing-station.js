@@ -55,6 +55,15 @@ export default function packingStation(config) {
          */
         bulk: 1,
 
+        /**
+         * Tawaran substitusi SKU dari server: barang yang discan tidak ada di
+         * pesanan (atau barisnya sudah lengkap) tetapi bisa menggantikan baris
+         * yang masih kurang. Operator memilih baris, jumlah, dan alasannya.
+         */
+        offer: null,
+        offerForm: { item_id: null, quantity: 1, reason: '', note: '' },
+        offerError: null,
+
         init() {
             this.focusInput();
         },
@@ -169,6 +178,8 @@ export default function packingStation(config) {
                 // yang pertama berarti "ambil paket lain", yang kedua berarti
                 // "barang ini bukan isinya".
                 this.report('error', error.message, code, this.isResiStage ? 'rejected' : 'error');
+
+                if (error.payload?.substitution) this.openOffer(error.payload.substitution);
             } finally {
                 this.busy = false;
                 this.focusInput();
@@ -193,8 +204,9 @@ export default function packingStation(config) {
         },
 
         async startPackage(code) {
-            const payload = await this.post(this.urls.start, { code });
+            const payload = await this.post(this.urls.start, { code, substitution: true });
 
+            this.offer = null;
             this.outbound = payload.outbound;
             this.items = payload.items;
             this.bundles = payload.bundles ?? [];
@@ -208,7 +220,9 @@ export default function packingStation(config) {
         },
 
         async scanItem(code, quantity = 1) {
-            const payload = await this.post(this.urls.item, { code, quantity });
+            this.offer = null;
+
+            const payload = await this.post(this.urls.item, { code, quantity, substitution: true });
 
             this.bulk = 1;
             this.progress = payload.progress;
@@ -253,6 +267,92 @@ export default function packingStation(config) {
             await this.drain();
         },
 
+        /* ---------------------------------------------- substitusi SKU */
+
+        openOffer(substitution) {
+            const first = substitution.lines[0];
+
+            this.offer = substitution;
+            this.offerError = null;
+            this.offerForm = {
+                item_id: substitution.lines.length === 1 ? first.item_id : null,
+                quantity: Math.min(substitution.quantity || 1, first.remaining),
+                reason: '',
+                note: '',
+            };
+        },
+
+        get offerLine() {
+            return this.offer?.lines.find((line) => line.item_id === this.offerForm.item_id) ?? null;
+        },
+
+        get offerReady() {
+            const form = this.offerForm;
+
+            return this.offerLine
+                && form.quantity >= 1
+                && form.quantity <= this.offerLine.remaining
+                && form.reason
+                && (form.reason !== 'lainnya' || form.note.trim());
+        },
+
+        cancelOffer() {
+            this.offer = null;
+            this.focusInput();
+        },
+
+        async confirmSubstitution() {
+            if (this.busy || ! this.offerReady) return;
+
+            this.busy = true;
+            this.offerError = null;
+
+            try {
+                const payload = await this.post(this.urls.substitute, {
+                    item_id: this.offerForm.item_id,
+                    code: this.offer.code,
+                    quantity: this.offerForm.quantity,
+                    reason: this.offerForm.reason,
+                    note: this.offerForm.note,
+                });
+
+                this.applyLines(payload);
+                this.report('success', payload.message, this.offer.code, 'item');
+                this.offer = null;
+
+                if (this.progress.ready) this.completePackage();
+            } catch (error) {
+                this.offerError = error.message;
+                signal('error');
+            } finally {
+                this.busy = false;
+                this.focusInput();
+            }
+        },
+
+        async revertSubstitution(line) {
+            if (this.busy || ! line.substituted_from) return;
+
+            this.busy = true;
+
+            try {
+                const payload = await this.post(`${this.urls.substitute}/${line.id}`, {}, 'DELETE');
+
+                this.applyLines(payload);
+                this.report('success', payload.message, line.sku, 'item');
+            } catch (error) {
+                this.report('error', error.message, null, 'error');
+            } finally {
+                this.busy = false;
+                this.focusInput();
+            }
+        },
+
+        applyLines(payload) {
+            this.items = payload.items;
+            this.progress = payload.progress;
+        },
+
         /* -------------------------------------------------- penyelesaian */
 
         completePackage() {
@@ -285,6 +385,7 @@ export default function packingStation(config) {
 
         reset() {
             this.stage = 'resi';
+            this.offer = null;
             this.queue = [];
             this.outbound = null;
             this.items = [];
@@ -296,9 +397,9 @@ export default function packingStation(config) {
 
         /* ------------------------------------------------------- bantuan */
 
-        async post(url, body) {
+        async post(url, body, method = 'POST') {
             const response = await fetch(url, {
-                method: 'POST',
+                method,
                 headers: {
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
@@ -312,7 +413,15 @@ export default function packingStation(config) {
             const payload = await response.json().catch(() => ({}));
 
             if (! response.ok) {
-                throw new Error(payload.errors?.code?.[0] ?? payload.message ?? 'Permintaan gagal diproses.');
+                const error = new Error(
+                    payload.errors?.code?.[0]
+                        ?? Object.values(payload.errors ?? {})[0]?.[0]
+                        ?? payload.message
+                        ?? 'Permintaan gagal diproses.',
+                );
+                error.payload = payload;
+
+                throw error;
             }
 
             return payload;

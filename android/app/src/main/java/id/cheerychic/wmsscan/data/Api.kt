@@ -24,7 +24,13 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /** Galat yang pesannya siap ditampilkan ke operator. */
-class ApiException(message: String, val status: Int = 0) : Exception(message)
+class ApiException(message: String, val status: Int = 0, val body: String? = null) : Exception(message) {
+    /** Tawaran substitusi SKU dari server saat scan barang di Scan Kemas. */
+    val substitution: SubstitutionOffer?
+        get() = body?.let { text ->
+            runCatching { Api.json.decodeFromString<SubstitutionError>(text).substitution }.getOrNull()
+        }
+}
 
 /**
  * Pemanggil API WMS (/api/mobile/...).
@@ -71,16 +77,42 @@ object Api {
 
     /* ------------------------------------------------------ kemas ---- */
 
-    suspend fun scanResi(code: String): ResiResponse =
-        json.decodeFromString(call("POST", "/kemas/resi", buildJsonObject { put("code", code) }))
+    suspend fun scanResi(code: String, substitution: Boolean = false): ResiResponse =
+        json.decodeFromString(call("POST", "/kemas/resi", buildJsonObject {
+            put("code", code)
+            if (substitution) put("substitution", true)
+        }))
 
-    suspend fun scanItem(outboundId: Int, code: String, quantity: Int): ItemResponse =
+    suspend fun scanItem(outboundId: Int, code: String, quantity: Int, substitution: Boolean = false): ItemResponse =
         json.decodeFromString(
             call("POST", "/kemas/$outboundId/item", buildJsonObject {
                 put("code", code)
                 if (quantity > 1) put("quantity", quantity)
+                // Minta tawaran substitusi SKU bila barangnya di luar pesanan.
+                if (substitution) put("substitution", true)
             })
         )
+
+    suspend fun substitute(
+        outboundId: Int,
+        itemId: Int,
+        code: String,
+        quantity: Int,
+        reason: String,
+        note: String?,
+    ): SubstitutionResponse =
+        json.decodeFromString(
+            call("POST", "/kemas/$outboundId/substitute", buildJsonObject {
+                put("item_id", itemId)
+                put("code", code)
+                put("quantity", quantity)
+                put("reason", reason)
+                if (!note.isNullOrBlank()) put("note", note)
+            })
+        )
+
+    suspend fun revertSubstitute(outboundId: Int, itemId: Int): SubstitutionResponse =
+        json.decodeFromString(call("DELETE", "/kemas/$outboundId/substitute/$itemId"))
 
     suspend fun resetPacking(outboundId: Int): MessageResponse =
         json.decodeFromString(call("POST", "/kemas/$outboundId/reset"))
@@ -292,7 +324,7 @@ object Api {
                 throw ApiException("Sesi login habis. Silakan login lagi.", 401)
             }
 
-            throw ApiException(errorMessage(it.code, text), it.code)
+            throw ApiException(errorMessage(it.code, text), it.code, text)
         }
     }
 

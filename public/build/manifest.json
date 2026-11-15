@@ -47,12 +47,12 @@
     ]
   },
   "resources/css/app.css": {
-    "file": "assets/app-QkfOxA8I.css",
+    "file": "assets/app-DxOcZuDf.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-DjSye7E2.js",
+    "file": "assets/app-CVLK8MfE.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,

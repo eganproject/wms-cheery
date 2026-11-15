@@ -56,6 +56,8 @@ Route::prefix('mobile')
             // Scan Kemas (QC Kemas di web).
             Route::post('/kemas/resi', [OutboundMarketplaceController::class, 'store'])->name('kemas.resi');
             Route::post('/kemas/{outbound}/item', [OutboundScanController::class, 'item'])->name('kemas.item');
+            Route::post('/kemas/{outbound}/substitute', [OutboundScanController::class, 'substitute'])->name('kemas.substitute');
+            Route::delete('/kemas/{outbound}/substitute/{item}', [OutboundScanController::class, 'revertSubstitute'])->name('kemas.substitute.revert');
             Route::post('/kemas/{outbound}/reset', [MobilePackingController::class, 'reset'])->name('kemas.reset');
 
             // Serah Terima Paket.

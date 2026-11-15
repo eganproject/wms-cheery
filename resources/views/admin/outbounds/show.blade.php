@@ -179,6 +179,18 @@
                                             {{ $item->product->name }}
                                         </a>
                                         <div class="mt-1"><x-ui.sku :value="$item->product->sku" /></div>
+                                        @if ($item->isSubstitute())
+                                            <p class="mt-1 text-xs text-amber-700">
+                                                <span class="font-medium">Pengganti dari {{ $item->substitutedFrom?->sku }}</span>
+                                                &middot; {{ $item->substitutionReasonLabel() }}
+                                                @if ($item->substitutedBy)
+                                                    &middot; {{ $item->substitutedBy->name }}
+                                                @endif
+                                                @if ($item->substituted_at)
+                                                    &middot; {{ $item->substituted_at->format('d/m/Y H:i') }}
+                                                @endif
+                                            </p>
+                                        @endif
                                     </td>
                                     @if ($outbound->isMarketplace())
                                         <td class="text-center">
