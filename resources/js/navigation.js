@@ -224,6 +224,14 @@ async function visit(url, { method = 'GET', body = null, push = true, scroll = t
             return;
         }
 
+        // Kiriman form yang gagal di server (500, 403, 404, 413): dulu halaman
+        // galatnya tidak bisa ditukar lalu peramban diam-diam membuka alamat
+        // lain, sehingga data tampak "tidak masuk" tanpa pesan apa pun.
+        if (method !== 'GET' && response.status >= 400) {
+            showError(failureMessage(response.status));
+            return;
+        }
+
         const swapped = swap(await response.text(), { scroll });
 
         if (!swapped) {
@@ -245,6 +253,52 @@ async function visit(url, { method = 'GET', body = null, push = true, scroll = t
         request = null;
         stopLoading(source);
     }
+}
+
+/* ------------------------------------------------------------- galat ---- */
+
+function failureMessage(status) {
+    if (status === 403) return 'Akun Anda tidak punya akses untuk tindakan ini. Data belum tersimpan.';
+    if (status === 404) return 'Data yang diproses tidak ditemukan (mungkin sudah dihapus). Muat ulang halaman lalu coba lagi.';
+    if (status === 413) return 'Berkas yang dikirim terlalu besar untuk server. Data belum tersimpan.';
+    if (status === 429) return 'Terlalu banyak permintaan. Tunggu sebentar lalu coba lagi.';
+
+    return `Gagal menyimpan: terjadi galat di server (${status}). Data belum tersimpan. Coba lagi, dan kabari admin bila terus terjadi.`;
+}
+
+/** Toast galat, sama bentuknya dengan pesan flash dari server. */
+function showError(message) {
+    const slot = document.getElementById('flash-slot');
+
+    if (!slot) {
+        window.alert(message);
+        return;
+    }
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'pointer-events-none fixed inset-x-0 bottom-20 z-[60] flex flex-col items-center gap-2 px-4 sm:inset-x-auto sm:bottom-5 sm:right-5 sm:items-end lg:bottom-5';
+
+    const toast = document.createElement('div');
+    toast.setAttribute('role', 'alert');
+    toast.className = 'pointer-events-auto flex w-full max-w-sm items-start gap-2.5 rounded-xl border border-ink-100 bg-white px-3.5 py-3 shadow-lift';
+    toast.innerHTML = '<svg class="mt-0.5 h-4 w-4 shrink-0 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>';
+
+    const text = document.createElement('p');
+    text.className = 'flex-1 text-sm text-ink-800';
+    text.textContent = message;
+    toast.appendChild(text);
+
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = '-mr-1 rounded text-ink-400 transition hover:text-ink-700';
+    close.textContent = '×';
+    close.addEventListener('click', () => wrapper.remove());
+    toast.appendChild(close);
+
+    wrapper.appendChild(toast);
+    slot.innerHTML = '';
+    slot.appendChild(wrapper);
+    setTimeout(() => wrapper.remove(), 12000);
 }
 
 /* --------------------------------------------------------------- handlers */
