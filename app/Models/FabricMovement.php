@@ -34,6 +34,7 @@ class FabricMovement extends Model
         'type',
         'quantity',
         'balance_after',
+        'product_id',
         'destination',
         'note',
         'reverses_id',
@@ -65,6 +66,22 @@ class FabricMovement extends Model
     public function receipt(): BelongsTo
     {
         return $this->belongsTo(FabricReceipt::class, 'fabric_receipt_id');
+    }
+
+    /** Barang yang dibuat dari kain keluar ini. */
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
+    }
+
+    /** Barang (SKU · nama), atau tujuan lama untuk catatan sebelum ada pilihan barang. */
+    public function productLabel(): ?string
+    {
+        if ($this->product) {
+            return "{$this->product->sku} · {$this->product->name}";
+        }
+
+        return $this->destination;
     }
 
     public function user(): BelongsTo

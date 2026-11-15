@@ -30,6 +30,8 @@ class FabricStockTest extends TestCase
 
     protected User $admin;
 
+    protected ?Product $gamis = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -37,6 +39,12 @@ class FabricStockTest extends TestCase
         $this->travelTo(Carbon::parse('2026-06-12 09:00'));
         $this->seed(RolePermissionSeeder::class);
         $this->admin = User::where('email', 'admin@cheery.test')->firstOrFail();
+    }
+
+    /** Barang tujuan kain keluar. */
+    protected function product(): Product
+    {
+        return $this->gamis ??= Product::create(['sku' => 'GMS-01', 'name' => 'Gamis Hitam', 'unit' => 'pcs', 'min_stock' => 0]);
     }
 
     protected function fabric(array $attributes = []): Fabric
@@ -134,26 +142,42 @@ class FabricStockTest extends TestCase
         $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.lookup'), ['code' => 'NGAWUR'])
             ->assertStatus(422)->assertJsonPath('errors.code.0', 'Kode "NGAWUR" bukan roll kain yang terdaftar.');
 
+        // Barang wajib dipilih.
+        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.issue'), ['code' => 'TYB-HTM-001', 'quantity' => 1])
+            ->assertStatus(422)->assertJsonPath('errors.product_id.0', 'Pilih barang yang dibuat dari kain ini.');
+
+        // Barang pemakai kain ini muncul di hasil scan dan paling atas saat dicari.
+        $other = Product::create(['sku' => 'AAA-01', 'name' => 'Aksesoris', 'unit' => 'pcs', 'min_stock' => 0]);
+        $fabric->usages()->create(['product_id' => $this->product()->id, 'quantity' => 2.5]);
+        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.lookup'), ['code' => 'TYB-HTM-001'])
+            ->assertOk()->assertJsonCount(1, 'roll.products')->assertJsonPath('roll.products.0.sku', 'GMS-01');
+        $this->actingAs($this->admin)->getJson(route('admin.fabric-scan.products', ['code' => 'TYB-HTM-001']))
+            ->assertOk()->assertJsonPath('products.0.sku', 'GMS-01')->assertJsonPath('products.1.sku', $other->sku);
+        $this->actingAs($this->admin)->getJson(route('admin.fabric-scan.products', ['q' => 'aksesoris']))
+            ->assertOk()->assertJsonCount(1, 'products');
+
         $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.issue'), [
-            'code' => 'TYB-HTM-001', 'quantity' => 12.25, 'destination' => 'Penjahit Sri',
-        ])->assertOk()->assertJsonPath('roll.quantity', 37.75)->assertJsonCount(1, 'recent');
+            'code' => 'TYB-HTM-001', 'quantity' => 12.25, 'product_id' => $this->product()->id,
+        ])->assertOk()->assertJsonPath('roll.quantity', 37.75)->assertJsonCount(1, 'recent')
+            ->assertJsonPath('movement.product_sku', 'GMS-01');
+        $this->assertSame($this->product()->id, FabricMovement::issues()->first()->product_id);
 
         // Lebih dari sisa ditolak.
-        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.issue'), ['code' => 'TYB-HTM-001', 'quantity' => 40])
+        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.issue'), ['code' => 'TYB-HTM-001', 'product_id' => $this->product()->id, 'quantity' => 40])
             ->assertStatus(422)->assertJsonValidationErrors('quantity');
 
-        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.issue'), ['code' => 'TYB-HTM-001', 'all' => true])
+        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.issue'), ['code' => 'TYB-HTM-001', 'product_id' => $this->product()->id, 'all' => true])
             ->assertOk()->assertJsonPath('roll.empty', true);
 
         $roll = FabricRoll::first();
         $this->assertSame(0.0, $roll->quantity);
         $this->assertNotNull($roll->emptied_at);
 
-        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.issue'), ['code' => 'TYB-HTM-001', 'all' => true])
+        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.issue'), ['code' => 'TYB-HTM-001', 'product_id' => $this->product()->id, 'all' => true])
             ->assertStatus(422);
 
         $this->actingAs($this->admin)->get(route('admin.fabric-issues.index'))
-            ->assertOk()->assertSee('Penjahit Sri')->assertSee('TYB-HTM-001');
+            ->assertOk()->assertSee('GMS-01')->assertSee('TYB-HTM-001');
         $this->actingAs($this->admin)->get(route('admin.fabric-issues.export'))->assertOk();
 
         // Batal keluar mengembalikan kain ke roll.
@@ -166,7 +190,7 @@ class FabricStockTest extends TestCase
         $this->actingAs($this->admin)->get(route('admin.fabrics.show', [$fabric, 'habis' => 1]))
             ->assertOk()->assertSee('TYB-HTM-001')->assertSee('Batal keluar');
         $this->actingAs($this->admin)->get(route('admin.fabrics.index'))->assertOk()->assertSee('12,25 m');
-        $this->actingAs($this->admin)->get(route('admin.fabric-scan'))->assertOk()->assertSee('Penjahit Sri');
+        $this->actingAs($this->admin)->get(route('admin.fabric-scan'))->assertOk()->assertSee('GMS-01');
     }
 
     public function test_check_mode_records_adjustment(): void
@@ -201,7 +225,7 @@ class FabricStockTest extends TestCase
         $fabric = $this->fabric();
         $this->receive($fabric, 10, 1);
 
-        $this->actingAs($staff)->postJson(route('admin.fabric-scan.issue'), ['code' => 'TYB-HTM-001', 'quantity' => 1])->assertOk();
+        $this->actingAs($staff)->postJson(route('admin.fabric-scan.issue'), ['code' => 'TYB-HTM-001', 'product_id' => $this->product()->id, 'quantity' => 1])->assertOk();
         $this->actingAs($staff)->postJson(route('admin.fabric-scan.adjust'), ['code' => 'TYB-HTM-001', 'actual' => 1])->assertForbidden();
         $this->actingAs($staff)->post(route('admin.fabric-issues.cancel', FabricMovement::issues()->first()))->assertForbidden();
         $this->actingAs($staff)->get(route('admin.fabrics.create'))->assertForbidden();
@@ -218,9 +242,10 @@ class FabricStockTest extends TestCase
 
         $this->withToken($token)->postJson(route('mobile.kain.lookup'), ['code' => 'TYB-HTM-001'])
             ->assertOk()->assertJsonPath('roll.quantity_label', '10 m');
-        $this->withToken($token)->postJson(route('mobile.kain.issue'), ['code' => 'TYB-HTM-001', 'quantity' => '2.5', 'destination' => 'Konveksi A'])
+        $this->withToken($token)->postJson(route('mobile.kain.issue'), ['code' => 'TYB-HTM-001', 'quantity' => '2.5', 'product_id' => $this->product()->id])
             ->assertOk()->assertJsonPath('roll.quantity', 7.5);
         $this->withToken($token)->getJson(route('mobile.kain.recent'))->assertOk()->assertJsonCount(1, 'recent');
+        $this->withToken($token)->getJson(route('mobile.kain.products', ['q' => 'gamis']))->assertOk()->assertJsonPath('products.0.sku', 'GMS-01');
     }
 
     public function test_fabric_needs_follow_production_plan_and_usage(): void
@@ -262,7 +287,7 @@ class FabricStockTest extends TestCase
         $this->assertSame(['Tunik 1'], $needs->missing->pluck('sku')->all());
 
         // Kain yang sudah keluar sejak tanggal tertentu mengurangi kebutuhan.
-        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.issue'), ['code' => 'TYB-HTM-001', 'quantity' => 1])->assertOk();
+        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.issue'), ['code' => 'TYB-HTM-001', 'product_id' => $this->product()->id, 'quantity' => 1])->assertOk();
         $row = $this->actingAs($this->admin)->get(route('admin.fabric-needs.index', ['keluar_sejak' => '2026-06-12']))
             ->assertOk()->viewData('needs')->rows->first();
         $this->assertSame(1.0, $row['issued']);

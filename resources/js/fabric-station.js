@@ -1,8 +1,13 @@
 /**
  * Stasiun Scan Kain.
  *
- *   scan QR roll → kartu roll terbuka (SKU kain, sisa) → ketik jumlah / Ambil
- *   semua → Enter → siap scan roll berikutnya
+ *   scan QR roll → kartu roll terbuka (SKU kain, sisa) → pilih barang yang
+ *   dibuat dari kain ini → ketik jumlah / Ambil semua → Enter → siap scan
+ *   roll berikutnya
+ *
+ * Barang yang memakai kain roll itu (Pemakaian Kain per Barang) langsung
+ * jadi pilihan; barang lain dicari lewat kotak cari. Barang terakhir
+ * diingat di perangkat dan otomatis terpilih bila memakai kain yang sama.
  *
  * Mode "cek": jumlah yang diketik adalah sisa hasil ukur ulang roll; selisih
  * dengan sisa tercatat disimpan sebagai koreksi.
@@ -15,7 +20,7 @@ import { announce, timestamp } from './feedback';
 import { cameraState } from './scan-state';
 
 const NUMBER = /^\d+(?:[.,]\d{1,3})?$/;
-const DESTINATION_KEY = 'fabric-station-destination';
+const PRODUCT_KEY = 'fabric-station-product';
 
 export default function fabricStation(config) {
     return {
@@ -27,8 +32,16 @@ export default function fabricStation(config) {
 
         code: '',
         quantity: '',
-        destination: '',
         note: '',
+
+        /** Barang tujuan kain keluar. */
+        product: null,
+        productQuery: '',
+        productOptions: [],
+        productOpen: false,
+        productLoading: false,
+        productTimer: null,
+        lastProductId: null,
         busy: false,
         feedback: null,
 
@@ -37,18 +50,10 @@ export default function fabricStation(config) {
 
         init() {
             try {
-                this.destination = localStorage.getItem(DESTINATION_KEY) ?? '';
+                this.lastProductId = Number(localStorage.getItem(PRODUCT_KEY)) || null;
             } catch (error) {
-                this.destination = '';
+                this.lastProductId = null;
             }
-
-            this.$watch('destination', (value) => {
-                try {
-                    localStorage.setItem(DESTINATION_KEY, value ?? '');
-                } catch (error) {
-                    // Penyimpanan peramban tidak tersedia; tujuan tidak diingat.
-                }
-            });
 
             this.$watch('mode', () => this.cancel());
             this.focusCode();
@@ -99,7 +104,8 @@ export default function fabricStation(config) {
 
                 this.roll = payload.roll;
                 this.code = '';
-                this.quantity = this.isCheck ? '' : '';
+                this.quantity = '';
+                this.preselectProduct();
                 this.report(payload.roll.empty ? 'error' : 'success', payload.message, payload.roll.empty ? 'rejected' : 'resi');
 
                 if (payload.roll.empty && ! this.isCheck) {
@@ -137,6 +143,13 @@ export default function fabricStation(config) {
 
             const raw = String(this.quantity ?? '').trim().replace(',', '.');
 
+            if (! this.isCheck && ! this.product) {
+                this.report('error', 'Pilih barang yang dibuat dari kain ini.', 'error');
+                this.$nextTick(() => this.$refs.productSearch?.focus());
+
+                return;
+            }
+
             if (! all && (raw === '' || Number.isNaN(Number(raw)))) {
                 this.report('error', this.isCheck ? 'Isi sisa hasil ukur roll ini.' : 'Isi jumlah kain keluar, atau tekan Ambil Semua.', 'error');
                 this.focusQuantity();
@@ -153,7 +166,7 @@ export default function fabricStation(config) {
                         code: this.roll.code,
                         all,
                         quantity: all ? null : Number(raw),
-                        destination: this.destination || null,
+                        product_id: this.product.id,
                         note: this.note || null,
                     });
 
@@ -164,6 +177,7 @@ export default function fabricStation(config) {
                 }
 
                 this.roll = null;
+                this.product = null;
                 this.quantity = '';
                 this.note = '';
             } catch (error) {
@@ -174,8 +188,80 @@ export default function fabricStation(config) {
             }
         },
 
+        /* ----------------------------------------------------- barang ---- */
+
+        /** Satu-satunya barang pemakai kain, atau barang terakhir bila cocok. */
+        preselectProduct() {
+            const options = this.roll?.products ?? [];
+
+            this.productQuery = '';
+            this.productOpen = false;
+            this.productOptions = options;
+            this.product = options.length === 1
+                ? options[0]
+                : (options.find((item) => item.id === this.lastProductId) ?? null);
+        },
+
+        openProducts() {
+            this.productOpen = true;
+
+            if (! this.productQuery) this.productOptions = this.roll?.products ?? [];
+            if (this.productOptions.length === 0) this.searchProducts();
+        },
+
+        searchProducts() {
+            clearTimeout(this.productTimer);
+            this.productOpen = true;
+            this.productTimer = setTimeout(async () => {
+                const term = this.productQuery.trim();
+
+                if (! term && (this.roll?.products ?? []).length) {
+                    this.productOptions = this.roll.products;
+
+                    return;
+                }
+
+                this.productLoading = true;
+
+                try {
+                    const params = new URLSearchParams({ q: term, code: this.roll?.code ?? '' });
+                    const response = await fetch(`${this.urls.products}?${params}`, {
+                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin',
+                    });
+                    const payload = await response.json();
+
+                    this.productOptions = payload.products ?? [];
+                } catch (error) {
+                    this.productOptions = [];
+                } finally {
+                    this.productLoading = false;
+                }
+            }, 200);
+        },
+
+        pickProduct(item) {
+            this.product = item;
+            this.productOpen = false;
+            this.productQuery = '';
+            this.lastProductId = item.id;
+
+            try {
+                localStorage.setItem(PRODUCT_KEY, String(item.id));
+            } catch (error) {
+                // Penyimpanan peramban tidak tersedia; barang tidak diingat.
+            }
+
+            this.$nextTick(() => this.focusQuantity());
+        },
+
+        isUsage(item) {
+            return (this.roll?.products ?? []).some((usage) => usage.id === item.id);
+        },
+
         cancel() {
             this.roll = null;
+            this.product = null;
             this.quantity = '';
             this.note = '';
             this.feedback = null;

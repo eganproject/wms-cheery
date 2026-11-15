@@ -47,6 +47,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import id.cheerychic.wmsscan.data.Api
 import id.cheerychic.wmsscan.data.ApiException
 import id.cheerychic.wmsscan.data.FabricIssue
+import id.cheerychic.wmsscan.data.FabricProduct
 import id.cheerychic.wmsscan.data.FabricRoll
 import id.cheerychic.wmsscan.data.Session
 import id.cheerychic.wmsscan.ui.components.AppCard
@@ -64,6 +65,7 @@ import id.cheerychic.wmsscan.ui.theme.Brand
 import id.cheerychic.wmsscan.ui.theme.BrandBg
 import id.cheerychic.wmsscan.ui.theme.Danger
 import id.cheerychic.wmsscan.ui.theme.Ink
+import id.cheerychic.wmsscan.ui.theme.Success
 import id.cheerychic.wmsscan.ui.theme.InkMuted
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -73,8 +75,8 @@ import kotlinx.coroutines.sync.withLock
 /**
  * Scan Kain: kain hanya keluar lewat scan QR roll.
  *
- * Scan QR roll → SKU kain dan sisa roll langsung tampil → isi jumlah atau
- * Ambil Semua → simpan. Mode Cek: isi sisa hasil ukur ulang roll; selisihnya
+ * Scan QR roll → SKU kain dan sisa roll langsung tampil → pilih barang yang
+ * dibuat dari kain itu → isi jumlah atau Ambil Semua → simpan. Mode Cek: isi sisa hasil ukur ulang roll; selisihnya
  * dicatat sebagai koreksi. Aturan dan pesannya sama dengan halaman web.
  */
 class KainViewModel : ViewModel() {
@@ -82,7 +84,12 @@ class KainViewModel : ViewModel() {
     var roll by mutableStateOf<FabricRoll?>(null)
         private set
     var quantity by mutableStateOf("")
-    var destination by mutableStateOf(Session.kainTujuan)
+    var product by mutableStateOf<FabricProduct?>(null)
+    var productQuery by mutableStateOf("")
+        private set
+    var productPicking by mutableStateOf(false)
+    val productOptions = mutableStateListOf<FabricProduct>()
+    private var productJob: kotlinx.coroutines.Job? = null
     var note by mutableStateOf("")
     var banner by mutableStateOf<Banner?>(null)
         private set
@@ -106,14 +113,47 @@ class KainViewModel : ViewModel() {
 
     fun cancel() {
         roll = null
+        product = null
+        productPicking = false
         quantity = ""
         note = ""
     }
 
-    fun updateDestination(value: String) {
-        destination = value.take(120)
-        Session.kainTujuan = destination
+    /** Satu-satunya barang pemakai kain, atau barang terakhir bila cocok. */
+    private fun preselectProduct(found: FabricRoll) {
+        val options = found.products
+        product = if (options.size == 1) options.first() else options.firstOrNull { it.id == Session.kainBarang }
+        productQuery = ""
+        productOptions.clear()
+        productOptions.addAll(options)
+        productPicking = product == null
+        if (options.isEmpty()) searchProducts("")
     }
+
+    fun searchProducts(value: String) {
+        productQuery = value.take(60)
+        val current = roll
+        productJob?.cancel()
+        if (productQuery.isBlank() && current != null && current.products.isNotEmpty()) {
+            productOptions.clear()
+            productOptions.addAll(current.products)
+            return
+        }
+        productJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(250)
+            val list = runCatching { Api.kainBarang(productQuery.trim(), current?.code) }.getOrNull()?.products ?: return@launch
+            productOptions.clear()
+            productOptions.addAll(list)
+        }
+    }
+
+    fun pickProduct(item: FabricProduct) {
+        product = item
+        productPicking = false
+        Session.kainBarang = item.id
+    }
+
+    fun isUsage(item: FabricProduct): Boolean = roll?.products?.any { it.id == item.id } == true
 
     fun onScan(context: Context, code: String) {
         val raw = code.trim()
@@ -137,6 +177,7 @@ class KainViewModel : ViewModel() {
                     } else {
                         roll = found
                         quantity = ""
+                        if (mode == MODE_OUT) preselectProduct(found)
                         banner = Banner(result.message, Tone.Success)
                         Feedback.ok()
                     }
@@ -159,6 +200,13 @@ class KainViewModel : ViewModel() {
     fun save(context: Context, all: Boolean) {
         val current = roll ?: return
         val value = quantity.trim().replace(',', '.').toDoubleOrNull()
+        val chosen = product
+        if (mode == MODE_OUT && chosen == null) {
+            banner = Banner("Pilih barang yang dibuat dari kain ini.", Tone.Error)
+            productPicking = true
+            Feedback.error(context)
+            return
+        }
         if (!all && value == null) {
             banner = Banner(if (mode == MODE_CHECK) "Isi sisa hasil ukur roll ini." else "Isi jumlah kain keluar, atau tekan Ambil Semua.", Tone.Error)
             Feedback.error(context)
@@ -171,7 +219,7 @@ class KainViewModel : ViewModel() {
                     val result = if (mode == MODE_CHECK) {
                         Api.kainCek(current.code, value ?: 0.0, note)
                     } else {
-                        Api.kainKeluar(current.code, if (all) null else value, destination, note)
+                        Api.kainKeluar(current.code, if (all) null else value, chosen!!.id, note)
                     }
                     banner = Banner(result.message, Tone.Success)
                     result.recent?.let { replaceRecent(it) }
@@ -230,17 +278,6 @@ fun KainScreen(onBack: () -> Unit, vm: KainViewModel = viewModel()) {
                         ModeButton("Kain Keluar", vm.mode == KainViewModel.MODE_OUT, Modifier.weight(1f)) { vm.switchMode(KainViewModel.MODE_OUT) }
                         ModeButton("Cek Roll", vm.mode == KainViewModel.MODE_CHECK, Modifier.weight(1f)) { vm.switchMode(KainViewModel.MODE_CHECK) }
                     }
-                }
-            }
-            if (vm.mode == KainViewModel.MODE_OUT) {
-                item {
-                    OutlinedTextField(
-                        value = vm.destination,
-                        onValueChange = { vm.updateDestination(it) },
-                        label = { Text("Tujuan (penjahit / konveksi)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
                 }
             }
             item {
@@ -313,6 +350,7 @@ private fun RollCard(roll: FabricRoll, vm: KainViewModel, context: Context) {
                     Text(roll.quantityLabel, color = Ink, fontWeight = FontWeight.ExtraBold, fontSize = 26.sp)
                 }
             }
+            if (!check) ProductPicker(vm)
             OutlinedTextField(
                 value = vm.quantity,
                 onValueChange = { value -> vm.quantity = value.filter { it.isDigit() || it == '.' || it == ',' }.take(10) },
@@ -346,6 +384,67 @@ private fun RollCard(roll: FabricRoll, vm: KainViewModel, context: Context) {
     }
 }
 
+/** Pilih barang yang dibuat dari kain roll ini. */
+@Composable
+private fun ProductPicker(vm: KainViewModel) {
+    val chosen = vm.product
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Untuk barang", color = InkMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        if (chosen != null && !vm.productPicking) {
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(BrandBg).padding(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                ProductThumb(chosen.imageUrl, chosen.sku, size = 40.dp, radius = 10.dp)
+                Column(Modifier.weight(1f)) {
+                    Text(chosen.sku, color = Ink, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
+                    Text(chosen.name, color = Ink, fontSize = 13.sp, maxLines = 1)
+                }
+                Text(
+                    "Ganti",
+                    color = Ink,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { vm.productPicking = true }.padding(8.dp),
+                )
+            }
+        } else {
+            OutlinedTextField(
+                value = vm.productQuery,
+                onValueChange = { vm.searchProducts(it) },
+                label = { Text("Cari SKU / nama barang") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (vm.productOptions.isEmpty()) {
+                Text(
+                    if (vm.productQuery.isBlank()) "Ketik SKU atau nama barang." else "Barang tidak ditemukan.",
+                    color = InkMuted, fontSize = 12.sp,
+                )
+            }
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color.White)) {
+                vm.productOptions.take(12).forEach { item ->
+                    Row(
+                        Modifier.fillMaxWidth().clickable { vm.pickProduct(item) }.padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        ProductThumb(item.imageUrl, item.sku, size = 36.dp, radius = 9.dp)
+                        Column(Modifier.weight(1f)) {
+                            Text(item.sku, color = Ink, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
+                            Text(item.name, color = InkMuted, fontSize = 12.5.sp, maxLines = 1)
+                        }
+                        if (vm.isUsage(item)) {
+                            Text("pakai kain ini", color = Success, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun IssueCard(entry: FabricIssue) {
     AppCard(Modifier.fillMaxWidth(), radius = 18.dp) {
@@ -354,7 +453,7 @@ private fun IssueCard(entry: FabricIssue) {
             Column(Modifier.weight(1f)) {
                 Text(entry.code, color = Ink, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
                 Text(
-                    listOfNotNull(entry.name, entry.destination?.let { "ke $it" }).joinToString(" · "),
+                    listOfNotNull(entry.name, entry.productSku?.let { "untuk $it" } ?: entry.destination?.let { "ke $it" }).joinToString(" · "),
                     color = InkMuted, fontSize = 12.5.sp, maxLines = 1,
                 )
             }

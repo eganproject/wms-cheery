@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Fabric;
 use App\Models\FabricMovement;
+use App\Models\Product;
 use App\Services\FabricStockService;
 use App\Services\TableExport;
 use App\Support\DateRange;
@@ -36,7 +37,7 @@ class FabricIssueController extends Controller implements HasMiddleware
         $base = $this->filtered($request);
 
         $movements = (clone $base)
-            ->with(['roll:id,code', 'fabric:id,sku,name,color,unit,image_path', 'user:id,name'])
+            ->with(['roll:id,code', 'fabric:id,sku,name,color,unit,image_path', 'product:id,sku,name', 'user:id,name'])
             ->tap(fn ($query) => Listing::sort($query, $request, [
                 'time' => fn ($query, $dir) => $query->orderBy('moved_at', $dir)->orderBy('id', $dir),
                 'quantity' => 'quantity',
@@ -58,7 +59,10 @@ class FabricIssueController extends Controller implements HasMiddleware
             'movements' => $movements,
             'perFabric' => $perFabric,
             'fabrics' => Fabric::query()->orderBy('sku')->get(['id', 'sku', 'name', 'color']),
-            'destinations' => FabricMovement::query()->issues()->whereNotNull('destination')->distinct()->orderBy('destination')->pluck('destination'),
+            'products' => Product::query()
+                ->whereIn('id', FabricMovement::query()->issues()->whereNotNull('product_id')->select('product_id'))
+                ->orderBy('sku')
+                ->get(['id', 'sku', 'name']),
         ]);
     }
 
@@ -66,7 +70,7 @@ class FabricIssueController extends Controller implements HasMiddleware
     {
         $range = DateRange::fromRequest($request);
         $rows = $this->filtered($request)
-            ->with(['roll:id,code', 'fabric', 'user:id,name'])
+            ->with(['roll:id,code', 'fabric', 'product:id,sku,name', 'user:id,name'])
             ->orderBy('moved_at')->orderBy('id')
             ->get();
 
@@ -74,10 +78,10 @@ class FabricIssueController extends Controller implements HasMiddleware
             ->note('Tanggal: '.$range->label())
             ->sheet('Kain Keluar', [
                 ['Waktu', 'datetime'], ['Kode Roll', 'text'], ['SKU Kain', 'text'], ['Nama Kain', 'text'], ['Satuan', 'text'],
-                ['Jumlah Keluar', 'sum'], ['Sisa Roll', 'number'], ['Tujuan', 'text'], ['Catatan', 'text'], ['Discan oleh', 'text'], ['Status', 'text'],
+                ['Jumlah Keluar', 'sum'], ['Sisa Roll', 'number'], ['SKU Barang', 'text'], ['Nama Barang', 'text'], ['Catatan', 'text'], ['Discan oleh', 'text'], ['Status', 'text'],
             ], $rows->map(fn (FabricMovement $movement) => [
                 $movement->moved_at, $movement->roll->code, $movement->fabric->sku, $movement->fabric->displayName(), $movement->fabric->unit,
-                $movement->isCancelled() ? 0 : -$movement->quantity, $movement->balance_after, $movement->destination, $movement->note,
+                $movement->isCancelled() ? 0 : -$movement->quantity, $movement->balance_after, $movement->product?->sku, $movement->product?->name ?? $movement->destination, $movement->note,
                 $movement->user?->name, $movement->isCancelled() ? 'Dibatalkan' : 'Keluar',
             ]))
             ->download('kain-keluar-'.now()->format('Y-m-d').'.xlsx');
@@ -101,9 +105,10 @@ class FabricIssueController extends Controller implements HasMiddleware
             ->when($term, fn (Builder $query) => $query->where(fn (Builder $query) => $query
                 ->whereHas('roll', fn (Builder $query) => $query->where('code', 'like', "%{$term}%"))
                 ->orWhere('destination', 'like', "%{$term}%")
+                ->orWhereHas('product', fn (Builder $query) => $query->where('sku', 'like', "%{$term}%")->orWhere('name', 'like', "%{$term}%"))
                 ->orWhere('note', 'like', "%{$term}%")))
             ->when($request->filled('fabric_id'), fn (Builder $query) => $query->where('fabric_id', $request->integer('fabric_id')))
-            ->when($request->filled('destination'), fn (Builder $query) => $query->where('destination', $request->string('destination')->value()))
+            ->when($request->filled('product_id'), fn (Builder $query) => $query->where('product_id', $request->integer('product_id')))
             ->when($request->input('status') === 'batal', fn (Builder $query) => $query->whereNotNull('cancelled_at'))
             ->when($request->input('status') === 'keluar', fn (Builder $query) => $query->whereNull('cancelled_at'))
             ->tap(fn ($query) => DateRange::constrain($query, 'moved_at', $range->from, $range->to));

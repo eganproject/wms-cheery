@@ -201,6 +201,7 @@ Route::middleware('auth')
         Route::post('fabric-labels/pdf', [FabricLabelController::class, 'pdf'])->name('fabric-labels.pdf');
         Route::get('fabric-scan', [FabricScanController::class, 'show'])->name('fabric-scan');
         Route::get('fabric-scan/recent', [FabricScanController::class, 'recent'])->name('fabric-scan.recent');
+        Route::get('fabric-scan/products', [FabricScanController::class, 'products'])->name('fabric-scan.products');
         Route::post('fabric-scan/lookup', [FabricScanController::class, 'lookup'])->name('fabric-scan.lookup');
         Route::post('fabric-scan/issue', [FabricScanController::class, 'issue'])->name('fabric-scan.issue');
         Route::post('fabric-scan/adjust', [FabricScanController::class, 'adjust'])->name('fabric-scan.adjust');

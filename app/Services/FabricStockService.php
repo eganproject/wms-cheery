@@ -6,6 +6,7 @@ use App\Models\Fabric;
 use App\Models\FabricMovement;
 use App\Models\FabricReceipt;
 use App\Models\FabricRoll;
+use App\Models\Product;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -73,9 +74,9 @@ class FabricStockService
      * Kain keluar dari satu roll (hasil scan). $quantity null = ambil semua
      * sisanya.
      */
-    public function issue(FabricRoll $roll, ?float $quantity, ?string $destination, ?string $note, ?User $user): FabricMovement
+    public function issue(FabricRoll $roll, ?float $quantity, ?Product $product, ?string $note, ?User $user): FabricMovement
     {
-        return DB::transaction(function () use ($roll, $quantity, $destination, $note, $user) {
+        return DB::transaction(function () use ($roll, $quantity, $product, $note, $user) {
             $roll = FabricRoll::query()->with('fabric')->lockForUpdate()->findOrFail($roll->id);
 
             if ($roll->isEmpty()) {
@@ -97,7 +98,7 @@ class FabricStockService
             }
 
             return $this->record($roll, FabricMovement::TYPE_OUT, -$take, $user, [
-                'destination' => $destination,
+                'product_id' => $product?->id,
                 'note' => $note,
             ]);
         });
@@ -133,6 +134,7 @@ class FabricStockService
 
             return $this->record($roll, FabricMovement::TYPE_CANCEL, -$movement->quantity, $user, [
                 'reverses_id' => $movement->id,
+                'product_id' => $movement->product_id,
                 'destination' => $movement->destination,
                 'note' => 'Batal keluar '.$movement->moved_at->format('d/m/Y H:i'),
             ]);

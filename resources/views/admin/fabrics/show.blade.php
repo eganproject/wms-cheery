@@ -77,7 +77,7 @@
                                     </td>
                                     <td class="text-right text-sm tabular-nums">{{ $fabric->format($movement->balance_after) }}</td>
                                     <td class="text-sm text-ink-600">
-                                        {{ collect([$movement->receipt?->code, $movement->destination ? 'ke '.$movement->destination : null, $movement->note, $movement->user?->name])->filter()->implode(' · ') }}
+                                        {{ collect([$movement->receipt?->code, $movement->productLabel() ? 'untuk '.$movement->productLabel() : null, $movement->note, $movement->user?->name])->filter()->implode(' · ') }}
                                     </td>
                                 </tr>
                             @endforeach

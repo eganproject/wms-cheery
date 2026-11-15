@@ -126,7 +126,7 @@ class FabricController extends Controller implements HasMiddleware
             'emptyRolls' => $fabric->rolls()->where('quantity', '<=', 0)->count(),
             'showEmpty' => $showEmpty,
             'usages' => $fabric->usages()->with('product:id,sku,name,stock')->get()->sortBy('product.sku')->values(),
-            'movements' => $fabric->movements()->with(['roll:id,code', 'user:id,name', 'receipt:id,code'])
+            'movements' => $fabric->movements()->with(['roll:id,code', 'user:id,name', 'receipt:id,code', 'product:id,sku,name'])
                 ->latest('moved_at')->latest('id')->limit(30)->get(),
             'catalog' => $this->catalog($fabric),
         ]);

@@ -413,7 +413,21 @@ data class FabricRoll(
     val empty: Boolean = false,
     val lot: String? = null,
     val location: String? = null,
+    /** Barang yang memakai kain ini (pilihan cepat kain keluar). */
+    val products: List<FabricProduct> = emptyList(),
 )
+
+/** Barang yang dibuat dari kain keluar. */
+@Serializable
+data class FabricProduct(
+    val id: Int,
+    val sku: String,
+    val name: String,
+    @SerialName("image_url") val imageUrl: String? = null,
+)
+
+@Serializable
+data class FabricProductList(val products: List<FabricProduct> = emptyList())
 
 @Serializable
 data class FabricIssue(
@@ -424,6 +438,7 @@ data class FabricIssue(
     @SerialName("quantity_label") val quantityLabel: String = "",
     @SerialName("balance_label") val balanceLabel: String = "",
     val destination: String? = null,
+    @SerialName("product_sku") val productSku: String? = null,
     val time: String = "",
     val cancelled: Boolean = false,
 )

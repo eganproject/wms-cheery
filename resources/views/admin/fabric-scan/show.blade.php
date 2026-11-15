@@ -4,7 +4,7 @@
 --}}
 <x-app-layout title="Scan Kain">
     <x-ui.page-header title="Scan Kain" icon="scan"
-                      subtitle="Scan QR roll: SKU kain dan sisanya langsung tampil. Isi jumlah yang keluar atau ambil semua." />
+                      subtitle="Scan QR roll: SKU kain dan sisanya langsung tampil. Pilih barangnya, lalu isi jumlah yang keluar atau ambil semua." />
 
     @if (! $canIssue && ! $canAdjust)
         <x-ui.card>
@@ -16,6 +16,7 @@
                 urls: {
                     lookup: '{{ route('admin.fabric-scan.lookup') }}',
                     issue: '{{ route('admin.fabric-scan.issue') }}',
+                    products: '{{ route('admin.fabric-scan.products') }}',
                     adjust: '{{ route('admin.fabric-scan.adjust') }}',
                 },
                 mode: '{{ $canIssue ? $mode : 'cek' }}',
@@ -50,20 +51,6 @@
                 </div>
 
                 <div class="p-5 sm:p-8 sm:pt-6">
-                    <template x-if="! isCheck">
-                        <div class="mb-4">
-                            <label for="fabric-destination" class="form-label">Tujuan (penjahit / konveksi / keperluan)</label>
-                            <input id="fabric-destination" x-model="destination" type="text" maxlength="120" list="fabric-destinations"
-                                   placeholder="mis. Penjahit Bu Sri" class="form-control">
-                            <datalist id="fabric-destinations">
-                                @foreach ($destinations as $destination)
-                                    <option value="{{ $destination }}"></option>
-                                @endforeach
-                            </datalist>
-                            <p class="form-help">Diingat di perangkat ini untuk scan berikutnya.</p>
-                        </div>
-                    </template>
-
                     <div class="flex items-stretch gap-2">
                         @include('admin.partials.camera-scan', [
                             'scanTitle' => "roll ? 'Roll ' + roll.code + ' terbuka' : 'Scan QR roll kain'",
@@ -109,6 +96,58 @@
                                     <p class="text-2xl font-semibold tabular-nums text-ink-950" x-text="roll.quantity_label"></p>
                                 </div>
                             </div>
+
+                            {{-- Barang yang dibuat dari kain ini. --}}
+                            <template x-if="! isCheck">
+                                <div class="mt-4" x-on:click.outside="productOpen = false">
+                                    <label class="form-label">Untuk barang</label>
+                                    <template x-if="product && ! productOpen">
+                                        <div class="flex items-center gap-3 rounded-lg bg-white p-2 ring-1 ring-inset ring-ink-200">
+                                            <span class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-ink-50 text-ink-300">
+                                                <template x-if="product.image_url"><img :src="product.image_url" alt="" class="h-full w-full object-cover"></template>
+                                                <x-icon name="box" class="h-4 w-4" x-show="! product.image_url" />
+                                            </span>
+                                            <div class="min-w-0 flex-1">
+                                                <p class="font-mono text-xs font-semibold text-ink-800" x-text="product.sku"></p>
+                                                <p class="truncate text-sm text-ink-950" x-text="product.name"></p>
+                                            </div>
+                                            <button type="button" class="btn btn-ghost btn-sm" x-on:click="openProducts(); $nextTick(() => $refs.productSearch?.focus())">Ganti</button>
+                                        </div>
+                                    </template>
+                                    <div x-show="! product || productOpen" class="relative">
+                                        <input x-ref="productSearch" x-model="productQuery" x-on:input="searchProducts()" x-on:focus="openProducts()"
+                                               x-on:keydown.escape="productOpen = false"
+                                               x-on:keydown.enter.prevent="productOptions[0] && pickProduct(productOptions[0])"
+                                               type="text" autocomplete="off" placeholder="Pilih atau cari SKU / nama barang…"
+                                               class="form-control h-11 bg-white">
+                                        <div x-show="productOpen" x-cloak
+                                             class="absolute inset-x-0 top-full z-20 mt-1 max-h-72 overflow-y-auto rounded-lg bg-white shadow-lg ring-1 ring-ink-100">
+                                            <template x-if="productLoading">
+                                                <p class="px-3 py-2 text-sm text-ink-400">Mencari…</p>
+                                            </template>
+                                            <template x-if="! productLoading && productOptions.length === 0">
+                                                <p class="px-3 py-2 text-sm text-ink-400" x-text="productQuery ? 'Barang tidak ditemukan.' : 'Ketik SKU atau nama barang.'"></p>
+                                            </template>
+                                            <template x-for="item in productOptions" :key="item.id">
+                                                <button type="button" x-on:click="pickProduct(item)"
+                                                        class="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-ink-50"
+                                                        :class="product?.id === item.id && 'bg-ink-50'">
+                                                    <span class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-ink-50 text-ink-300">
+                                                        <template x-if="item.image_url"><img :src="item.image_url" alt="" class="h-full w-full object-cover"></template>
+                                                        <x-icon name="box" class="h-3.5 w-3.5" x-show="! item.image_url" />
+                                                    </span>
+                                                    <span class="min-w-0 flex-1">
+                                                        <span class="block font-mono text-xs font-semibold text-ink-800" x-text="item.sku"></span>
+                                                        <span class="block truncate text-sm text-ink-700" x-text="item.name"></span>
+                                                    </span>
+                                                    <span x-show="isUsage(item)" class="indicator-pill no-dot bg-green-50 text-[10px] text-green-700">pakai kain ini</span>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <p x-show="(roll.products ?? []).length === 0" class="form-help">Belum ada barang yang diatur memakai kain ini; cari barangnya di kotak di atas.</p>
+                                </div>
+                            </template>
 
                             <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
                                 <div class="flex-1">
@@ -168,7 +207,7 @@
                             <span class="w-12 text-xs tabular-nums text-ink-400" x-text="item.time"></span>
                             <div class="min-w-0 flex-1">
                                 <p class="truncate font-mono text-sm font-semibold text-ink-950" x-text="item.code"></p>
-                                <p class="truncate text-xs text-ink-500" x-text="[item.name, item.destination ? `ke ${item.destination}` : null].filter(Boolean).join(' · ')"></p>
+                                <p class="truncate text-xs text-ink-500" x-text="[item.name, item.product_sku ? `untuk ${item.product_sku}` : (item.destination ? `ke ${item.destination}` : null)].filter(Boolean).join(' · ')"></p>
                             </div>
                             <div class="text-right">
                                 <p class="text-sm font-semibold tabular-nums" :class="item.cancelled ? 'text-ink-400 line-through' : 'text-rose-600'" x-text="`-${item.quantity_label}`"></p>

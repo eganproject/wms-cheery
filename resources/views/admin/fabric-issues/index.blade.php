@@ -19,7 +19,7 @@
                     <x-icon name="search" class="h-4 w-4" />
                 </span>
                 <x-text-input type="search" name="search" :value="request('search')"
-                              placeholder="Cari kode roll, tujuan, atau catatan..." class="pl-8" />
+                              placeholder="Cari kode roll, SKU/nama barang, atau catatan..." class="pl-8" />
             </div>
 
             <x-ui.select name="fabric_id" class="lg:w-56">
@@ -29,10 +29,10 @@
                 @endforeach
             </x-ui.select>
 
-            <x-ui.select name="destination" class="lg:w-48">
-                <option value="">Semua tujuan</option>
-                @foreach ($destinations as $destination)
-                    <option value="{{ $destination }}" @selected(request('destination') === $destination)>{{ $destination }}</option>
+            <x-ui.select name="product_id" class="lg:w-56">
+                <option value="">Semua barang</option>
+                @foreach ($products as $product)
+                    <option value="{{ $product->id }}" @selected((int) request('product_id') === $product->id)>{{ $product->sku }} — {{ $product->name }}</option>
                 @endforeach
             </x-ui.select>
         </div>
@@ -48,7 +48,7 @@
 
             <div class="flex items-center gap-2 sm:ml-auto">
                 <x-ui.button type="submit" variant="secondary" icon="filter" class="flex-1 sm:flex-none">Terapkan</x-ui.button>
-                @if (request()->hasAny(['search', 'fabric_id', 'destination', 'status', 'from', 'to', 'range']))
+                @if (request()->hasAny(['search', 'fabric_id', 'product_id', 'status', 'from', 'to', 'range']))
                     <x-ui.button :href="route('admin.fabric-issues.index')" variant="ghost" size="icon" title="Reset filter">
                         <x-icon name="refresh" class="h-4 w-4" />
                     </x-ui.button>
@@ -80,7 +80,7 @@
                             <th>Kain</th>
                             <th class="text-right"><x-ui.sort key="quantity">Jumlah</x-ui.sort></th>
                             <th class="text-right">Sisa Roll</th>
-                            <th>Tujuan</th>
+                            <th>Untuk Barang</th>
                             <th>Oleh</th>
                             <th></th>
                         </tr>
@@ -101,7 +101,12 @@
                                 </td>
                                 <td class="text-right text-sm tabular-nums">{{ $movement->fabric->format($movement->balance_after) }}</td>
                                 <td class="text-sm text-ink-700">
-                                    {{ $movement->destination ?? '—' }}
+                                    @if ($movement->product)
+                                        <span class="font-mono text-xs font-semibold text-ink-800">{{ $movement->product->sku }}</span>
+                                        <p class="max-w-56 truncate text-sm text-ink-700">{{ $movement->product->name }}</p>
+                                    @else
+                                        {{ $movement->destination ?? '—' }}
+                                    @endif
                                     @if ($movement->note)
                                         <p class="text-[11px] text-ink-400">{{ $movement->note }}</p>
                                     @endif
