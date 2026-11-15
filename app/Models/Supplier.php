@@ -40,6 +40,12 @@ class Supplier extends Model
         return $this->hasMany(DamagedDisposal::class);
     }
 
+    /** Dokumen kain masuk dari pemasok ini. */
+    public function fabricReceipts(): HasMany
+    {
+        return $this->hasMany(FabricReceipt::class);
+    }
+
     public function scopeSearch(Builder $query, ?string $term): Builder
     {
         return $query->when($term, function (Builder $query, string $term) {

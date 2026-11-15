@@ -131,6 +131,10 @@ class SupplierController extends Controller implements HasMiddleware
             return back()->with('error', 'Pemasok sudah dipakai pada dokumen barang rusak (retur ke pemasok). Nonaktifkan saja bila tidak dipakai lagi.');
         }
 
+        if ($supplier->fabricReceipts()->exists()) {
+            return back()->with('error', 'Pemasok sudah dipakai pada dokumen kain masuk. Nonaktifkan saja bila tidak dipakai lagi.');
+        }
+
         $supplier->delete();
 
         return redirect()

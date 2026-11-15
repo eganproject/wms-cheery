@@ -35,6 +35,9 @@
             <x-slot name="actions">
                 <x-ui.button :href="route('admin.orders.deadlines.production.excel', $exportQuery)" variant="secondary" icon="document" data-no-ajax>Export Excel</x-ui.button>
                 <x-ui.button :href="route('admin.orders.deadlines.production.pdf', $exportQuery)" variant="secondary" icon="printer" data-no-ajax>Export PDF</x-ui.button>
+                @can('fabrics.view')
+                    <x-ui.button :href="route('admin.fabric-needs.index', ['jenis' => request('jenis', 'po'), 'dari' => $dates->first()->format('Y-m-d'), 'sampai' => $dates->last()->format('Y-m-d')])" variant="secondary" icon="layers">Kebutuhan Kain</x-ui.button>
+                @endcan
             </x-slot>
         @endif
     </x-ui.page-header>

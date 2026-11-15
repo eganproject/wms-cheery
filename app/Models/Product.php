@@ -127,6 +127,12 @@ class Product extends Model
         });
     }
 
+    /** Kain yang dipakai untuk membuat 1 unit barang ini. */
+    public function fabricUsages(): HasMany
+    {
+        return $this->hasMany(FabricUsage::class);
+    }
+
     public function movements(): HasMany
     {
         return $this->hasMany(StockMovement::class)->latest('id');

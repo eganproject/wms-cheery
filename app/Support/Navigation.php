@@ -15,6 +15,7 @@ use Illuminate\Support\Collection;
  *    antrean kirim, retur, dan resi.
  *  - Transaksi Stok: dokumen yang menggerakkan saldo.
  *  - Master Data: barang dan pemasok.
+ *  - Kain: stok kain per roll ber-QR, kain masuk/keluar, dan kebutuhan kain.
  *  - Absensi: kehadiran, karyawan, dan jam kerja.
  *  - Laporan: semua yang hanya dibaca.
  *  - Pengaturan: pengguna dan akses.
@@ -125,6 +126,32 @@ class Navigation
                             'match' => 'admin.disposals.*', 'can' => 'disposals.view',
                             'create' => ['route' => 'admin.disposals.create', 'can' => 'disposals.create'],
                             'keywords' => 'rusak pemusnahan disposal damaged retur pemasok supplier return klaim'],
+                    ]],
+                ],
+            ],
+            [
+                'key' => 'fabric',
+                'label' => 'Kain',
+                'icon' => 'layers',
+                'items' => [
+                    ['label' => 'Stok Kain', 'icon' => 'layers', 'tabs' => [
+                        ['label' => 'Saldo Kain', 'icon' => 'layers', 'route' => 'admin.fabrics.index',
+                            'match' => 'admin.fabrics.*', 'can' => 'fabrics.view',
+                            'create' => ['route' => 'admin.fabrics.create', 'can' => 'fabrics.manage'],
+                            'keywords' => 'kain stok kain roll gulungan bahan jenis kain sku kain pemakaian kain'],
+                        ['label' => 'Scan Kain', 'icon' => 'scan', 'route' => 'admin.fabric-scan',
+                            'match' => 'admin.fabric-scan*', 'can' => 'fabrics.view',
+                            'keywords' => 'scan kain keluar ambil kain roll qr cek kain ukur ulang koreksi'],
+                        ['label' => 'Kain Masuk', 'icon' => 'inbound', 'route' => 'admin.fabric-receipts.index',
+                            'match' => 'admin.fabric-receipts.*', 'can' => 'fabrics.view',
+                            'create' => ['route' => 'admin.fabric-receipts.create', 'can' => 'fabrics.receive'],
+                            'keywords' => 'kain masuk terima kain roll label qr cetak'],
+                        ['label' => 'Kain Keluar', 'icon' => 'outbound', 'route' => 'admin.fabric-issues.index',
+                            'match' => 'admin.fabric-issues.*', 'can' => 'fabrics.view',
+                            'keywords' => 'kain keluar riwayat penjahit konveksi tujuan'],
+                        ['label' => 'Kebutuhan Kain', 'icon' => 'restock', 'route' => 'admin.fabric-needs.index',
+                            'match' => 'admin.fabric-needs.*', 'can' => 'fabrics.view',
+                            'keywords' => 'kebutuhan kain kurang kain rencana produksi pre order'],
                     ]],
                 ],
             ],

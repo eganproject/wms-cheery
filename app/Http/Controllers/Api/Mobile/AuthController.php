@@ -99,6 +99,9 @@ class AuthController extends Controller
                 'retur' => $user->can('returns.create') && $user->can('returns.scan'),
                 // Menerima retur (stok bertambah / diajukan): returns.post.
                 'retur_terima' => $user->can('returns.post'),
+                // Scan Kain di web: kain keluar (fabrics.issue), cek & koreksi roll (fabrics.adjust).
+                'kain_keluar' => $user->can('fabrics.issue'),
+                'kain_cek' => $user->can('fabrics.adjust'),
                 // Absen dari HP: akun terhubung ke karyawan aktif bermetode HP.
                 'absen' => $employee !== null && $employee->is_active && $employee->allowsPhone(),
             ],

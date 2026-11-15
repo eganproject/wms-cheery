@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\FabricScanController;
 use App\Http\Controllers\Admin\OutboundHandoverController;
 use App\Http\Controllers\Admin\OutboundMarketplaceController;
 use App\Http\Controllers\Admin\ReturnMarketplaceController;
@@ -70,6 +71,11 @@ Route::prefix('mobile')
             Route::post('/retur/{return}/finish', [ReturnMarketplaceController::class, 'finish'])->name('retur.finish');
 
             // Daftar pesanan: belum dikemas, sudah dikemas, dikirim.
+            Route::post('/kain/lookup', [FabricScanController::class, 'lookup'])->name('kain.lookup');
+            Route::post('/kain/keluar', [FabricScanController::class, 'issue'])->name('kain.issue');
+            Route::post('/kain/cek', [FabricScanController::class, 'adjust'])->name('kain.adjust');
+            Route::get('/kain/terakhir', [FabricScanController::class, 'recent'])->name('kain.recent');
+
             Route::get('/summary', [MobileOrderController::class, 'summary'])->name('summary');
             Route::get('/orders', [MobileOrderController::class, 'index'])->name('orders.index');
             Route::get('/orders/{order}', [MobileOrderController::class, 'show'])->name('orders.show');

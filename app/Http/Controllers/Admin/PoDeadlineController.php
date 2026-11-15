@@ -417,7 +417,7 @@ class PoDeadlineController extends Controller implements HasMiddleware
         return $shipBy->lt($now) ? 'lewat '.$span : 'sisa '.$span;
     }
 
-    protected function base(Request $request, string $kind, string $stage): Builder
+    public function base(Request $request, string $kind, string $stage): Builder
     {
         return ShipmentOrder::query()
             ->open()

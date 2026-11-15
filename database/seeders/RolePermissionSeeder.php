@@ -127,6 +127,13 @@ class RolePermissionSeeder extends Seeder
             'mobile-app.update' => 'Mengunggah & mengatur versi aplikasi Android',
             'mobile-app.delete' => 'Menghapus versi aplikasi Android',
         ],
+        'Stok Kain' => [
+            'fabrics.view' => 'Melihat stok kain, kain masuk/keluar & kebutuhan kain',
+            'fabrics.manage' => 'Mengelola jenis kain & pemakaian kain per barang',
+            'fabrics.receive' => 'Mencatat kain masuk & mencetak label QR roll',
+            'fabrics.issue' => 'Scan kain keluar',
+            'fabrics.adjust' => 'Koreksi sisa roll (cek kain) & membatalkan kain keluar',
+        ],
         'Absensi' => [
             'attendance.view' => 'Melihat absensi harian & rekap absensi',
             'leaves.view' => 'Melihat izin, sakit & cuti',
@@ -205,6 +212,7 @@ class RolePermissionSeeder extends Seeder
                 'adjustments.view', 'adjustments.create', 'adjustments.update', 'adjustments.post',
                 'opnames.view', 'opnames.create', 'opnames.update', 'opnames.post', 'opnames.export',
                 'disposals.view', 'disposals.create', 'disposals.post',
+                'fabrics.view', 'fabrics.receive', 'fabrics.issue',
             ])->pluck('id'),
         );
 

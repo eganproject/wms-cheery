@@ -45,6 +45,12 @@ use App\Http\Controllers\Admin\AttendanceLeaveController;
 use App\Http\Controllers\Admin\AttendanceReportController;
 use App\Http\Controllers\Admin\AttendanceSettingController;
 use App\Http\Controllers\Admin\EmployeeController;
+use App\Http\Controllers\Admin\FabricController;
+use App\Http\Controllers\Admin\FabricIssueController;
+use App\Http\Controllers\Admin\FabricLabelController;
+use App\Http\Controllers\Admin\FabricNeedController;
+use App\Http\Controllers\Admin\FabricReceiptController;
+use App\Http\Controllers\Admin\FabricScanController;
 use App\Http\Controllers\Admin\WorkShiftController;
 use App\Http\Controllers\Attendance\IclockController;
 use App\Http\Controllers\AppDownloadPageController;
@@ -184,6 +190,24 @@ Route::middleware('auth')
         Route::resource('opnames', StockOpnameController::class)->except(['edit', 'update']);
 
         Route::resource('suppliers', SupplierController::class);
+
+        // Stok kain: roll ber-QR, kain keluar hanya lewat scan.
+        Route::get('fabrics/export', [FabricController::class, 'export'])->name('fabrics.export');
+        Route::put('fabrics/{fabric}/usages', [FabricController::class, 'usages'])->name('fabrics.usages');
+        Route::resource('fabrics', FabricController::class);
+        Route::get('fabric-receipts/export', [FabricReceiptController::class, 'export'])->name('fabric-receipts.export');
+        Route::resource('fabric-receipts', FabricReceiptController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
+        Route::post('fabric-labels/pdf', [FabricLabelController::class, 'pdf'])->name('fabric-labels.pdf');
+        Route::get('fabric-scan', [FabricScanController::class, 'show'])->name('fabric-scan');
+        Route::get('fabric-scan/recent', [FabricScanController::class, 'recent'])->name('fabric-scan.recent');
+        Route::post('fabric-scan/lookup', [FabricScanController::class, 'lookup'])->name('fabric-scan.lookup');
+        Route::post('fabric-scan/issue', [FabricScanController::class, 'issue'])->name('fabric-scan.issue');
+        Route::post('fabric-scan/adjust', [FabricScanController::class, 'adjust'])->name('fabric-scan.adjust');
+        Route::get('fabric-issues/export', [FabricIssueController::class, 'export'])->name('fabric-issues.export');
+        Route::get('fabric-issues', [FabricIssueController::class, 'index'])->name('fabric-issues.index');
+        Route::post('fabric-issues/{movement}/cancel', [FabricIssueController::class, 'cancel'])->name('fabric-issues.cancel');
+        Route::get('fabric-needs/export', [FabricNeedController::class, 'export'])->name('fabric-needs.export');
+        Route::get('fabric-needs', [FabricNeedController::class, 'index'])->name('fabric-needs.index');
 
         // Persetujuan dokumen
         Route::get('approvals', [ApprovalController::class, 'index'])->name('approvals.index');
