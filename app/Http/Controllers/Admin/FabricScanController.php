@@ -52,13 +52,8 @@ class FabricScanController extends Controller implements HasMiddleware
     public function lookup(Request $request): JsonResponse
     {
         $data = $request->validate(['code' => ['required', 'string', 'max:120']]);
-        $roll = FabricRoll::findByScan($data['code']);
-
-        if (! $roll) {
-            return response()->json([
-                'message' => "Kode \"{$data['code']}\" bukan roll kain yang terdaftar.",
-            ], 404);
-        }
+        // 422 (bukan 404) supaya pesannya sampai apa adanya di aplikasi Android.
+        $roll = $this->rollOrFail($data['code']);
 
         return response()->json([
             'roll' => self::rollData($roll),

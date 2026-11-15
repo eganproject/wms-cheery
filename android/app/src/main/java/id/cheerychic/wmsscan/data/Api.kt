@@ -159,6 +159,34 @@ object Api {
             })
         )
 
+    /* ------------------------------------------------------- kain ---- */
+
+    suspend fun kainLookup(code: String): FabricResponse =
+        json.decodeFromString(call("POST", "/kain/lookup", buildJsonObject { put("code", code) }))
+
+    /** Kain keluar dari roll; [quantity] null = ambil semua sisanya. */
+    suspend fun kainKeluar(code: String, quantity: Double?, destination: String?, note: String?): FabricResponse =
+        json.decodeFromString(
+            call("POST", "/kain/keluar", buildJsonObject {
+                put("code", code)
+                if (quantity == null) put("all", true) else put("quantity", quantity)
+                if (!destination.isNullOrBlank()) put("destination", destination)
+                if (!note.isNullOrBlank()) put("note", note)
+            })
+        )
+
+    /** Sisa roll hasil ukur ulang; selisihnya dicatat sebagai koreksi. */
+    suspend fun kainCek(code: String, actual: Double, note: String?): FabricResponse =
+        json.decodeFromString(
+            call("POST", "/kain/cek", buildJsonObject {
+                put("code", code)
+                put("actual", actual)
+                if (!note.isNullOrBlank()) put("note", note)
+            })
+        )
+
+    suspend fun kainRecent(): FabricResponse = json.decodeFromString(call("GET", "/kain/terakhir"))
+
     /* ---------------------------------------------------- pesanan ---- */
 
     suspend fun summary(date: String? = null): Summary =

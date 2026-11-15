@@ -89,6 +89,7 @@ fun HomeScreen(
     onAbsen: (String) -> Unit = {},
     onAbsenHistory: () -> Unit = {},
     onRetur: () -> Unit = {},
+    onKain: () -> Unit = {},
 ) {
     StatusBarIcons(darkScreen = false)
     val scope = rememberCoroutineScope()
@@ -217,6 +218,9 @@ fun HomeScreen(
             }
             if (user.can.retur) {
                 ReturTile(onRetur)
+            }
+            if (user.can.kainKeluar || user.can.kainCek) {
+                KainTile(onKain)
             }
 
             // Versi aplikasi + cek pembaruan manual.
@@ -357,6 +361,27 @@ private fun ReturTile(onClick: () -> Unit) {
             Column(Modifier.weight(1f)) {
                 Text("Terima Retur", color = Ink, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
                 Text("Periksa paket yang dikembalikan pembeli", color = InkMuted, fontSize = 12.5.sp)
+            }
+            Icon(Ic.Next, null, tint = InkMuted, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+/** Scan Kain: kain keluar lewat scan QR roll, dan cek sisa roll. */
+@Composable
+private fun KainTile(onClick: () -> Unit) {
+    AppCard(Modifier.fillMaxWidth(), radius = 22.dp, onClick = onClick) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(BrandBg),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Ic.Scan, null, tint = Brand2, modifier = Modifier.size(22.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Scan Kain", color = Ink, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                Text("Kain keluar & cek sisa roll lewat QR", color = InkMuted, fontSize = 12.5.sp)
             }
             Icon(Ic.Next, null, tint = InkMuted, modifier = Modifier.size(18.dp))
         }

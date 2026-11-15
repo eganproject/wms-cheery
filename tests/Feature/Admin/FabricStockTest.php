@@ -118,7 +118,8 @@ class FabricStockTest extends TestCase
             ->assertJsonPath('roll.quantity', 50)
             ->assertJsonPath('roll.quantity_label', '50 m');
 
-        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.lookup'), ['code' => 'NGAWUR'])->assertNotFound();
+        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.lookup'), ['code' => 'NGAWUR'])
+            ->assertStatus(422)->assertJsonPath('errors.code.0', 'Kode "NGAWUR" bukan roll kain yang terdaftar.');
 
         $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.issue'), [
             'code' => 'TYB-HTM-001', 'quantity' => 12.25, 'destination' => 'Penjahit Sri',
