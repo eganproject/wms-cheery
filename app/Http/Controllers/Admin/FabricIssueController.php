@@ -36,7 +36,7 @@ class FabricIssueController extends Controller implements HasMiddleware
         $base = $this->filtered($request);
 
         $movements = (clone $base)
-            ->with(['roll:id,code', 'fabric:id,sku,name,color,unit', 'user:id,name'])
+            ->with(['roll:id,code', 'fabric:id,sku,name,color,unit,image_path', 'user:id,name'])
             ->tap(fn ($query) => Listing::sort($query, $request, [
                 'time' => fn ($query, $dir) => $query->orderBy('moved_at', $dir)->orderBy('id', $dir),
                 'quantity' => 'quantity',

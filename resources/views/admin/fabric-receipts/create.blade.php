@@ -63,12 +63,20 @@
                                 <div class="grid grid-cols-2 gap-3 px-4 py-4 sm:grid-cols-12 sm:px-5">
                                     <div class="col-span-2 sm:col-span-5">
                                         <label class="form-label">Kain</label>
-                                        <select class="form-control" :name="`lines[${index}][fabric_id]`" x-model="line.fabric_id" x-on:change="picked(line)" required>
-                                            <option value="">Pilih kain…</option>
-                                            <template x-for="item in fabrics" :key="item.id">
-                                                <option :value="item.id" :selected="String(item.id) === String(line.fabric_id)" x-text="`${item.sku} — ${item.name}`"></option>
-                                            </template>
-                                        </select>
+                                        <div class="flex items-center gap-2">
+                                            <span class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-ink-50 text-ink-300 ring-1 ring-inset ring-ink-100">
+                                                <template x-if="fabric(line.fabric_id)?.image">
+                                                    <img :src="fabric(line.fabric_id).image" alt="" class="h-full w-full object-cover">
+                                                </template>
+                                                <x-icon name="layers" class="h-4 w-4" x-show="! fabric(line.fabric_id)?.image" />
+                                            </span>
+                                            <select class="form-control min-w-0 flex-1" :name="`lines[${index}][fabric_id]`" x-model="line.fabric_id" x-on:change="picked(line)" required>
+                                                <option value="">Pilih kain…</option>
+                                                <template x-for="item in fabrics" :key="item.id">
+                                                    <option :value="item.id" :selected="String(item.id) === String(line.fabric_id)" x-text="`${item.sku} — ${item.name}`"></option>
+                                                </template>
+                                            </select>
+                                        </div>
                                     </div>
                                     <div class="sm:col-span-3">
                                         <label class="form-label">Per roll <span class="text-ink-400" x-text="unit(line) ? `(${unit(line)})` : ''"></span></label>

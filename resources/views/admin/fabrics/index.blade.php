@@ -89,13 +89,16 @@
                             @endphp
                             <tr>
                                 <td>
-                                    <a href="{{ route('admin.fabrics.show', $fabric) }}" class="group block min-w-0">
-                                        <span class="font-mono text-xs font-semibold text-ink-800">{{ $fabric->sku }}</span>
-                                        <p class="truncate text-sm font-medium text-ink-950 group-hover:underline">{{ $fabric->displayName() }}</p>
-                                        @if ($fabric->supplier)
-                                            <p class="truncate text-[11px] text-ink-400">{{ $fabric->supplier->name }}</p>
-                                        @endif
-                                    </a>
+                                    <div class="flex items-center gap-3">
+                                        <x-ui.fabric-image :fabric="$fabric" size="md" />
+                                        <a href="{{ route('admin.fabrics.show', $fabric) }}" class="group block min-w-0">
+                                            <span class="font-mono text-xs font-semibold text-ink-800">{{ $fabric->sku }}</span>
+                                            <p class="truncate text-sm font-medium text-ink-950 group-hover:underline">{{ $fabric->displayName() }}</p>
+                                            @if ($fabric->supplier)
+                                                <p class="truncate text-[11px] text-ink-400">{{ $fabric->supplier->name }}</p>
+                                            @endif
+                                        </a>
+                                    </div>
                                 </td>
                                 <td class="text-sm text-ink-700">{{ $fabric->unit }}</td>
                                 <td class="text-right text-sm tabular-nums">{{ number_format((int) $fabric->open_rolls, 0, ',', '.') }}</td>

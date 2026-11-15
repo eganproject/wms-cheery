@@ -91,7 +91,14 @@
                     <template x-if="roll">
                         <div class="mt-4 rounded-lg border border-ink-100 bg-ink-50 p-4">
                             <div class="flex flex-wrap items-start justify-between gap-3">
-                                <div class="min-w-0">
+                                <template x-if="roll.image_url">
+                                    <a :href="roll.image_url" target="_blank" rel="noopener" data-thumb data-lightbox="scan-kain"
+                                       :data-lightbox-title="roll.name" :data-lightbox-caption="roll.sku"
+                                       class="block h-16 w-16 shrink-0 cursor-zoom-in overflow-hidden rounded-xl bg-white ring-1 ring-inset ring-ink-100">
+                                        <img :src="roll.image_url" :alt="roll.name" class="h-full w-full object-cover">
+                                    </a>
+                                </template>
+                                <div class="min-w-0 flex-1">
                                     <p class="font-mono text-sm font-semibold text-ink-950" x-text="roll.sku"></p>
                                     <p class="mt-0.5 text-sm text-ink-600" x-text="roll.color ? `${roll.name} · ${roll.color}` : roll.name"></p>
                                     <p class="mt-1 text-[11px] text-ink-400"

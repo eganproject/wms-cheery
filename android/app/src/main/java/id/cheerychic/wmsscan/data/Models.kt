@@ -404,6 +404,7 @@ data class FabricRoll(
     val sku: String,
     val name: String,
     val color: String? = null,
+    @SerialName("image_url") val imageUrl: String? = null,
     val unit: String = "",
     val quantity: Double = 0.0,
     val initial: Double = 0.0,

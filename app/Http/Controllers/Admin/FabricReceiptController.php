@@ -98,13 +98,14 @@ class FabricReceiptController extends Controller implements HasMiddleware
     {
         return view('admin.fabric-receipts.create', [
             'fabrics' => Fabric::query()->where('is_active', true)->orderBy('sku')
-                ->get(['id', 'sku', 'name', 'color', 'unit', 'supplier_id'])
+                ->get(['id', 'sku', 'name', 'color', 'unit', 'supplier_id', 'image_path'])
                 ->map(fn (Fabric $fabric) => [
                     'id' => $fabric->id,
                     'sku' => $fabric->sku,
                     'name' => $fabric->displayName(),
                     'unit' => $fabric->unitShort(),
                     'supplier_id' => $fabric->supplier_id,
+                    'image' => $fabric->image_url,
                 ]),
             'suppliers' => Supplier::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'preselect' => $request->integer('fabric') ?: null,

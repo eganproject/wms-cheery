@@ -16,13 +16,16 @@
         </x-slot>
     </x-ui.page-header>
 
-    <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
+    <div class="flex flex-col gap-4 sm:flex-row">
+    <x-ui.fabric-image :fabric="$fabric" size="xl" class="self-center sm:self-auto" />
+    <div class="grid flex-1 grid-cols-2 content-start gap-4 xl:grid-cols-4">
         <x-ui.stat-card label="Sisa Kain" :value="$fabric->format((float) $fabric->stock)" icon="layers" accent
                         :hint="$rolls->where('quantity', '>', 0)->count().' roll berisi'" />
         <x-ui.stat-card label="Stok Minimum" :value="$fabric->min_stock > 0 ? $fabric->format($fabric->min_stock) : '—'" icon="warning"
                         :hint="$fabric->min_stock > 0 && (float) $fabric->stock < $fabric->min_stock ? 'Di bawah minimum' : 'Aman'" />
         <x-ui.stat-card label="Roll Habis" :value="number_format($emptyRolls, 0, ',', '.')" icon="x-circle" hint="Roll yang sudah terpakai semua" />
         <x-ui.stat-card label="Dipakai untuk" :value="$usages->count().' barang'" icon="box" hint="Untuk menghitung kebutuhan kain" />
+    </div>
     </div>
 
     <div class="mt-5 space-y-6">

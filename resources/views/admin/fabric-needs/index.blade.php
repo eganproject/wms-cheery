@@ -82,6 +82,7 @@
                                 <td>
                                     <div class="flex items-center gap-2">
                                         <x-icon name="chevron-right" class="h-4 w-4 shrink-0 text-ink-400 transition" x-bind:class="open && 'rotate-90'" />
+                                        <x-ui.fabric-image :fabric="$fabric" size="sm" x-on:click.stop />
                                         <div class="min-w-0">
                                             <a href="{{ route('admin.fabrics.show', $fabric) }}" x-on:click.stop class="font-mono text-xs font-semibold text-ink-800 hover:underline">{{ $fabric->sku }}</a>
                                             <p class="truncate text-sm font-medium text-ink-950">{{ $fabric->displayName() }}</p>

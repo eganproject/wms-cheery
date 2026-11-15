@@ -100,7 +100,9 @@ class FabricController extends Controller implements HasMiddleware
 
     public function store(Request $request): RedirectResponse
     {
-        $fabric = Fabric::create($this->validated($request, null));
+        $fabric = new Fabric($this->validated($request, null));
+        $this->syncImage($request, $fabric);
+        $fabric->save();
 
         return redirect()
             ->route('admin.fabrics.show', $fabric)
@@ -141,7 +143,9 @@ class FabricController extends Controller implements HasMiddleware
 
         // Kode roll memakai SKU kain. Roll yang sudah ada tetap memakai kode
         // lamanya karena label QR-nya sudah tertempel.
-        $fabric->update($data);
+        $fabric->fill($data);
+        $this->syncImage($request, $fabric);
+        $fabric->save();
 
         return redirect()
             ->route('admin.fabrics.show', $fabric)
@@ -210,6 +214,8 @@ class FabricController extends Controller implements HasMiddleware
             'supplier_id' => ['nullable', 'integer', 'exists:suppliers,id'],
             'note' => ['nullable', 'string', 'max:255'],
             'is_active' => ['nullable', 'boolean'],
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'remove_image' => ['nullable', 'boolean'],
         ], [
             'sku.regex' => 'SKU kain hanya boleh huruf, angka, titik, garis bawah, garis miring, dan tanda minus, tanpa spasi.',
             'unit.required' => 'Pilih satuan kain, atau isi satuan lainnya.',
@@ -218,7 +224,10 @@ class FabricController extends Controller implements HasMiddleware
             'name' => 'nama kain',
             'unit' => 'satuan',
             'min_stock' => 'stok minimum',
+            'image' => 'foto kain',
         ]);
+
+        unset($data['image'], $data['remove_image']);
 
         // Roll dan label QR yang sudah ada memakai SKU lama; mengganti SKU
         // membuat roll baru berkode beda dengan yang lama.
@@ -233,6 +242,16 @@ class FabricController extends Controller implements HasMiddleware
             'min_stock' => (float) ($data['min_stock'] ?? 0),
             'is_active' => $request->boolean('is_active'),
         ]);
+    }
+
+    /** Foto baru menggantikan yang lama; centang hapus melepasnya. */
+    protected function syncImage(Request $request, Fabric $fabric): void
+    {
+        if ($request->hasFile('image')) {
+            $fabric->replaceImage($request->file('image'));
+        } elseif ($request->boolean('remove_image')) {
+            $fabric->removeImage();
+        }
     }
 
     /** @return array<string, mixed> */

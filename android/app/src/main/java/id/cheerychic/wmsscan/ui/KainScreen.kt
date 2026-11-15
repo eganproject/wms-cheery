@@ -55,6 +55,7 @@ import id.cheerychic.wmsscan.ui.components.BannerView
 import id.cheerychic.wmsscan.ui.components.BigButton
 import id.cheerychic.wmsscan.ui.components.Feedback
 import id.cheerychic.wmsscan.ui.components.Header
+import id.cheerychic.wmsscan.ui.components.ProductThumb
 import id.cheerychic.wmsscan.ui.components.ScanArea
 import id.cheerychic.wmsscan.ui.components.StatusBarIcons
 import id.cheerychic.wmsscan.ui.components.Tone
@@ -294,7 +295,8 @@ private fun RollCard(roll: FabricRoll, vm: KainViewModel, context: Context) {
     val check = vm.mode == KainViewModel.MODE_CHECK
     AppCard(Modifier.fillMaxWidth().border(1.5.dp, Brand, RoundedCornerShape(22.dp)), radius = 22.dp) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.Top) {
+            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ProductThumb(roll.imageUrl, roll.sku, size = 56.dp)
                 Column(Modifier.weight(1f)) {
                     Text(roll.code, color = Ink, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     Text(

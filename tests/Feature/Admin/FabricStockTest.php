@@ -17,6 +17,7 @@ use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -274,5 +275,45 @@ class FabricStockTest extends TestCase
         // Menghapus barang dari daftar pemakaian.
         $this->actingAs($this->admin)->put(route('admin.fabrics.usages', $fabric), ['usages' => []])->assertSessionHas('success');
         $this->assertSame(0, $fabric->usages()->count());
+    }
+
+    public function test_fabric_photo_can_be_uploaded_replaced_and_removed(): void
+    {
+        Storage::fake('public');
+
+        $this->actingAs($this->admin)->post(route('admin.fabrics.store'), [
+            'sku' => 'FT-01', 'name' => 'Katun Foto', 'unit' => 'meter', 'is_active' => 1,
+            'image' => UploadedFile::fake()->image('kain.jpg', 400, 400),
+        ])->assertSessionHasNoErrors();
+
+        $fabric = Fabric::where('sku', 'FT-01')->firstOrFail();
+        $first = $fabric->image_path;
+        $this->assertNotNull($first);
+        Storage::disk('public')->assertExists($first);
+
+        // Foto tampil di daftar, detail, dan hasil scan roll.
+        $this->actingAs($this->admin)->get(route('admin.fabrics.index'))->assertOk()->assertSee($fabric->image_url);
+        $this->actingAs($this->admin)->get(route('admin.fabrics.show', $fabric))->assertOk()->assertSee($fabric->image_url);
+        $this->receive($fabric, 10, 1);
+        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.lookup'), ['code' => 'FT-01-001'])
+            ->assertOk()->assertJsonPath('roll.image_url', $fabric->image_url);
+
+        $this->actingAs($this->admin)->put(route('admin.fabrics.update', $fabric), [
+            'sku' => 'FT-01', 'name' => 'Katun Foto', 'unit' => 'meter',
+            'image' => UploadedFile::fake()->image('baru.png'),
+        ])->assertSessionHasNoErrors();
+        $fabric->refresh();
+        $this->assertNotSame($first, $fabric->image_path);
+        Storage::disk('public')->assertMissing($first);
+
+        $this->actingAs($this->admin)->put(route('admin.fabrics.update', $fabric), [
+            'sku' => 'FT-01', 'name' => 'Katun Foto', 'unit' => 'meter', 'remove_image' => 1,
+        ])->assertSessionHasNoErrors();
+        $this->assertNull($fabric->refresh()->image_path);
+
+        $this->actingAs($this->admin)->post(route('admin.fabrics.store'), [
+            'sku' => 'FT-02', 'name' => 'Salah', 'unit' => 'meter',
+            'image' => UploadedFile::fake()->create('dok.pdf', 10, 'application/pdf'),
+        ])->assertSessionHasErrors('image');
     }
 }

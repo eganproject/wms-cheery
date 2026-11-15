@@ -4,7 +4,7 @@
     $isPreset = array_key_exists($currentUnit, $units);
 @endphp
 
-<form method="POST" action="{{ $isEdit ? route('admin.fabrics.update', $fabric) : route('admin.fabrics.store') }}"
+<form method="POST" enctype="multipart/form-data" action="{{ $isEdit ? route('admin.fabrics.update', $fabric) : route('admin.fabrics.store') }}"
       x-data="{ unit: '{{ $isPreset ? $currentUnit : 'lainnya' }}' }">
     @csrf
     @if ($isEdit)
@@ -72,6 +72,52 @@
         </div>
 
         <div class="space-y-6">
+            <x-ui.card title="Foto Kain" subtitle="Membantu mengenali kain di gudang dan saat scan. JPG, PNG, atau WEBP, maks. 4 MB.">
+                <div x-data="{
+                        preview: {{ Js::from($fabric?->image_url) }},
+                        hasSaved: {{ Js::from((bool) $fabric?->image_url) }},
+                        remove: false,
+                        pick(event) {
+                            const file = event.target.files[0];
+                            if (! file) return;
+                            this.preview = URL.createObjectURL(file);
+                            this.remove = false;
+                        },
+                        clear() {
+                            this.$refs.image.value = '';
+                            this.preview = null;
+                            this.remove = this.hasSaved;
+                        },
+                     }" class="space-y-3">
+                    <div class="flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-ink-50 ring-1 ring-inset ring-ink-100">
+                        <template x-if="preview">
+                            <img :src="preview" alt="Pratinjau foto kain" class="h-full w-full object-cover">
+                        </template>
+                        <div x-show="! preview" class="flex flex-col items-center gap-2 text-ink-300">
+                            <x-icon name="camera" class="h-10 w-10" />
+                            <span class="text-xs text-ink-400">Belum ada foto</span>
+                        </div>
+                    </div>
+
+                    <input type="file" name="image" x-ref="image" accept="image/jpeg,image/png,image/webp"
+                           class="sr-only" id="image" x-on:change="pick($event)">
+                    <input type="hidden" name="remove_image" :value="remove ? 1 : 0">
+
+                    <div class="flex gap-2">
+                        <label for="image" class="btn btn-default flex-1 cursor-pointer justify-center">
+                            <x-icon name="upload" class="h-3.5 w-3.5" />
+                            <span x-text="preview ? 'Ganti Foto' : 'Pilih Foto'">Pilih Foto</span>
+                        </label>
+                        <button type="button" x-show="preview" x-cloak x-on:click="clear()"
+                                class="btn btn-default btn-icon" title="Hapus foto">
+                            <x-icon name="trash" class="h-4 w-4" />
+                        </button>
+                    </div>
+                    <p x-show="remove" x-cloak class="text-[11px] text-amber-700">Foto akan dihapus saat disimpan.</p>
+                    <x-input-error :messages="$errors->get('image')" />
+                </div>
+            </x-ui.card>
+
             <x-ui.card title="Status">
                 <div class="rounded-xl border border-ink-100 bg-ink-50/50 p-4">
                     <x-ui.toggle name="is_active" :checked="(bool) old('is_active', $fabric?->is_active ?? true)"

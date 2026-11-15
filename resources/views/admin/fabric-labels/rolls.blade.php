@@ -56,7 +56,10 @@
                         <td class="font-mono text-sm font-semibold text-ink-950">{{ $roll->code }}</td>
                         @if ($showFabric)
                             <td class="text-sm">
-                                <a href="{{ route('admin.fabrics.show', $roll->fabric) }}" class="hover:underline">{{ $roll->fabric->displayName() }}</a>
+                                <div class="flex items-center gap-2">
+                                    <x-ui.fabric-image :fabric="$roll->fabric" size="xs" />
+                                    <a href="{{ route('admin.fabrics.show', $roll->fabric) }}" class="hover:underline">{{ $roll->fabric->displayName() }}</a>
+                                </div>
                             </td>
                         @endif
                         <td class="text-right text-sm tabular-nums text-ink-500">{{ $roll->fabric->format($roll->initial_quantity) }}</td>

@@ -1,4 +1,4 @@
-@props(['product' => null, 'size' => 'md', 'url' => null, 'name' => null, 'sku' => null, 'group' => ''])
+@props(['product' => null, 'size' => 'md', 'url' => null, 'name' => null, 'sku' => null, 'group' => '', 'icon' => 'box', 'empty' => 'Belum ada gambar'])
 
 @php
     // Satu-satunya tempat thumbnail barang digambar, supaya ukuran dan
@@ -16,7 +16,7 @@
     ];
     $icons = ['2xs' => 'h-3 w-3', 'xs' => 'h-3.5 w-3.5', 'sm' => 'h-4 w-4', 'md' => 'h-5 w-5', 'lg' => 'h-6 w-6', 'xl' => 'h-10 w-10'];
     $box = $sizes[$size] ?? $sizes['md'];
-    $icon = $icons[$size] ?? $icons['md'];
+    $iconClass = $icons[$size] ?? $icons['md'];
     $url ??= $product?->image_url;
     $name ??= $product?->name;
     $sku ??= $product?->sku;
@@ -29,12 +29,12 @@
        {{ $attributes->merge(['class' => "relative block shrink-0 cursor-zoom-in overflow-hidden bg-ink-50 ring-1 ring-inset ring-ink-100 transition hover:ring-ink-300 {$box}"]) }}>
         <img src="{{ $url }}" alt="{{ $name ?: $sku }}" loading="lazy" class="h-full w-full object-cover">
         <span class="thumb-fallback h-full w-full items-center justify-center text-ink-300">
-            <x-icon name="box" class="{{ $icon }}" />
+            <x-icon :name="$icon" class="{{ $iconClass }}" />
         </span>
     </a>
 @else
     <span {{ $attributes->merge(['class' => "inline-flex shrink-0 items-center justify-center bg-ink-50 text-ink-300 ring-1 ring-inset ring-ink-100 {$box}"]) }}
-          title="Belum ada gambar">
-        <x-icon name="box" class="{{ $icon }}" />
+          title="{{ $empty }}">
+        <x-icon :name="$icon" class="{{ $iconClass }}" />
     </span>
 @endif

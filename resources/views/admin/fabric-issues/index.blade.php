@@ -91,7 +91,10 @@
                                 <td class="whitespace-nowrap text-sm text-ink-600">{{ $movement->moved_at->format('d/m/Y H:i') }}</td>
                                 <td class="font-mono text-sm font-semibold">{{ $movement->roll->code }}</td>
                                 <td class="text-sm">
-                                    <a href="{{ route('admin.fabrics.show', $movement->fabric) }}" class="hover:underline">{{ $movement->fabric->displayName() }}</a>
+                                    <div class="flex items-center gap-2">
+                                        <x-ui.fabric-image :fabric="$movement->fabric" size="xs" />
+                                        <a href="{{ route('admin.fabrics.show', $movement->fabric) }}" class="hover:underline">{{ $movement->fabric->displayName() }}</a>
+                                    </div>
                                 </td>
                                 <td class="text-right text-sm font-semibold tabular-nums {{ $movement->isCancelled() ? 'line-through' : 'text-rose-600' }}">
                                     {{ $movement->fabric->format(-$movement->quantity) }}

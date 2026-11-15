@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Jenis kain (SKU kain). Stoknya adalah jumlah sisa semua roll-nya.
@@ -19,6 +21,10 @@ class Fabric extends Model
         'yard' => 'Yard (yd)',
         'kg' => 'Kilogram (kg)',
     ];
+
+    public const IMAGE_DISK = 'public';
+
+    public const IMAGE_DIR = 'fabrics';
 
     protected $fillable = [
         'sku',
@@ -38,6 +44,42 @@ class Fabric extends Model
             'is_active' => 'boolean',
             'last_roll_number' => 'integer',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Berkas foto ikut dibuang saat kainnya dihapus.
+        static::deleted(fn (Fabric $fabric) => $fabric->deleteImageFile($fabric->image_path));
+    }
+
+    /* ------------------------------------------------------------ foto -- */
+
+    /** URL foto kain, atau null bila belum ada. */
+    public function getImageUrlAttribute(): ?string
+    {
+        return filled($this->image_path) ? Storage::disk(self::IMAGE_DISK)->url($this->image_path) : null;
+    }
+
+    /** Simpan foto baru dan buang yang lama. Tidak memanggil save(). */
+    public function replaceImage(UploadedFile $file): void
+    {
+        $old = $this->image_path;
+        $this->image_path = $file->store(self::IMAGE_DIR, self::IMAGE_DISK);
+        $this->deleteImageFile($old);
+    }
+
+    /** Lepas foto dari kain ini. Tidak memanggil save(). */
+    public function removeImage(): void
+    {
+        $this->deleteImageFile($this->image_path);
+        $this->image_path = null;
+    }
+
+    protected function deleteImageFile(?string $path): void
+    {
+        if (filled($path)) {
+            Storage::disk(self::IMAGE_DISK)->delete($path);
+        }
     }
 
     public function supplier(): BelongsTo
