@@ -100,9 +100,14 @@ class FabricStockTest extends TestCase
         $this->actingAs($this->admin)->get(route('admin.fabric-receipts.show', $receipt))
             ->assertOk()->assertSee('TYB-HTM-001')->assertSee('Cetak Label QR');
 
+        $ids = $receipt->rolls->pluck('id')->all();
+        $this->actingAs($this->admin)->get(route('admin.fabric-labels.create', ['rolls' => $ids]))
+            ->assertOk()->assertSee('TYB-HTM-002')->assertSee('Thermal 33 × 15 mm');
+
         $pdf = $this->actingAs($this->admin)->post(route('admin.fabric-labels.pdf'), [
-            'rolls' => $receipt->rolls->pluck('id')->all(),
+            'items' => collect($ids)->map(fn ($id) => ['id' => $id, 'copies' => 2])->all(),
             'layout' => 'thermal-50x30',
+            'skip' => 0,
         ])->assertOk();
         $this->assertStringStartsWith('%PDF', $pdf->getContent());
 

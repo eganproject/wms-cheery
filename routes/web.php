@@ -197,6 +197,7 @@ Route::middleware('auth')
         Route::resource('fabrics', FabricController::class);
         Route::get('fabric-receipts/export', [FabricReceiptController::class, 'export'])->name('fabric-receipts.export');
         Route::resource('fabric-receipts', FabricReceiptController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
+        Route::get('fabric-labels', [FabricLabelController::class, 'create'])->name('fabric-labels.create');
         Route::post('fabric-labels/pdf', [FabricLabelController::class, 'pdf'])->name('fabric-labels.pdf');
         Route::get('fabric-scan', [FabricScanController::class, 'show'])->name('fabric-scan');
         Route::get('fabric-scan/recent', [FabricScanController::class, 'recent'])->name('fabric-scan.recent');
