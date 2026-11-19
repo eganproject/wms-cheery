@@ -59,6 +59,21 @@ class ResetDataCommandTest extends TestCase
         $this->assertSame(0, Product::count());
     }
 
+    public function test_keep_products_preserves_product_master_and_zeroes_stock(): void
+    {
+        DB::table('products')->update(['stock' => 12, 'damaged_stock' => 3]);
+
+        $this->artisan('reset:data', ['--force' => true, '--keep-products' => true])->assertSuccessful();
+
+        $product = Product::first();
+        $this->assertNotNull($product);
+        $this->assertSame('SKU-1', $product->sku);
+        $this->assertSame(0, (int) $product->stock);
+        $this->assertSame(0, (int) $product->damaged_stock);
+        $this->assertSame(0, Supplier::count());
+        $this->assertGreaterThan(0, User::count());
+    }
+
     public function test_refuses_in_production_without_force(): void
     {
         $this->app['env'] = 'production';
