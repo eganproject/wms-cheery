@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreProductRequest;
 use App\Http\Requests\Admin\UpdateProductRequest;
+use App\Models\Fabric;
+use App\Models\FabricUsage;
 use App\Models\Product;
 use App\Support\Listing;
 use App\Services\ProductExportService;
@@ -138,7 +140,43 @@ class ProductController extends Controller implements HasMiddleware
             'committed' => $product->isBundle()
                 ? Product::committedUnits($product->bundleComponents->pluck('component_id'))
                 : Product::committedUnits([$product->id]),
+            ...$this->fabricBom($product),
         ]);
+    }
+
+    /**
+     * BOM kain barang ini (opsional) beserta pilihan kain untuk mengubahnya.
+     *
+     * @return array<string, mixed>
+     */
+    protected function fabricBom(Product $product): array
+    {
+        if ($product->isBundle() || ! request()->user()?->can('fabrics.view')) {
+            return ['fabricBom' => null, 'fabricCatalog' => collect()];
+        }
+
+        $bom = FabricUsage::query()
+            ->with('fabric')
+            ->where('product_id', $product->id)
+            ->get()
+            ->sortBy('fabric.sku')
+            ->values();
+
+        $catalog = request()->user()->can('fabrics.manage')
+            ? Fabric::query()
+                ->where(fn ($query) => $query->where('is_active', true)->orWhereIn('id', $bom->pluck('fabric_id')))
+                ->orderBy('sku')
+                ->get()
+                ->map(fn (Fabric $fabric) => [
+                    'id' => $fabric->id,
+                    'sku' => $fabric->sku,
+                    'name' => $fabric->displayName(),
+                    'unit' => $fabric->unitShort(),
+                    'image' => $fabric->image_url,
+                ])
+            : collect();
+
+        return ['fabricBom' => $bom, 'fabricCatalog' => $catalog];
     }
 
     public function edit(Product $product): View

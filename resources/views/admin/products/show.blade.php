@@ -157,6 +157,10 @@
                     </ul>
                 </x-ui.card>
             @endif
+
+            @if (($fabricBom ?? null) !== null)
+                @include('admin.products.partials.fabric-bom')
+            @endif
         </div>
 
         @if ($isBundle)

@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\OutboundMarketplaceController;
 use App\Http\Controllers\Admin\OutboundScanController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\ProductFabricController;
 use App\Http\Controllers\Admin\ProductGroupController;
 use App\Http\Controllers\Admin\ProductImportController;
 use App\Http\Controllers\Admin\ProductLabelController;
@@ -96,6 +97,7 @@ Route::middleware('auth')
         Route::post('products/variants/{product_group}/variants', [ProductGroupController::class, 'addVariants'])->name('products.groups.variants.store');
         Route::post('products/variants/{product_group}/attach', [ProductGroupController::class, 'attach'])->name('products.groups.attach');
         Route::delete('products/variants/{product_group}/variants/{product}', [ProductGroupController::class, 'detach'])->name('products.groups.detach');
+        Route::put('products/{product}/fabrics', [ProductFabricController::class, 'update'])->name('products.fabrics.update');
         Route::resource('products', ProductController::class);
         // Barang bervarian dikelola dari halaman Barang. URL lama menu
         // Produk Varian diarahkan ke sana.

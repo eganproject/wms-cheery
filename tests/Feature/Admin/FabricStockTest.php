@@ -341,4 +341,45 @@ class FabricStockTest extends TestCase
             'image' => UploadedFile::fake()->create('dok.pdf', 10, 'application/pdf'),
         ])->assertSessionHasErrors('image');
     }
+
+    public function test_product_page_sets_optional_fabric_bom_for_one_or_all_variants(): void
+    {
+        $fabric = $this->fabric();
+        $lining = $this->fabric(['sku' => 'FUR-PTH', 'name' => 'Furing', 'color' => 'Putih']);
+        $group = \App\Models\ProductGroup::create(['name' => 'Gamis', 'option1_name' => 'Ukuran']);
+        $s = Product::create(['sku' => 'GMS-S', 'name' => 'Gamis - S', 'unit' => 'pcs', 'min_stock' => 0, 'product_group_id' => $group->id]);
+        $m = Product::create(['sku' => 'GMS-M', 'name' => 'Gamis - M', 'unit' => 'pcs', 'min_stock' => 0, 'product_group_id' => $group->id]);
+
+        // Tanpa BOM halaman barang tetap normal.
+        $this->actingAs($this->admin)->get(route('admin.products.show', $s))->assertOk()->assertSee('BOM Kain')->assertSee('Simpan BOM');
+
+        $this->actingAs($this->admin)->put(route('admin.products.fabrics.update', $s), [
+            'fabrics' => [['fabric_id' => $fabric->id, 'quantity' => '2.5'], ['fabric_id' => $lining->id, 'quantity' => '1.25']],
+            'variants' => 1,
+        ])->assertSessionHasNoErrors()->assertRedirect(route('admin.products.show', $s));
+
+        $this->assertSame(2.5, (float) $m->fabricUsages()->where('fabric_id', $fabric->id)->value('quantity'));
+        $this->assertSame(2, $s->fabricUsages()->count());
+
+        // Ubah satu varian saja; varian lain tetap.
+        $this->actingAs($this->admin)->put(route('admin.products.fabrics.update', $s), [
+            'fabrics' => [['fabric_id' => $fabric->id, 'quantity' => 2]],
+        ])->assertSessionHasNoErrors();
+        $this->assertSame(1, $s->fabricUsages()->count());
+        $this->assertSame(2, $m->fabricUsages()->count());
+
+        // Data yang sama terlihat dari detail kain.
+        $this->actingAs($this->admin)->get(route('admin.fabrics.show', $fabric))->assertOk()->assertSee('GMS-S')->assertSee('GMS-M');
+
+        // Kain dobel ditolak; mengosongkan BOM boleh.
+        $this->actingAs($this->admin)->put(route('admin.products.fabrics.update', $s), [
+            'fabrics' => [['fabric_id' => $fabric->id, 'quantity' => 1], ['fabric_id' => $fabric->id, 'quantity' => 2]],
+        ])->assertSessionHasErrors('fabrics.1.fabric_id');
+        $this->actingAs($this->admin)->put(route('admin.products.fabrics.update', $s), [])->assertSessionHasNoErrors();
+        $this->assertSame(0, $s->fabricUsages()->count());
+
+        // Staf tanpa akses kelola kain tidak bisa mengubah.
+        $staff = User::factory()->create(['role_id' => Role::where('slug', 'staff-gudang')->value('id'), 'is_active' => true]);
+        $this->actingAs($staff)->put(route('admin.products.fabrics.update', $s), [])->assertForbidden();
+    }
 }
