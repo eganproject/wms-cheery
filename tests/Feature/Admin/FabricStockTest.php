@@ -398,6 +398,29 @@ class FabricStockTest extends TestCase
         $this->actingAs($staff)->put(route('admin.products.fabrics.update', $s), [])->assertForbidden();
     }
 
+    public function test_handover_only_lists_variants_using_the_fabric_when_bom_exists(): void
+    {
+        $fabric = $this->fabric();
+        $other = $this->fabric(['sku' => 'KTN-PTH', 'name' => 'Katun', 'color' => 'Putih']);
+        $this->receive($fabric, 50, 1);
+        $group = \App\Models\ProductGroup::create(['name' => 'Gamis', 'option1_name' => 'Motif']);
+        $make = fn ($sku) => Product::create(['sku' => $sku, 'name' => 'Gamis '.$sku, 'unit' => 'pcs', 'min_stock' => 0, 'product_group_id' => $group->id]);
+        [$a, $b, $c, $d] = [$make('GMS-A'), $make('GMS-B'), $make('GMS-C'), $make('GMS-D')];
+        foreach ([$a, $b, $c] as $product) {
+            \App\Models\FabricUsage::create(['fabric_id' => $fabric->id, 'product_id' => $product->id, 'quantity' => 2]);
+        }
+        \App\Models\FabricUsage::create(['fabric_id' => $other->id, 'product_id' => $d->id, 'quantity' => 2]);
+        $tailor = Supplier::create(['code' => 'SUP-9', 'name' => 'Penjahit Sri', 'is_active' => true, 'is_tailor' => true]);
+
+        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.issue'), ['code' => 'TYB-HTM-001', 'product_id' => $a->id, 'quantity' => 10])->assertOk();
+        $cutting = \App\Models\FabricCutting::firstOrFail();
+
+        $this->assertSame(['GMS-A', 'GMS-B', 'GMS-C'], $cutting->variants()->pluck('sku')->all());
+        $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.show', $cutting))->assertOk()->assertSee('GMS-C')->assertDontSee('GMS-D');
+        $this->actingAs($this->admin)->post(route('admin.fabric-cuttings.handover', $cutting), ['supplier_id' => $tailor->id, 'date' => '2026-06-12', 'items' => [$d->id => 3]])
+            ->assertSessionHasErrors('items');
+    }
+
     public function test_cutting_to_sewing_batches_closed_by_inbound_from_tailor(): void
     {
         $fabric = $this->fabric();

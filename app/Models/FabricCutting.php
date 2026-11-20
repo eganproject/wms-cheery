@@ -87,8 +87,10 @@ class FabricCutting extends Model
     }
 
     /**
-     * Varian yang bisa diserahkan ke penjahit: semua varian induknya, atau
-     * barang itu sendiri bila tanpa varian.
+     * Varian yang bisa diserahkan ke penjahit. Bila ada BOM, hanya varian
+     * induk yang memakai kain dari cutting ini (plus barang yang di-scan dan
+     * yang sudah pernah diserahkan); tanpa BOM sama sekali, semua varian
+     * induknya. Barang tanpa varian: barang itu sendiri.
      *
      * @return Collection<int, Product>
      */
@@ -98,11 +100,34 @@ class FabricCutting extends Model
             return collect([$this->product]);
         }
 
-        return Product::query()
+        $variants = Product::query()
             ->where('product_group_id', $this->product_group_id)
             ->where(fn ($query) => $query->where('is_active', true)->orWhere('id', $this->product_id))
             ->orderBy('id')
             ->get();
+
+        $withBom = FabricUsage::query()
+            ->whereIn('product_id', $variants->pluck('id'))
+            ->pluck('fabric_id', 'product_id');
+
+        if ($withBom->isEmpty()) {
+            return $variants;
+        }
+
+        $fabricIds = $this->movements()->distinct()->pluck('fabric_id');
+        $keep = FabricUsage::query()
+            ->whereIn('product_id', $variants->pluck('id'))
+            ->whereIn('fabric_id', $fabricIds)
+            ->pluck('product_id')
+            ->merge($this->movements()->whereNotNull('product_id')->distinct()->pluck('product_id'))
+            ->merge(SewingBatchItem::query()
+                ->whereIn('sewing_batch_id', $this->batches()->select('id'))
+                ->distinct()->pluck('product_id'))
+            ->push($this->product_id)
+            ->map(fn ($id) => (int) $id)
+            ->unique();
+
+        return $variants->filter(fn ($variant) => $keep->contains($variant->id))->values();
     }
 
     /**
