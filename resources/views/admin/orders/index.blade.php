@@ -309,12 +309,12 @@
             <div class="flex flex-col gap-3 lg:flex-row lg:items-end">
                 <div class="flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-start">
                     <select name="date_by" class="form-control sm:w-48" aria-label="Jenis tanggal" onchange="this.form.requestSubmit()"
-                            title="Tanggal yang disaring. Otomatis: tab Dikirim memakai tanggal serah terima, Dibatalkan tanggal batal, lainnya tanggal unggah.">
+                            title="Tanggal yang disaring. Otomatis: Belum QC dan Sudah QC memakai tanggal unggah, Dikirim tanggal serah terima, Dibatalkan tanggal batal; tab Semua gabungan keempatnya.">
                         @foreach (OrderController::DATE_FIELDS as $value => $label)
-                            <option value="{{ $value }}" @selected((string) request('date_by') === $value)>{{ $value === '' ? 'Otomatis: '.mb_strtolower(OrderController::DATE_FIELDS[OrderController::dateField(new \Illuminate\Http\Request, $stage)]) : $label }}</option>
+                            <option value="{{ $value }}" @selected((string) request('date_by') === $value)>{{ $value === '' ? 'Otomatis: '.mb_strtolower(OrderController::dateFieldLabel(OrderController::dateField(new \Illuminate\Http\Request, $stage))) : $label }}</option>
                         @endforeach
                     </select>
-                    <x-ui.date-filter :label="OrderController::DATE_FIELDS[$dateField]" />
+                    <x-ui.date-filter :label="OrderController::dateFieldLabel($dateField)" />
                     @if (! $explicitDate && (request()->filled('ready') || request()->filled('deadline')))
                         <p class="mt-1 text-[11px] text-ink-500">Penanda pengiriman aktif: mencari di semua tanggal.</p>
                     @endif

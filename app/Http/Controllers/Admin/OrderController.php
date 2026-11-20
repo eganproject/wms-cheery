@@ -340,7 +340,7 @@ class OrderController extends Controller implements HasMiddleware
     protected function filterNotes(Request $request, bool $withFlags = true, string $stage = ''): array
     {
         return collect([
-            self::DATE_FIELDS[self::dateField($request, $stage)].': '.($this->dateApplies($request) ? DateRange::fromRequest($request)->label() : 'semua'),
+            self::dateFieldLabel(self::dateField($request, $stage)).': '.($this->dateApplies($request) ? DateRange::fromRequest($request)->label() : 'semua'),
             $request->filled('marketplace') ? 'Marketplace: '.$request->string('marketplace') : null,
             $request->filled('store') ? 'Toko: '.$request->string('store') : null,
             $request->filled('courier') ? 'Kurir: '.$request->string('courier') : null,
@@ -592,12 +592,35 @@ class OrderController extends Controller implements HasMiddleware
         return match ($stage) {
             ShipmentOrder::STAGE_SHIPPED => 'shipped',
             ShipmentOrder::STAGE_CANCELLED => 'cancelled',
-            default => 'created',
+            ShipmentOrder::STAGE_AWAITING_QC, ShipmentOrder::STAGE_HANDOVER => 'created',
+            // Tab Semua: tiap pesanan memakai tanggal tahapnya sendiri, jadi
+            // isinya persis gabungan tab Belum QC, Sudah QC, Dikirim, Dibatalkan.
+            default => 'auto',
         };
+    }
+
+    /** Nama tanggal yang sedang berlaku, untuk label dan catatan Excel. */
+    public static function dateFieldLabel(string $field): string
+    {
+        return $field === 'auto' ? 'Tanggal sesuai tahap' : (self::DATE_FIELDS[$field] ?? self::DATE_FIELDS['created']);
     }
 
     protected function dateConstraint(Builder $query, string $field, DateRange $range): Builder
     {
+        // Semua tanggal: tidak ada yang disaring. Tanpa ini, gabungan OR di
+        // bawah kehilangan sisi kirinya dan tab Dikirim menjadi kosong.
+        if ($range->isAll()) {
+            return $query;
+        }
+
+        if ($field === 'auto') {
+            return $query->where(fn (Builder $query) => $query
+                ->where(fn (Builder $query) => $this->dateConstraint(
+                    $query->open(), 'created', $range))
+                ->orWhere(fn (Builder $query) => $this->dateConstraint($query->shipped(), 'shipped', $range))
+                ->orWhere(fn (Builder $query) => $this->dateConstraint($query->cancelled(), 'cancelled', $range)));
+        }
+
         $column = fn (string $column) => fn (Builder $query) => DateRange::constrain($query, $column, $range->from, $range->to);
 
         return match ($field) {
