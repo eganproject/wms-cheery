@@ -6,6 +6,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Can(
     val kemas: Boolean = false,
+    /** Boleh substitusi SKU saat Scan Kemas. */
+    val substitusi: Boolean = false,
     @SerialName("serah_terima") val serahTerima: Boolean = false,
     val pesanan: Boolean = false,
     val absen: Boolean = false,
@@ -55,6 +57,65 @@ data class PackItem(
     val unit: String? = null,
     val stock: Int = 0,
     val quantity: Int,
+    /** Isi bila baris ini pengganti hasil substitusi SKU. */
+    @SerialName("substituted_from") val substitutedFrom: SubstitutedFrom? = null,
+    @SerialName("substitution_reason") val substitutionReason: String? = null,
+)
+
+@Serializable
+data class SubstitutedFrom(
+    val sku: String? = null,
+    val name: String? = null,
+)
+
+/* --------------------------------------------------- substitusi SKU -- */
+
+@Serializable
+data class SubstituteProduct(
+    val id: Int,
+    val sku: String,
+    val name: String = "",
+    val unit: String? = null,
+    val stock: Int = 0,
+    @SerialName("image_url") val imageUrl: String? = null,
+)
+
+@Serializable
+data class SubstituteLine(
+    @SerialName("item_id") val itemId: Int,
+    val sku: String,
+    val name: String = "",
+    val unit: String? = null,
+    val stock: Int = 0,
+    val remaining: Int = 0,
+)
+
+@Serializable
+data class SubstitutionReason(
+    val value: String,
+    val label: String,
+)
+
+@Serializable
+data class SubstitutionOffer(
+    val code: String,
+    val quantity: Int = 1,
+    val product: SubstituteProduct,
+    val lines: List<SubstituteLine> = emptyList(),
+    val reasons: List<SubstitutionReason> = emptyList(),
+)
+
+@Serializable
+data class SubstitutionError(
+    val substitution: SubstitutionOffer? = null,
+)
+
+@Serializable
+data class SubstitutionResponse(
+    val message: String = "",
+    val items: List<PackItem> = emptyList(),
+    val progress: Progress = Progress(),
+    val completed: Boolean = false,
 )
 
 @Serializable

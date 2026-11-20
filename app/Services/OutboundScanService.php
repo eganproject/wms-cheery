@@ -22,8 +22,10 @@ class OutboundScanService
 {
     use NormalizesScanCode;
 
-    public function __construct(protected ShipmentOrderResolver $resolver)
-    {
+    public function __construct(
+        protected ShipmentOrderResolver $resolver,
+        protected OutboundSubstitutionService $substitutions,
+    ) {
     }
 
     /**
@@ -141,7 +143,7 @@ class OutboundScanService
      *
      * @return array<string, mixed>
      */
-    public function scanItem(Outbound $outbound, string $code, int $quantity = 1): array
+    public function scanItem(Outbound $outbound, string $code, int $quantity = 1, bool $canSubstitute = false): array
     {
         $this->guardScannable($outbound);
 
@@ -168,7 +170,9 @@ class OutboundScanService
 
         $matchedField = null;
 
-        $item = $outbound->items->first(function (OutboundItem $item) use ($needle, &$matchedField) {
+        // Satu barang bisa muncul di dua baris (baris pesanan dan baris
+        // pengganti). Yang masih punya sisa didahulukan.
+        $matches = $outbound->items->filter(function (OutboundItem $item) use ($needle, &$matchedField) {
             $field = $this->matchField($item->product, $needle);
 
             if ($field !== null) {
@@ -177,6 +181,14 @@ class OutboundScanService
 
             return $field !== null;
         });
+
+        $item = $matches->first(fn (OutboundItem $item) => ! $item->isFullyScanned()) ?? $matches->first();
+
+        // Barang di luar pesanan, atau barang yang barisnya sudah lengkap
+        // sementara baris lain masih kurang: tawarkan substitusi SKU.
+        if ((! $item || $item->isFullyScanned()) && $canSubstitute) {
+            $this->offerSubstitution($outbound, $code, $needle, $quantity, $item);
+        }
 
         if (! $item) {
             throw ValidationException::withMessages([
@@ -203,10 +215,13 @@ class OutboundScanService
 
         // Barang yang stoknya tidak tercatat tidak boleh keluar. Diperiksa
         // ulang di sini karena stok bisa habis oleh paket lain setelah resi
-        // ini dibuka.
-        if ($item->product->stock < $item->quantity) {
+        // ini dibuka. Barang yang sama di baris pengganti ikut dihitung.
+        $needed = (int) $outbound->items->where('product_id', $item->product_id)->sum('quantity');
+
+        if ($item->product->stock < $needed) {
             throw ValidationException::withMessages([
-                'code' => $this->shortageMessage($item->product, $item->quantity),
+                'code' => $this->shortageMessage($item->product, $needed)
+                    .($canSubstitute ? ' · scan barang pengganti untuk mengganti' : ''),
             ]);
         }
 
@@ -242,6 +257,86 @@ class OutboundScanService
             'item_id' => $item->id,
             'completed' => $item->isFullyScanned(),
         ];
+    }
+
+    /**
+     * Hentikan scan dengan tawaran substitusi SKU bila barang yang discan bisa
+     * menggantikan baris pesanan yang masih kurang. Tidak melakukan apa pun
+     * bila tidak ada yang bisa diganti — pemanggil lanjut ke pesan biasa.
+     */
+    protected function offerSubstitution(Outbound $outbound, string $code, string $needle, int $quantity, ?OutboundItem $matched): void
+    {
+        $product = $matched?->product ?? Product::findByCode($needle);
+
+        if (! $product) {
+            return;
+        }
+
+        $lines = $this->substitutions->candidateLines($outbound, $product);
+
+        if ($lines->isEmpty()) {
+            return;
+        }
+
+        $message = $matched
+            ? "{$product->sku} sudah lengkap · ganti SKU lain dengan barang ini?"
+            : "{$product->sku} tidak ada di pesanan · ganti SKU?";
+
+        $exception = ValidationException::withMessages(['code' => $message]);
+
+        $exception->response = response()->json([
+            'message' => $message,
+            'errors' => ['code' => [$message]],
+            'substitution' => [
+                'code' => $code,
+                'quantity' => $quantity,
+                'product' => [
+                    'id' => $product->id,
+                    'sku' => $product->sku,
+                    'name' => $product->name,
+                    'unit' => $product->unit,
+                    'stock' => (int) $product->stock,
+                    'image_url' => $product->image_url,
+                ],
+                'lines' => $lines->map(fn (OutboundItem $line) => [
+                    'item_id' => $line->id,
+                    'sku' => $line->product->sku,
+                    'name' => $line->product->name,
+                    'unit' => $line->product->unit,
+                    'stock' => (int) $line->product->stock,
+                    'remaining' => $line->remainingToScan(),
+                ])->values()->all(),
+                'reasons' => OutboundSubstitutionService::reasons(),
+            ],
+        ], 422);
+
+        throw $exception;
+    }
+
+    /**
+     * Daftar barang paket untuk stasiun QC Kemas (web dan Android).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function itemsPayload(Outbound $outbound): array
+    {
+        $outbound->loadMissing('items.product', 'items.substitutedFrom');
+
+        return $outbound->items->map(fn (OutboundItem $item) => [
+            'id' => $item->id,
+            'sku' => $item->product->sku,
+            'name' => $item->product->name,
+            'barcode' => $item->product->barcode,
+            'image_url' => $item->product->image_url,
+            'unit' => $item->product->unit,
+            'stock' => $item->product->stock,
+            'quantity' => $item->quantity,
+            'substituted_from' => $item->isSubstitute() ? [
+                'sku' => $item->substitutedFrom?->sku,
+                'name' => $item->substitutedFrom?->name,
+            ] : null,
+            'substitution_reason' => $item->isSubstitute() ? $item->substitutionReasonLabel() : null,
+        ])->values()->all();
     }
 
     /**
@@ -335,6 +430,8 @@ class OutboundScanService
         $this->guardScannable($outbound);
 
         DB::transaction(function () use ($outbound) {
+            // Substitusi ikut dibatalkan: unitnya kembali ke barang pesanan.
+            $this->substitutions->revertAll($outbound);
             $outbound->items()->update(['scanned_quantity' => 0]);
             $outbound->forceFill(['resi_verified_at' => null])->save();
         });

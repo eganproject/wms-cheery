@@ -152,7 +152,7 @@ class OrderController extends Controller implements HasMiddleware
             'outbound' => fn ($query) => $query
                 ->withSum('items', 'quantity')
                 ->withSum('items', 'scanned_quantity')
-                ->with('items.product.group'),
+                ->with('items.product.group', 'items.substitutedFrom'),
         ]);
 
         return response()->json([
@@ -166,6 +166,8 @@ class OrderController extends Controller implements HasMiddleware
                     'image_url' => $item->product?->image_url,
                     'quantity' => (int) $item->quantity,
                     'scanned' => (int) $item->scanned_quantity,
+                    'substituted_from' => $item->substitutedFrom?->sku,
+                    'substitution_reason' => $item->isSubstitute() ? $item->substitutionReasonLabel() : null,
                 ])->values() ?? [],
             ],
         ]);

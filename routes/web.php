@@ -39,6 +39,7 @@ use App\Http\Controllers\Admin\PoDeadlineController;
 use App\Http\Controllers\Admin\PoPeriodController;
 use App\Http\Controllers\Admin\ShipmentOrderDeadlineController;
 use App\Http\Controllers\Admin\OrderController;
+use App\Http\Controllers\Admin\OrderSubstitutionController;
 use App\Http\Controllers\Admin\OwnerReportController;
 use App\Http\Controllers\Admin\PackingListController;
 use App\Http\Controllers\Admin\AttendanceController;
@@ -139,6 +140,8 @@ Route::middleware('auth')
         Route::get('outbounds/{outbound}/scan', [OutboundScanController::class, 'show'])->name('outbounds.scan');
         Route::post('outbounds/{outbound}/scan/resi', [OutboundScanController::class, 'resi'])->name('outbounds.scan.resi');
         Route::post('outbounds/{outbound}/scan/item', [OutboundScanController::class, 'item'])->name('outbounds.scan.item');
+        Route::post('outbounds/{outbound}/scan/substitute', [OutboundScanController::class, 'substitute'])->name('outbounds.scan.substitute');
+        Route::delete('outbounds/{outbound}/scan/substitute/{item}', [OutboundScanController::class, 'revertSubstitute'])->name('outbounds.scan.substitute.revert');
         Route::post('outbounds/{outbound}/scan/reset', [OutboundScanController::class, 'reset'])->name('outbounds.scan.reset');
         Route::post('outbounds/{outbound}/submit', [OutboundController::class, 'submit'])->name('outbounds.submit');
         Route::post('outbounds/{outbound}/approve', [OutboundController::class, 'approve'])->name('outbounds.approve');
@@ -246,6 +249,8 @@ Route::middleware('auth')
         Route::get('orders/po-deadlines/produksi/pdf', [PoDeadlineController::class, 'productionPdf'])->name('orders.deadlines.production.pdf');
         Route::get('orders/po-deadlines/{date}', [PoDeadlineController::class, 'day'])
             ->where('date', '\d{4}-\d{2}-\d{2}')->name('orders.deadlines.day');
+        Route::get('orders/substitutions', [OrderSubstitutionController::class, 'index'])->name('orders.substitutions');
+        Route::get('orders/substitutions/export', [OrderSubstitutionController::class, 'export'])->name('orders.substitutions.export');
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
         Route::get('orders/packing-list/excel', [PackingListController::class, 'excel'])->name('orders.packing.excel');
         Route::get('orders/packing-list/pdf', [PackingListController::class, 'pdf'])->name('orders.packing.pdf');

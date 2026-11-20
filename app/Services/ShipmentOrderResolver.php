@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Outbound;
 use App\Models\ShipmentOrder;
 use App\Models\ShipmentOrderItem;
 use App\Support\BundledLines;
@@ -20,8 +21,10 @@ use Illuminate\Validation\ValidationException;
  */
 class ShipmentOrderResolver
 {
-    public function __construct(protected BundleExploder $exploder)
-    {
+    public function __construct(
+        protected BundleExploder $exploder,
+        protected OutboundSubstitutionService $substitutions,
+    ) {
     }
 
     public function resolve(?string $trackingNumber): ?ShipmentOrder
@@ -58,7 +61,7 @@ class ShipmentOrderResolver
     {
         $this->guardAllSkusMatched($order);
 
-        return array_map(fn (array $line) => [
+        $lines = array_map(fn (array $line) => [
             'product_id' => $line['product_id'],
             'quantity' => $line['quantity'],
             // Hasil pemeriksaan diisi operator; awalnya dianggap utuh.
@@ -66,6 +69,11 @@ class ShipmentOrderResolver
             'damaged_quantity' => 0,
             'note' => $line['note'],
         ], $this->exploder->explode($this->rawLines($order))->items);
+
+        // Barang yang diganti saat QC Kemas kembali sebagai barang penggantinya.
+        $shipped = $order->outbounds()->where('status', Outbound::STATUS_POSTED)->latest('id')->first();
+
+        return $this->substitutions->applyToReturnLines($lines, $shipped);
     }
 
     /**

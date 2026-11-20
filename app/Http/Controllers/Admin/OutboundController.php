@@ -228,7 +228,7 @@ class OutboundController extends Controller implements HasMiddleware
 
     public function show(Outbound $outbound): View
     {
-        $outbound->load(['items.product', 'bundles.bundle', 'user', 'shipmentOrder']);
+        $outbound->load(['items.product', 'items.substitutedFrom', 'items.substitutedBy', 'bundles.bundle', 'user', 'shipmentOrder']);
 
         return view('admin.outbounds.show', compact('outbound'));
     }

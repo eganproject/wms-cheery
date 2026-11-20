@@ -15,6 +15,19 @@ class OutboundItem extends Model
         'quantity',
         'scanned_quantity',
         'note',
+        'substituted_from_id',
+        'substitution_reason',
+        'substitution_note',
+        'substituted_by',
+        'substituted_at',
+    ];
+
+    /** Alasan substitusi SKU yang bisa dipilih operator QC Kemas. */
+    public const SUBSTITUTION_REASONS = [
+        'stok_habis' => 'Stok habis',
+        'rusak' => 'Barang rusak/cacat',
+        'permintaan_pembeli' => 'Permintaan pembeli',
+        'lainnya' => 'Lainnya',
     ];
 
     protected function casts(): array
@@ -22,6 +35,7 @@ class OutboundItem extends Model
         return [
             'quantity' => 'integer',
             'scanned_quantity' => 'integer',
+            'substituted_at' => 'datetime',
         ];
     }
 
@@ -33,6 +47,29 @@ class OutboundItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /** SKU asli pesanan yang digantikan baris ini. Kosong untuk baris biasa. */
+    public function substitutedFrom(): BelongsTo
+    {
+        return $this->belongsTo(Product::class, 'substituted_from_id');
+    }
+
+    public function substitutedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'substituted_by');
+    }
+
+    public function isSubstitute(): bool
+    {
+        return $this->substituted_from_id !== null;
+    }
+
+    public function substitutionReasonLabel(): string
+    {
+        $label = self::SUBSTITUTION_REASONS[$this->substitution_reason] ?? (string) $this->substitution_reason;
+
+        return filled($this->substitution_note) ? "{$label} · {$this->substitution_note}" : $label;
     }
 
     public function isFullyScanned(): bool
