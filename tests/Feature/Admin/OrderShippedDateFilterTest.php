@@ -149,4 +149,33 @@ class OrderShippedDateFilterTest extends TestCase
             ->assertOk()
             ->assertSee('Riwayat Serah Terima');
     }
+
+    public function test_tab_counts_add_up_for_today_and_for_all_dates(): void
+    {
+        $this->ship($this->order('RESIKEMARIN', [], now()->subDay()), now());
+        $this->ship($this->order('RESILAMA', [], now()->subDays(3)), now()->subDays(2));
+        $this->order('RESIBARU');
+        $this->order('RESIBATAL', ['cancelled_at' => now()], now()->subDays(2));
+
+        $counts = function (array $query) {
+            $html = $this->actingAs($this->admin)->get(route('admin.orders.index', $query))->assertOk()->getContent();
+            $start = strpos($html, 'data-order-tabs');
+            $tabs = substr($html, $start, strpos($html, '</div>', $start) - $start);
+            preg_match_all('/(Semua|Belum QC|Sudah QC|Dikirim|Dibatalkan) <span[^>]*>([\d.]+)</', $tabs, $m);
+
+            return array_combine($m[1], array_map('intval', $m[2]));
+        };
+
+        // Hari ini: resi baru (unggah), RESIKEMARIN (serah terima), RESIBATAL (batal).
+        $today = $counts([]);
+        $this->assertSame(['Semua' => 3, 'Belum QC' => 1, 'Sudah QC' => 0, 'Dikirim' => 1, 'Dibatalkan' => 1], $today);
+
+        $all = $counts(['range' => 'semua']);
+        $this->assertSame(['Semua' => 4, 'Belum QC' => 1, 'Sudah QC' => 0, 'Dikirim' => 2, 'Dibatalkan' => 1], $all);
+
+        $this->actingAs($this->admin)->get(route('admin.orders.index', ['range' => 'semua', 'stage' => ShipmentOrder::STAGE_SHIPPED]))
+            ->assertSee('RESIKEMARIN')->assertSee('RESILAMA');
+        $this->actingAs($this->admin)->get(route('admin.orders.index'))
+            ->assertSee('RESIKEMARIN')->assertSee('RESIBARU')->assertDontSee('RESILAMA');
+    }
 }
