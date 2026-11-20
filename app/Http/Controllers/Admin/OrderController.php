@@ -45,14 +45,56 @@ class OrderController extends Controller implements HasMiddleware
         'oldest' => 'Terlama diunggah',
         'order_date_desc' => 'Tanggal pesanan terbaru',
         'order_date_asc' => 'Tanggal pesanan terlama',
+        'shipped_desc' => 'Serah terima terbaru',
+    ];
+
+    /**
+     * Tanggal mana yang disaring oleh kolom rentang tanggal.
+     *
+     * "Otomatis" mengikuti tab: Dikirim memakai waktu serah terima, Dibatalkan
+     * waktu batal, sisanya waktu unggah. Dulu semua tab memakai waktu unggah,
+     * sehingga paket yang diunggah kemarin lalu diserahkan ke kurir hari ini
+     * tidak muncul di tab Dikirim "hari ini".
+     */
+    public const DATE_FIELDS = [
+        '' => 'Otomatis (ikut tab)',
+        'created' => 'Tanggal unggah',
+        'order' => 'Tanggal pesanan',
+        'paid' => 'Waktu bayar',
+        'ship_by' => 'Batas kirim',
+        'qc' => 'Tanggal QC kemas',
+        'shipped' => 'Tanggal serah terima',
+        'cancelled' => 'Tanggal batal',
+    ];
+
+    /** Saringan jenis pesanan. */
+    public const KIND_FILTERS = [
+        'normal' => 'Normal (ready stock)',
+        'po' => 'Pre-order (PO)',
+    ];
+
+    /** Saringan isi pesanan. */
+    public const CONTENT_FILTERS = [
+        'single' => 'Satu SKU',
+        'multi' => 'Lebih dari satu SKU',
+    ];
+
+    /** Saringan retur. */
+    public const RETURN_FILTERS = [
+        'with' => 'Ada retur',
+        'without' => 'Tanpa retur',
     ];
 
     /** Saringan yang dibawa kembali setelah tandai batal / cabut batal. */
     public const FILTER_KEYS = [
         'stage', 'search', 'search_by', 'marketplace', 'store', 'courier',
         'duplicate', 'unmatched', 'from', 'to', 'range', 'sort', 'per_page',
-        'ready', 'deadline',
+        'ready', 'deadline', 'date_by', 'kind', 'content', 'shipping_method',
+        'order_status', 'returned',
     ];
+
+    /** Saringan tambahan yang dipilih lewat kotak pilihan di form pencarian. */
+    public const EXTRA_FILTER_KEYS = ['date_by', 'kind', 'content', 'shipping_method', 'order_status', 'returned'];
 
     /** Saringan kesiapan stok (resi Belum QC). */
     public const READY_FILTERS = [
@@ -99,7 +141,7 @@ class OrderController extends Controller implements HasMiddleware
         $stage = array_key_exists($stage, ShipmentOrder::STAGES) ? $stage : '';
         $perPage = Listing::perPage($request);
 
-        $orders = $this->filtered($request)
+        $orders = $this->filtered($request, stage: $stage)
             ->with([
                 'items',
                 'import',
@@ -109,7 +151,7 @@ class OrderController extends Controller implements HasMiddleware
                     ->withSum('items', 'scanned_quantity'),
             ])
             ->atStage($stage)
-            ->tap(fn (Builder $query) => $this->sort($query, (string) $request->string('sort')))
+            ->tap(fn (Builder $query) => $this->sort($query, $this->sortFor($request, $stage)))
             ->paginate($perPage)
             ->withQueryString();
 
@@ -122,15 +164,19 @@ class OrderController extends Controller implements HasMiddleware
             'stage' => $stage,
             'onlyDuplicates' => $request->boolean('duplicate'),
             'counts' => $this->counts($request),
-            'duplicates' => $this->filtered($request, withFlags: false)->duplicated()->count(),
+            'allCount' => $this->filtered($request)->count(),
+            'dateField' => self::dateField($request, $stage),
+            'duplicates' => $this->filtered($request, withFlags: false, stage: $stage)->duplicated()->count(),
             'planCounts' => $this->planCounts($request),
             'explicitDate' => $this->explicitDate($request),
-            'unmatched' => $this->filtered($request, withFlags: false)->whereHas('items', fn (Builder $items) => $items->whereNull('product_id'))->count(),
-            'unknownSkus' => $this->unknownSkus($request),
+            'unmatched' => $this->filtered($request, withFlags: false, stage: $stage)->whereHas('items', fn (Builder $items) => $items->whereNull('product_id'))->count(),
+            'unknownSkus' => $this->unknownSkus($request, $stage),
             'twins' => ShipmentOrder::twinsFor($orders->items()),
             'marketplaces' => $distinct('marketplace'),
             'stores' => $distinct('store_name'),
             'couriers' => $distinct('courier'),
+            'shippingMethods' => $distinct('shipping_method'),
+            'orderStatuses' => $distinct('order_status'),
             'searchTerms' => count($this->terms($request)),
         ]);
     }
@@ -148,9 +194,9 @@ class OrderController extends Controller implements HasMiddleware
         $stage = ShipmentOrder::LEGACY_STAGES[$stage] ?? $stage;
         $stage = array_key_exists($stage, ShipmentOrder::STAGES) ? $stage : '';
 
-        $query = fn () => $this->filtered($request)
+        $query = fn () => $this->filtered($request, stage: $stage)
             ->atStage($stage)
-            ->tap(fn (Builder $query) => $this->sort($query, (string) $request->string('sort')));
+            ->tap(fn (Builder $query) => $this->sort($query, $this->sortFor($request, $stage)));
 
         $orders = function () use ($query) {
             $number = 0;
@@ -174,6 +220,7 @@ class OrderController extends Controller implements HasMiddleware
                     $order->courier,
                     $order->shipping_method,
                     $order->ship_by,
+                    $order->shipped_at,
                     self::orderKind($order),
                     $order->is_priority ? 'Ya' : '',
                     self::readyLabel($order),
@@ -210,7 +257,7 @@ class OrderController extends Controller implements HasMiddleware
         };
 
         $notes = collect(['Tahap: '.(self::STAGE_LABELS[$stage] ?? 'Semua')])
-            ->merge($this->filterNotes($request))
+            ->merge($this->filterNotes($request, stage: $stage))
             ->implode(' · ');
 
         return TableExport::make('Daftar Pesanan')
@@ -227,6 +274,7 @@ class OrderController extends Controller implements HasMiddleware
                 ['Kurir', 'text'],
                 ['Layanan', 'text'],
                 ['Batas Kirim', 'datetime'],
+                ['Serah Terima', 'datetime'],
                 ['Jenis', 'text'],
                 ['Prioritas', 'text'],
                 ['Kesiapan Stok', 'text'],
@@ -261,7 +309,10 @@ class OrderController extends Controller implements HasMiddleware
      */
     public function exportUnknownSkus(Request $request): StreamedResponse
     {
-        $rows = $this->unknownSkus($request)->values()->map(fn ($unknown, $index) => [
+        $stage = (string) $request->input('stage');
+        $stage = array_key_exists($stage, ShipmentOrder::STAGES) ? $stage : '';
+
+        $rows = $this->unknownSkus($request, $stage)->values()->map(fn ($unknown, $index) => [
             $index + 1,
             $unknown->sku,
             $unknown->product_name,
@@ -270,7 +321,7 @@ class OrderController extends Controller implements HasMiddleware
         ]);
 
         return TableExport::make('SKU Belum Dikenal Sistem')
-            ->note(implode(' · ', $this->filterNotes($request, withFlags: false)))
+            ->note(implode(' · ', $this->filterNotes($request, withFlags: false, stage: $stage)))
             ->sheet('SKU Belum Dikenal', [
                 ['No', 'number'],
                 ['SKU', 'text'],
@@ -286,13 +337,18 @@ class OrderController extends Controller implements HasMiddleware
      *
      * @return array<int, string>
      */
-    protected function filterNotes(Request $request, bool $withFlags = true): array
+    protected function filterNotes(Request $request, bool $withFlags = true, string $stage = ''): array
     {
         return collect([
-            'Tanggal unggah: '.($this->dateApplies($request) ? DateRange::fromRequest($request)->label() : 'semua'),
+            self::DATE_FIELDS[self::dateField($request, $stage)].': '.($this->dateApplies($request) ? DateRange::fromRequest($request)->label() : 'semua'),
             $request->filled('marketplace') ? 'Marketplace: '.$request->string('marketplace') : null,
             $request->filled('store') ? 'Toko: '.$request->string('store') : null,
             $request->filled('courier') ? 'Kurir: '.$request->string('courier') : null,
+            $request->filled('shipping_method') ? 'Layanan: '.$request->string('shipping_method') : null,
+            $request->filled('order_status') ? 'Status marketplace: '.$request->string('order_status') : null,
+            self::KIND_FILTERS[(string) $request->input('kind')] ?? null,
+            self::CONTENT_FILTERS[(string) $request->input('content')] ?? null,
+            self::RETURN_FILTERS[(string) $request->input('returned')] ?? null,
             $withFlags && $request->boolean('duplicate') ? 'Hanya resi kembar' : null,
             $withFlags && $request->boolean('unmatched') ? 'Hanya SKU belum terdaftar' : null,
             $withFlags && isset(self::READY_FILTERS[(string) $request->input('ready')]) ? self::READY_FILTERS[(string) $request->input('ready')] : null,
@@ -307,9 +363,10 @@ class OrderController extends Controller implements HasMiddleware
      * Tab status sengaja tidak termasuk: tab itulah pemilihnya, jadi angkanya
      * tidak boleh ikut berubah saat tab lain dibuka.
      */
-    protected function filtered(Request $request, bool $withFlags = true, ?bool $applyDate = null): Builder
+    protected function filtered(Request $request, bool $withFlags = true, ?bool $applyDate = null, string $stage = ''): Builder
     {
         $applyDate ??= $this->dateApplies($request);
+        $dateField = self::dateField($request, $stage);
 
         $field = array_key_exists((string) $request->input('search_by'), self::SEARCH_FIELDS)
             ? (string) $request->input('search_by')
@@ -322,7 +379,14 @@ class OrderController extends Controller implements HasMiddleware
             ->when($request->filled('marketplace'), fn (Builder $query) => $query->where('marketplace', $request->string('marketplace')))
             ->when($request->filled('store'), fn (Builder $query) => $query->where('store_name', $request->string('store')))
             ->when($request->filled('courier'), fn (Builder $query) => $query->where('courier', $request->string('courier')))
-            ->when($applyDate, fn (Builder $query) => $query->dateBetween(DateRange::fromRequest($request)))
+            ->when($request->filled('shipping_method'), fn (Builder $query) => $query->where('shipping_method', $request->string('shipping_method')))
+            ->when($request->filled('order_status'), fn (Builder $query) => $query->where('order_status', $request->string('order_status')))
+            ->when(isset(self::KIND_FILTERS[(string) $request->input('kind')]), fn (Builder $query) => $this->kind($query, (string) $request->input('kind')))
+            ->when((string) $request->input('content') === 'single', fn (Builder $query) => $query->has('items', '=', 1))
+            ->when((string) $request->input('content') === 'multi', fn (Builder $query) => $query->has('items', '>', 1))
+            ->when((string) $request->input('returned') === 'with', fn (Builder $query) => $query->has('returns'))
+            ->when((string) $request->input('returned') === 'without', fn (Builder $query) => $query->doesntHave('returns'))
+            ->when($applyDate, fn (Builder $query) => $this->dateConstraint($query, $dateField, DateRange::fromRequest($request)))
             ->when($withFlags && $request->filled('ready'), fn (Builder $query) => $query->stockStatus((string) $request->input('ready')))
             ->when($withFlags && $request->filled('deadline'), fn (Builder $query) => $query->deadline((string) $request->input('deadline')))
             ->when($withFlags && $request->boolean('duplicate'), fn (Builder $query) => $query->duplicated())
@@ -337,11 +401,11 @@ class OrderController extends Controller implements HasMiddleware
      *
      * @return \Illuminate\Support\Collection<int, object{sku: string, product_name: ?string, orders: int, units: int}>
      */
-    protected function unknownSkus(Request $request)
+    protected function unknownSkus(Request $request, string $stage = '')
     {
         return ShipmentOrderItem::query()
             ->whereNull('product_id')
-            ->whereIn('shipment_order_id', $this->filtered($request, withFlags: false)->select('shipment_orders.id'))
+            ->whereIn('shipment_order_id', $this->filtered($request, withFlags: false, stage: $stage)->select('shipment_orders.id'))
             ->selectRaw('sku, MAX(product_name) as product_name, COUNT(DISTINCT shipment_order_id) as orders, SUM(quantity) as units')
             ->groupBy('sku')
             ->orderByDesc('orders')
@@ -498,8 +562,75 @@ class OrderController extends Controller implements HasMiddleware
             'oldest' => $query->orderBy('shipment_orders.created_at')->orderBy('shipment_orders.id'),
             'order_date_desc' => $query->orderByDesc('order_date')->orderByDesc('shipment_orders.id'),
             'order_date_asc' => $query->orderBy('order_date')->orderBy('shipment_orders.id'),
+            'shipped_desc' => $query->orderByDesc('shipment_orders.shipped_at')->orderByDesc('shipment_orders.id'),
             default => $query->latestFirst(),
         };
+    }
+
+    /**
+     * Urutan yang berlaku. Tab Dikirim tanpa urutan pilihan sendiri dibuka
+     * dari serah terima terbaru, sejalan dengan saringan tanggalnya.
+     */
+    protected function sortFor(Request $request, string $stage): string
+    {
+        $sort = (string) $request->string('sort');
+
+        return $sort === '' && $stage === ShipmentOrder::STAGE_SHIPPED ? 'shipped_desc' : $sort;
+    }
+
+    /**
+     * Kolom tanggal yang dipakai saringan rentang tanggal untuk tab ini.
+     */
+    public static function dateField(Request $request, string $stage = ''): string
+    {
+        $chosen = (string) $request->input('date_by');
+
+        if ($chosen !== '' && array_key_exists($chosen, self::DATE_FIELDS)) {
+            return $chosen;
+        }
+
+        return match ($stage) {
+            ShipmentOrder::STAGE_SHIPPED => 'shipped',
+            ShipmentOrder::STAGE_CANCELLED => 'cancelled',
+            default => 'created',
+        };
+    }
+
+    protected function dateConstraint(Builder $query, string $field, DateRange $range): Builder
+    {
+        $column = fn (string $column) => fn (Builder $query) => DateRange::constrain($query, $column, $range->from, $range->to);
+
+        return match ($field) {
+            'order' => $query->where($column('shipment_orders.order_date')),
+            'paid' => $query->where($column('shipment_orders.paid_at')),
+            'ship_by' => $query->where($column('shipment_orders.ship_by')),
+            'cancelled' => $query->where($column('shipment_orders.cancelled_at')),
+            'qc' => $query->whereHas('outbounds', fn (Builder $outbound) => DateRange::constrain(
+                $outbound, 'outbounds.resi_verified_at', $range->from, $range->to,
+            )),
+            // shipped_at = waktu dokumen kirimnya diproses saat serah terima.
+            // Dokumen lama tanpa posted_at tidak punya shipped_at; yang sudah
+            // berangkat jatuh kembali ke waktu unggah supaya tidak hilang.
+            'shipped' => $query->where(fn (Builder $query) => $query
+                ->where($column('shipment_orders.shipped_at'))
+                ->orWhere(fn (Builder $query) => $query
+                    ->whereNull('shipment_orders.shipped_at')
+                    ->where($column('shipment_orders.created_at'))
+                    ->whereHas('outbounds', fn (Builder $outbound) => $outbound->where('status', \App\Models\Outbound::STATUS_POSTED)))),
+            default => $query->dateBetween($range),
+        };
+    }
+
+    protected function kind(Builder $query, string $kind): Builder
+    {
+        return $kind === 'po'
+            ? $query->where(fn (Builder $query) => $query
+                ->where('shipment_orders.is_preorder', true)
+                ->orWhere('shipment_orders.po_days', '>', 0))
+            : $query->where('shipment_orders.is_preorder', false)
+                ->where(fn (Builder $query) => $query
+                    ->whereNull('shipment_orders.po_days')
+                    ->orWhere('shipment_orders.po_days', '<=', 0));
     }
 
     /**
@@ -511,7 +642,7 @@ class OrderController extends Controller implements HasMiddleware
     {
         return collect(self::STAGE_LABELS)
             ->keys()
-            ->mapWithKeys(fn (string $stage) => [$stage => $this->filtered($request)->atStage($stage)->count()])
+            ->mapWithKeys(fn (string $stage) => [$stage => $this->filtered($request, stage: $stage)->atStage($stage)->count()])
             ->all();
     }
 

@@ -23,6 +23,7 @@
         </x-slot>
     </x-ui.page-header>
 
+    @include('admin.outbounds.partials.handover-tabs')
 
     <div x-data="handoverStation({
              url: '{{ route('admin.outbounds.handover.scan') }}',
@@ -150,16 +151,33 @@
                               placeholder="Cari nomor dokumen, penerima, atau resi..." class="pl-8" />
             </div>
 
-            <x-ui.select name="marketplace" class="sm:w-44">
-                <option value="">Semua toko</option>
+            <x-ui.select name="marketplace" class="sm:w-40" aria-label="Marketplace">
+                <option value="">Semua marketplace</option>
                 @foreach ($marketplaces as $marketplace)
                     <option value="{{ $marketplace }}" @selected(request('marketplace') === $marketplace)>{{ $marketplace }}</option>
                 @endforeach
             </x-ui.select>
 
+            <x-ui.select name="courier" class="sm:w-40" aria-label="Kurir">
+                <option value="">Semua kurir</option>
+                @foreach ($couriers as $courier)
+                    <option value="{{ $courier }}" @selected(request('courier') === $courier)>{{ $courier }}</option>
+                @endforeach
+                <option value="-" @selected(request('courier') === '-')>Tanpa kurir</option>
+            </x-ui.select>
+
+            @if ($stores->count() > 1)
+                <x-ui.select name="store" class="sm:w-44" aria-label="Toko">
+                    <option value="">Semua toko</option>
+                    @foreach ($stores as $store)
+                        <option value="{{ $store }}" @selected(request('store') === $store)>{{ $store }}</option>
+                    @endforeach
+                </x-ui.select>
+            @endif
+
             <div class="flex items-center gap-2">
                 <x-ui.button type="submit" variant="secondary" icon="filter" class="flex-1 sm:flex-none">Terapkan</x-ui.button>
-                @if (request()->hasAny(['search', 'marketplace']))
+                @if (request()->hasAny(['search', 'marketplace', 'courier', 'store']))
                     <x-ui.button :href="route('admin.outbounds.handover')" variant="ghost" size="icon" title="Reset filter">
                         <x-icon name="refresh" class="h-4 w-4" />
                     </x-ui.button>
@@ -192,7 +210,7 @@
                     operator terlempar ke daftar tanpa filter setelah memproses,
                     lalu harus menyaring ulang dari awal.
                 --}}
-                @foreach (['search', 'marketplace'] as $filter)
+                @foreach (['search', 'marketplace', 'courier', 'store'] as $filter)
                     @if (request()->filled($filter))
                         <input type="hidden" name="{{ $filter }}" value="{{ request($filter) }}">
                     @endif

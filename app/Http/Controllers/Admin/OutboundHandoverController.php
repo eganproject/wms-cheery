@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Outbound;
 use App\Services\ApprovalService;
+use App\Models\ShipmentOrder;
 use App\Services\TableExport;
+use App\Support\DateRange;
 use App\Support\Listing;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,7 +35,7 @@ class OutboundHandoverController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:outbounds.view', only: ['index', 'export']),
+            new Middleware('can:outbounds.view', only: ['index', 'export', 'history', 'historyExport']),
             new Middleware('can:outbounds.post', only: ['process', 'scan']),
         ];
     }
@@ -80,6 +83,8 @@ class OutboundHandoverController extends Controller implements HasMiddleware
             ->note(collect([
                 'Paket lolos QC yang menunggu diserahkan ke kurir',
                 $request->filled('marketplace') ? 'Marketplace: '.$request->string('marketplace') : null,
+                $request->filled('courier') ? 'Kurir: '.($request->input('courier') === '-' ? 'tanpa kurir' : $request->string('courier')) : null,
+                $request->filled('store') ? 'Toko: '.$request->string('store') : null,
                 $request->filled('search') ? 'Cari: '.$request->string('search')->trim() : null,
             ])->filter()->implode(' · '))
             ->sheet('Antrean Serah Terima', [
@@ -108,8 +113,143 @@ class OutboundHandoverController extends Controller implements HasMiddleware
         return Outbound::awaitingHandover()
             ->search($request->string('search')->trim()->value())
             ->fromMarketplace($request->string('marketplace')->value())
+            ->tap(fn (Builder $query) => $this->courierStore($query, $request))
             // Paket yang paling lama menunggu dikerjakan lebih dulu.
             ->oldest('id');
+    }
+
+    /**
+     * Riwayat serah terima: paket marketplace yang sudah diserahkan ke kurir
+     * (dokumennya diproses), menurut waktu serah terimanya. Bawaannya hari ini.
+     */
+    public function history(Request $request): View
+    {
+        $range = DateRange::fromRequest($request);
+
+        $summary = $this->historyQuery($request, withCourier: false)
+            ->leftJoin('shipment_orders as so', 'so.id', '=', 'outbounds.shipment_order_id')
+            ->toBase()
+            ->selectRaw("COALESCE(NULLIF(so.courier, ''), '-') as courier_name, COUNT(*) as packages")
+            ->groupBy('courier_name')
+            ->orderByDesc('packages')
+            ->get();
+
+        $outbounds = $this->historyQuery($request)
+            ->with(['shipmentOrder', 'submitter:id,name', 'user:id,name'])
+            ->withCount('items')
+            ->withSum('items', 'quantity')
+            ->orderByDesc('posted_at')
+            ->orderByDesc('id')
+            ->paginate(Listing::perPage($request))
+            ->withQueryString();
+
+        return view('admin.outbounds.handover-history', [
+            'outbounds' => $outbounds,
+            'range' => $range,
+            'summary' => $summary,
+            'total' => (int) $summary->sum('packages'),
+            'units' => (int) $this->historyQuery($request)
+                ->join('outbound_items', 'outbound_items.outbound_id', '=', 'outbounds.id')
+                ->sum('outbound_items.quantity'),
+            'marketplaces' => ShipmentOrder::filterOptions('marketplace'),
+            'stores' => ShipmentOrder::filterOptions('store_name'),
+            // Petugas yang menyerahkan paket pada periode ini saja.
+            'handlers' => \App\Models\User::query()
+                ->whereIn('id', $this->historyQuery($request, withUser: false)->whereNotNull('outbounds.submitted_by')->select('outbounds.submitted_by'))
+                ->orderBy('name')
+                ->pluck('name', 'id'),
+            'handoverCount' => Outbound::awaitingHandover()->count(),
+        ]);
+    }
+
+    public function historyExport(Request $request): StreamedResponse
+    {
+        $rows = function () use ($request) {
+            $number = 0;
+
+            foreach ($this->historyQuery($request)->with(['shipmentOrder', 'submitter:id,name', 'user:id,name'])
+                ->withCount('items')->withSum('items', 'quantity')
+                ->orderBy('posted_at')->orderBy('id')->lazy(500) as $outbound) {
+                $order = $outbound->shipmentOrder;
+
+                yield [
+                    ++$number,
+                    $outbound->posted_at,
+                    $outbound->tracking_number,
+                    $order?->order_number,
+                    $outbound->code,
+                    $order?->courier,
+                    $order?->marketplace,
+                    $order?->store_name,
+                    $outbound->recipient ?: $order?->buyer_name,
+                    $outbound->items_count,
+                    (int) $outbound->items_sum_quantity,
+                    $outbound->resi_verified_at,
+                    $outbound->user?->name,
+                    $outbound->submitter?->name,
+                ];
+            }
+        };
+
+        return TableExport::make('Riwayat Serah Terima')
+            ->note(collect([
+                'Waktu serah terima: '.DateRange::fromRequest($request)->label(),
+                $request->filled('courier') ? 'Kurir: '.($request->input('courier') === '-' ? 'tanpa kurir' : $request->string('courier')) : null,
+                $request->filled('store') ? 'Toko: '.$request->string('store') : null,
+                $request->filled('by') ? 'Diserahkan oleh: '.\App\Models\User::whereKey((int) $request->input('by'))->value('name') : null,
+                $request->filled('marketplace') ? 'Marketplace: '.$request->string('marketplace') : null,
+                $request->filled('search') ? 'Cari: '.$request->string('search')->trim() : null,
+            ])->filter()->implode(' · '))
+            ->sheet('Riwayat Serah Terima', [
+                ['No', 'number'],
+                ['Serah Terima', 'datetime'],
+                ['No. Resi', 'text'],
+                ['No. Pesanan', 'text'],
+                ['No. Dokumen', 'text'],
+                ['Kurir', 'text'],
+                ['Marketplace', 'text'],
+                ['Toko', 'text'],
+                ['Penerima', 'text'],
+                ['Jumlah SKU', 'number'],
+                ['Total Qty', 'sum'],
+                ['QC Kemas', 'datetime'],
+                ['Petugas QC', 'text'],
+                ['Diserahkan Oleh', 'text'],
+            ], $rows())
+            ->download('riwayat-serah-terima-'.now()->format('Y-m-d-Hi').'.xlsx');
+    }
+
+    /**
+     * Paket marketplace yang sudah diserahkan ke kurir pada rentang tanggal.
+     */
+    protected function historyQuery(Request $request, bool $withCourier = true, bool $withUser = true): Builder
+    {
+        $range = DateRange::fromRequest($request);
+
+        return Outbound::query()
+            ->where('outbounds.type', Outbound::TYPE_MARKETPLACE)
+            ->where('outbounds.status', Outbound::STATUS_POSTED)
+            ->tap(fn (Builder $query) => DateRange::constrain($query, 'outbounds.posted_at', $range->from, $range->to))
+            ->search($request->string('search')->trim()->value())
+            ->fromMarketplace($request->string('marketplace')->value())
+            ->tap(fn (Builder $query) => $this->courierStore($query, $request, $withCourier))
+            ->when($withUser && $request->filled('by'), fn (Builder $query) => $query->where('outbounds.submitted_by', (int) $request->input('by')));
+    }
+
+    /**
+     * Saringan kurir dan toko lewat pesanan yang tertaut. Kurir "-" berarti
+     * resi tanpa kurir.
+     */
+    protected function courierStore(Builder $query, Request $request, bool $withCourier = true): Builder
+    {
+        $courier = $withCourier ? $request->string('courier')->value() : '';
+        $store = $request->string('store')->value();
+
+        return $query
+            ->when($courier !== '', fn (Builder $query) => $query->whereHas('shipmentOrder', fn (Builder $order) => $courier === '-'
+                ? $order->where(fn (Builder $order) => $order->whereNull('courier')->orWhere('courier', ''))
+                : $order->where('courier', $courier)))
+            ->when($store !== '', fn (Builder $query) => $query->whereHas('shipmentOrder', fn (Builder $order) => $order->where('store_name', $store)));
     }
 
     public function index(Request $request): View
@@ -127,6 +267,8 @@ class OutboundHandoverController extends Controller implements HasMiddleware
             // jadi pilihannya juga dari sana — bukan daftar tetap yang
             // sebagian besar isinya tidak pernah cocok dengan apa pun.
             'marketplaces' => \App\Models\ShipmentOrder::filterOptions('marketplace'),
+            'couriers' => ShipmentOrder::filterOptions('courier'),
+            'stores' => ShipmentOrder::filterOptions('store_name'),
             // Sengaja tanpa filter: memindai resi bekerja atas seluruh antrean,
             // bukan hanya atas yang kebetulan tampil di layar.
             'handoverCount' => Outbound::awaitingHandover()->count(),
@@ -286,7 +428,7 @@ class OutboundHandoverController extends Controller implements HasMiddleware
     protected function backToQueue(Request $request): RedirectResponse
     {
         return redirect()->route('admin.outbounds.handover', array_filter(
-            $request->only(['search', 'marketplace']),
+            $request->only(['search', 'marketplace', 'courier', 'store']),
             fn ($value) => filled($value),
         ));
     }

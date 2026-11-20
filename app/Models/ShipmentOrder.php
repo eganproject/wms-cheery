@@ -521,7 +521,7 @@ class ShipmentOrder extends Model
 
     public static function forgetFilterOptions(): void
     {
-        foreach (['marketplace', 'store_name', 'courier'] as $column) {
+        foreach (['marketplace', 'store_name', 'courier', 'shipping_method', 'order_status'] as $column) {
             \Illuminate\Support\Facades\Cache::forget("shipment-orders.filter-options.{$column}");
         }
     }
