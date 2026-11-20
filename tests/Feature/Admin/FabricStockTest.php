@@ -500,6 +500,19 @@ class FabricStockTest extends TestCase
         $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.index', ['lihat' => 'jahit', 'status' => 'semua']))->assertOk()->assertSee($first->code);
         $this->actingAs($this->admin)->get(route('admin.inbounds.show', \App\Models\Inbound::firstOrFail()))->assertOk()->assertSee($first->code);
 
+        // Rekap pemotong & penjahit.
+        $report = \App\Support\CuttingReport::for(\Illuminate\Support\Carbon::parse('2026-01-01'), now());
+        $row = $report->cutters->firstWhere('name', 'Pak Cutter');
+        $this->assertSame(16, $row['pieces']);
+        $this->assertSame(2, $row['rolls']);
+        $this->assertSame(67.0, $report->fabrics->firstWhere('cutter', 'Pak Cutter')['used']);
+        $this->assertNotNull($report->cutters->firstWhere('name', 'Tanpa pemotong'));
+        $tailorRow = $report->tailors->firstWhere('name', 'Penjahit Sri');
+        $this->assertSame([16, 15, 0, 1], [$tailorRow['handed'], $tailorRow['received'], $tailorRow['open'], $tailorRow['closed_short']]);
+        $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.index', ['lihat' => 'rekap', 'from' => '2026-01-01', 'to' => now()->toDateString()]))
+            ->assertOk()->assertSee('Pak Cutter')->assertSee('Penjahit Sri');
+        $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.export', ['from' => '2026-01-01', 'to' => now()->toDateString()]))->assertOk();
+
         // Pemasok bisa ditandai penjahit dari form pemasok.
         $this->actingAs($this->admin)->put(route('admin.suppliers.update', $other), ['name' => 'Toko Biasa', 'is_active' => 1, 'is_tailor' => 1])->assertSessionHasNoErrors();
         $this->assertTrue($other->refresh()->is_tailor);

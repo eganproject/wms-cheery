@@ -9,7 +9,11 @@ use App\Models\FabricUsage;
 use App\Models\SewingBatch;
 use App\Models\Supplier;
 use App\Services\FabricStockService;
+use App\Services\TableExport;
+use App\Support\CuttingReport;
 use App\Support\Listing;
+use Illuminate\Support\Carbon;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,7 +37,7 @@ class FabricCuttingController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:fabrics.view', only: ['index', 'show']),
+            new Middleware('can:fabrics.view', only: ['index', 'show', 'export']),
             new Middleware('can:fabrics.issue', only: ['handover', 'finish', 'destroyBatch']),
             new Middleware('can:fabrics.adjust', only: ['closeBatch']),
         ];
@@ -41,6 +45,18 @@ class FabricCuttingController extends Controller implements HasMiddleware
 
     public function index(Request $request): View
     {
+        if ($request->input('lihat') === 'rekap') {
+            [$from, $to] = $this->period($request);
+
+            return view('admin.fabric-cuttings.report', [
+                'view' => 'rekap',
+                'report' => CuttingReport::for($from, $to),
+                'from' => $from,
+                'to' => $to,
+                'summary' => $this->summary(),
+            ]);
+        }
+
         $view = $request->input('lihat') === 'jahit' ? 'jahit' : 'cutting';
         $status = (string) $request->input('status', 'terbuka');
         $term = $request->string('search')->trim()->value();
@@ -291,6 +307,49 @@ class FabricCuttingController extends Controller implements HasMiddleware
             ])
             ->filter(fn ($row) => $row['taken'] > 0)
             ->values();
+    }
+
+    public function export(Request $request): StreamedResponse
+    {
+        [$from, $to] = $this->period($request);
+        $report = CuttingReport::for($from, $to);
+        $period = $from->format('d/m/Y').' – '.$to->format('d/m/Y');
+
+        return TableExport::make('Rekap Cutting & Jahit')
+            ->note('Periode '.$period.'. Kain terpakai menurut tanggal scan keluar; pcs hasil potong & penjahit menurut tanggal batch.')
+            ->sheet('Pemotong', [
+                ['Pemotong', 'text'], ['Jabatan', 'text'], ['Cutting Dimulai', 'sum'], ['Roll Diambil', 'sum'], ['Pcs Hasil Potong', 'sum'], ['Jenis Barang', 'number'],
+            ], $report->cutters->map(fn ($row) => [$row['name'], $row['position'], $row['cuttings'], $row['rolls'], $row['pieces'], $row['products']]))
+            ->sheet('Pemakaian Kain', [
+                ['Pemotong', 'text'], ['SKU Kain', 'text'], ['Nama Kain', 'text'], ['Satuan', 'text'], ['Terpakai', 'number'], ['Standar BOM', 'number'], ['Selisih', 'number'],
+            ], $report->fabrics->map(fn ($row) => [$row['cutter'], $row['fabric']->sku, $row['fabric']->displayName(), $row['fabric']->unit, $row['used'], $row['standard'], $row['difference']]))
+            ->sheet('Hasil Potong per Barang', [
+                ['Pemotong', 'text'], ['SKU Barang', 'text'], ['Nama Barang', 'text'], ['Pcs', 'sum'],
+            ], $report->cutterProducts->map(fn ($row) => [$row['cutter'], $row['sku'], $row['name'], $row['pieces']]))
+            ->sheet('Penjahit', [
+                ['Penjahit', 'text'], ['Batch', 'sum'], ['Diserahkan', 'sum'], ['Diterima', 'sum'], ['Sisa di Penjahit', 'sum'], ['Selisih Batch Ditutup', 'sum'],
+            ], $report->tailors->map(fn ($row) => [$row['name'], $row['batches'], $row['handed'], $row['received'], $row['open'], $row['closed_short']]))
+            ->sheet('Penjahit per Barang', [
+                ['Penjahit', 'text'], ['SKU Barang', 'text'], ['Nama Barang', 'text'], ['Diserahkan', 'sum'], ['Diterima', 'sum'], ['Sisa di Penjahit', 'sum'], ['Selisih Batch Ditutup', 'sum'],
+            ], $report->tailorProducts->map(fn ($row) => [$row['tailor'], $row['sku'], $row['name'], $row['handed'], $row['received'], $row['open'], $row['closed_short']]))
+            ->download('rekap-cutting-jahit-'.$from->format('Y-m-d').'-sd-'.$to->format('Y-m-d').'.xlsx');
+    }
+
+    /** @return array{0: Carbon, 1: Carbon} */
+    protected function period(Request $request): array
+    {
+        $parse = function (?string $value, Carbon $fallback) {
+            try {
+                return $value ? Carbon::createFromFormat('Y-m-d', $value)->startOfDay() : $fallback;
+            } catch (\Throwable) {
+                return $fallback;
+            }
+        };
+
+        $from = $parse($request->input('from'), now()->startOfMonth());
+        $to = $parse($request->input('to'), now()->startOfDay());
+
+        return $from->greaterThan($to) ? [$to, $from] : [$from, $to];
     }
 
     /** @return array<string, int> */
