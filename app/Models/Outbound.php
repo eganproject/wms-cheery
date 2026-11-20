@@ -123,6 +123,12 @@ class Outbound extends Model
         return $this->belongsTo(User::class);
     }
 
+    /** Yang mengajukan dokumen — pada paket marketplace: yang menyerahkan ke kurir. */
+    public function submitter(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'submitted_by');
+    }
+
     public function shipmentOrder(): BelongsTo
     {
         return $this->belongsTo(ShipmentOrder::class);
@@ -510,9 +516,9 @@ class Outbound extends Model
     {
         return $query->when($term, function (Builder $query, string $term) {
             $query->where(function (Builder $query) use ($term) {
-                $query->where('code', 'like', "%{$term}%")
-                    ->orWhere('recipient', 'like', "%{$term}%")
-                    ->orWhere('tracking_number', 'like', "%{$term}%");
+                $query->where('outbounds.code', 'like', "%{$term}%")
+                    ->orWhere('outbounds.recipient', 'like', "%{$term}%")
+                    ->orWhere('outbounds.tracking_number', 'like', "%{$term}%");
             });
         });
     }

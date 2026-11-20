@@ -60,7 +60,7 @@ class QueryBudgetTest extends TestCase
             // ~10 hitung ulang batas kirim & stok (hanya saat datanya berubah,
             // dan di sini cache selalu dikosongkan). Jumlahnya tetap, tidak
             // tumbuh mengikuti banyaknya resi.
-            'pesanan' => ['admin.orders.index', 32],
+            'pesanan' => ['admin.orders.index', 35], // +3: angka tab Semua, pilihan layanan & status marketplace
             'resi per hari' => ['admin.imports.daily', 16],
             'per ekspedisi' => ['admin.imports.couriers', 16],
             // Tiap jenis dokumen berhalaman sendiri, jadi ada satu query hitung per jenis.

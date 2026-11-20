@@ -50,7 +50,7 @@
     <div class="scrollbar-none mb-4 flex gap-1 overflow-x-auto border-b border-ink-200 text-sm" data-order-tabs>
         <a href="{{ route('admin.orders.index', $keep(['stage', 'status'])) }}" data-hint-title="Semua pesanan" data-hint="Seluruh pesanan sesuai filter yang sedang dipakai, dari Belum QC sampai Dibatalkan."
            @class(['-mb-px whitespace-nowrap border-b-2 px-3 py-2', 'border-brand-500 font-medium text-ink-950' => $stage === '', 'border-transparent text-ink-500 hover:text-ink-700' => $stage !== ''])>
-            Semua <span class="ml-1 text-xs text-ink-400">{{ number_format(array_sum($counts), 0, ',', '.') }}</span>
+            Semua <span class="ml-1 text-xs text-ink-400">{{ number_format($allCount, 0, ',', '.') }}</span>
         </a>
         @foreach (OrderController::STAGE_LABELS as $value => $label)
             <a href="{{ route('admin.orders.index', $keep(['stage', 'status'], ['stage' => $value])) }}" data-hint-title="{{ $label }}" data-hint="{{ $hints[$value] ?? '' }}" @if ($next = OrderController::stageNext()[$value] ?? null) data-hint-next="{{ $next }}" @endif
@@ -273,7 +273,7 @@
         {{-- Pencarian: satu kata kunci, atau tempel banyak nomor sekaligus (satu per baris). --}}
         <form method="GET" action="{{ route('admin.orders.index') }}" class="space-y-3 border-b border-ink-100 p-4"
               x-data="{ multi: @js($searchTerms > 1) }">
-            @foreach (['stage', 'marketplace', 'store', 'courier', 'duplicate', 'unmatched', 'ready', 'deadline'] as $field)
+            @foreach (['stage', 'marketplace', 'store', 'courier', 'duplicate', 'unmatched', 'ready', 'deadline', 'per_page'] as $field)
                 @if (request()->filled($field))
                     <input type="hidden" name="{{ $field }}" value="{{ request($field) }}">
                 @endif
@@ -307,17 +307,20 @@
             </div>
 
             <div class="flex flex-col gap-3 lg:flex-row lg:items-end">
-                <div class="min-w-0">
-                    <x-ui.date-filter label="Tanggal unggah berkas" />
+                <div class="flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-start">
+                    <select name="date_by" class="form-control sm:w-48" aria-label="Jenis tanggal" onchange="this.form.requestSubmit()"
+                            title="Tanggal yang disaring. Otomatis: tab Dikirim memakai tanggal serah terima, Dibatalkan tanggal batal, lainnya tanggal unggah.">
+                        @foreach (OrderController::DATE_FIELDS as $value => $label)
+                            <option value="{{ $value }}" @selected((string) request('date_by') === $value)>{{ $value === '' ? 'Otomatis: '.mb_strtolower(OrderController::DATE_FIELDS[OrderController::dateField(new \Illuminate\Http\Request, $stage)]) : $label }}</option>
+                        @endforeach
+                    </select>
+                    <x-ui.date-filter :label="OrderController::DATE_FIELDS[$dateField]" />
                     @if (! $explicitDate && (request()->filled('ready') || request()->filled('deadline')))
-                        <p class="mt-1 text-[11px] text-ink-500">Penanda pengiriman aktif: mencari di semua tanggal unggah.</p>
+                        <p class="mt-1 text-[11px] text-ink-500">Penanda pengiriman aktif: mencari di semua tanggal.</p>
                     @endif
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2 lg:ml-auto">
-                    @if (request()->filled('per_page'))
-                        <input type="hidden" name="per_page" value="{{ request('per_page') }}">
-                    @endif
                     <label for="order-sort" class="whitespace-nowrap text-xs text-ink-500">Urutkan</label>
                     <select id="order-sort" name="sort" class="form-control w-48" onchange="this.form.requestSubmit()">
                         @foreach (OrderController::SORTS as $value => $label)
@@ -325,13 +328,37 @@
                         @endforeach
                     </select>
                     <x-ui.button type="submit" icon="filter">Cari</x-ui.button>
-                    @if (request()->hasAny(['search', 'search_by', 'from', 'to', 'range', 'sort']))
+                    @if (request()->hasAny(['search', 'search_by', 'from', 'to', 'range', 'sort', ...OrderController::EXTRA_FILTER_KEYS]))
                         <x-ui.button :href="route('admin.orders.index', request()->only(['stage', 'marketplace', 'store', 'courier', 'per_page', 'ready', 'deadline']))"
                                      variant="ghost" size="icon" title="Reset pencarian">
                             <x-icon name="close" class="h-4 w-4" />
                         </x-ui.button>
                     @endif
                 </div>
+            </div>
+
+            {{-- Saringan tambahan: dipilih langsung, daftar ikut berubah. --}}
+            @php
+                $extraSelects = [
+                    'kind' => ['Jenis pesanan', OrderController::KIND_FILTERS],
+                    'content' => ['Isi pesanan', OrderController::CONTENT_FILTERS],
+                    'shipping_method' => ['Layanan kirim', $shippingMethods->mapWithKeys(fn ($value) => [$value => $value])->all()],
+                    'order_status' => ['Status marketplace', $orderStatuses->mapWithKeys(fn ($value) => [$value => $value])->all()],
+                    'returned' => ['Retur', OrderController::RETURN_FILTERS],
+                ];
+            @endphp
+            <div class="flex flex-wrap items-center gap-2" data-extra-filters>
+                <span class="inline-flex items-center gap-1 text-xs text-ink-500">Saring juga <x-ui.hint text="Saringan tambahan. Bisa digabung dengan tab, marketplace, toko, kurir, dan tanggal." /></span>
+                @foreach ($extraSelects as $name => [$label, $options])
+                    @continue (empty($options) && ! request()->filled($name))
+                    <select name="{{ $name }}" aria-label="{{ $label }}" onchange="this.form.requestSubmit()"
+                            @class(['form-control w-auto max-w-52', 'border-brand-500 bg-brand-50 text-brand-800' => request()->filled($name)])>
+                        <option value="">{{ $label }}: semua</option>
+                        @foreach ($options as $value => $optionLabel)
+                            <option value="{{ $value }}" @selected((string) request($name) === (string) $value)>{{ $optionLabel }}</option>
+                        @endforeach
+                    </select>
+                @endforeach
             </div>
 
             @if ($searchTerms > 1)
@@ -391,6 +418,12 @@
                                         @endif
                                         @if ($order->order_date)
                                             <span title="Tanggal pesanan di marketplace">Dipesan <span class="text-ink-700">{{ $order->order_date->format('d/m/Y') }}</span></span>
+                                        @endif
+                                        @if ($order->outbound?->resi_verified_at && in_array($orderStage, [ShipmentOrder::STAGE_HANDOVER, ShipmentOrder::STAGE_SHIPPED], true))
+                                            <span title="Waktu resi discan di QC Kemas">QC <span class="text-ink-700">{{ $order->outbound->resi_verified_at->format('d/m/Y H:i') }}</span></span>
+                                        @endif
+                                        @if ($order->shipped_at && $orderStage === ShipmentOrder::STAGE_SHIPPED)
+                                            <span title="Waktu paket diserahkan ke kurir (Serah Terima Paket)">Serah terima <span class="font-medium text-emerald-700">{{ $order->shipped_at->format('d/m/Y H:i') }}</span></span>
                                         @endif
                                         <span title="Waktu resi diimport">Diunggah <span class="text-ink-700">{{ $order->created_at->format('d/m/Y H:i') }}</span></span>
                                     </span>
