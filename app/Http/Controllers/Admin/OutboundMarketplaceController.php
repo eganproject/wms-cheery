@@ -8,6 +8,7 @@ use App\Models\OutboundBundle;
 use App\Models\OutboundItem;
 use App\Models\ShipmentOrder;
 use App\Services\OutboundScanService;
+use App\Services\OutboundSubstitutionService;
 use App\Services\ShipmentOrderResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -30,6 +31,7 @@ class OutboundMarketplaceController extends Controller implements HasMiddleware
     public function __construct(
         protected ShipmentOrderResolver $resolver,
         protected OutboundScanService $scanner,
+        protected OutboundSubstitutionService $substitutions,
     ) {
     }
 
@@ -78,7 +80,12 @@ class OutboundMarketplaceController extends Controller implements HasMiddleware
             ]);
         }
 
-        $outbound = $this->documentFor($order);
+        // Layar yang bisa menawarkan substitusi (QC Kemas web dan Android
+        // versi baru) mengirim flag ini; paket yang stoknya kurang tetap
+        // dibuka untuk pengguna yang boleh mengganti SKU.
+        $canSubstitute = $request->boolean('substitution') && (bool) $request->user()?->can('outbounds.substitute');
+
+        $outbound = $this->documentFor($order, $canSubstitute);
 
         return response()->json([
             'outbound' => [
@@ -91,16 +98,7 @@ class OutboundMarketplaceController extends Controller implements HasMiddleware
             ],
             // Stok ikut dikirim supaya operator tahu sejak resi discan bila ada
             // barang yang tidak cukup — bukan setelah semuanya terlanjur discan.
-            'items' => $outbound->items->map(fn (OutboundItem $item) => [
-                'id' => $item->id,
-                'sku' => $item->product->sku,
-                'name' => $item->product->name,
-                'barcode' => $item->product->barcode,
-                'image_url' => $item->product->image_url,
-                'unit' => $item->product->unit,
-                'stock' => $item->product->stock,
-                'quantity' => $item->quantity,
-            ])->values(),
+            'items' => $this->scanner->itemsPayload($outbound),
             // Paket yang menghasilkan baris di atas. Yang discan tetap
             // barangnya, tetapi operator perlu tahu ia sedang merakit paket —
             // tanpa ini layar hanya menampilkan barang lepas yang jumlahnya
@@ -112,8 +110,10 @@ class OutboundMarketplaceController extends Controller implements HasMiddleware
                 'composition' => $bundle->composition,
             ])->values(),
             'progress' => $this->scanner->progress($outbound),
+            'can_substitute' => $canSubstitute,
             'urls' => [
                 'item' => route('admin.outbounds.scan.item', $outbound),
+                'substitute' => route('admin.outbounds.scan.substitute', $outbound),
                 'detail' => route('admin.outbounds.show', $outbound),
             ],
         ]);
@@ -123,20 +123,20 @@ class OutboundMarketplaceController extends Controller implements HasMiddleware
      * Ambil dokumen draft yang sudah ada untuk resi ini, atau buat baru dari
      * data import. Resi langsung ditandai terverifikasi karena baru saja discan.
      */
-    protected function documentFor(ShipmentOrder $order): Outbound
+    protected function documentFor(ShipmentOrder $order, bool $canSubstitute = false): Outbound
     {
         // Baris pesanannya dikunci lebih dulu: dua stasiun QC yang memindai
         // resi yang sama pada saat bersamaan tidak boleh sama-sama membuat
         // dokumen baru untuknya. Yang kedua menunggu, lalu memakai dokumen
         // yang dibuat yang pertama.
-        return DB::transaction(function () use ($order) {
+        return DB::transaction(function () use ($order, $canSubstitute) {
             ShipmentOrder::whereKey($order->getKey())->lockForUpdate()->first();
 
-            return $this->openDocumentFor($order);
+            return $this->openDocumentFor($order, $canSubstitute);
         });
     }
 
-    protected function openDocumentFor(ShipmentOrder $order): Outbound
+    protected function openDocumentFor(ShipmentOrder $order, bool $canSubstitute = false): Outbound
     {
         $existing = Outbound::with('items')
             ->where('shipment_order_id', $order->id)
@@ -169,6 +169,13 @@ class OutboundMarketplaceController extends Controller implements HasMiddleware
         // Paket bundling sudah dipecah menjadi barang isinya oleh resolver.
         $lines = $this->resolver->toOutboundLines($order);
 
+        // Substitusi SKU yang sudah dilakukan pada paket ini tetap berlaku:
+        // unit penggantinya dikurangkan dari baris pesanan aslinya.
+        $substituted = $existing
+            ? $existing->items->filter(fn (OutboundItem $item) => $item->isSubstitute())->values()
+            : collect();
+        [$orderLines, $substituteLines] = $this->substitutions->reapply($lines->items, $substituted);
+
         // Resi tanpa barang sama sekali (baris pesanannya kosong di berkas
         // import) tidak dibuka: tidak ada yang bisa discan, sehingga layar
         // tertahan di tahap scan barang tanpa jalan keluar.
@@ -184,13 +191,16 @@ class OutboundMarketplaceController extends Controller implements HasMiddleware
         // Yang diperiksa adalah barang hasil pemecahan, bukan SKU paketnya —
         // sehingga pesannya menyebut komponen mana yang kurang, yang memang
         // satu-satunya hal yang bisa ditindaklanjuti operator.
-        if ($shortages = $this->scanner->stockShortages($lines->items)) {
+        //
+        // Pengguna yang boleh substitusi SKU tetap bisa membuka paketnya:
+        // barang yang stoknya kurang bisa diganti barang lain saat scan.
+        if (! $canSubstitute && ($shortages = $this->scanner->stockShortages(array_merge($orderLines, $substituteLines)))) {
             throw ValidationException::withMessages([
                 'code' => $shortages,
             ]);
         }
 
-        return DB::transaction(function () use ($order, $existing, $lines) {
+        return DB::transaction(function () use ($order, $existing, $lines, $orderLines, $substituteLines) {
             $outbound = $existing ?? new Outbound([
                 'code' => Outbound::nextCode(),
                 'date' => now()->toDateString(),
@@ -211,17 +221,19 @@ class OutboundMarketplaceController extends Controller implements HasMiddleware
             // dari data import (pesanannya bisa berubah), tetapi unit yang
             // sudah discan dibawa — tidak pernah melebihi jumlah pesanan.
             $scanned = $existing
-                ? $existing->items->groupBy('product_id')->map(fn ($items) => (int) $items->sum('scanned_quantity'))
+                ? $existing->items->reject(fn (OutboundItem $item) => $item->isSubstitute())
+                    ->groupBy('product_id')->map(fn ($items) => (int) $items->sum('scanned_quantity'))
                 : collect();
 
             $outbound->items()->delete();
             $outbound->bundles()->delete();
             $outbound->items()->createMany(array_map(fn (array $line) => array_merge($line, [
                 'scanned_quantity' => min($scanned[$line['product_id']] ?? 0, (int) $line['quantity']),
-            ]), $lines->items));
+            ]), $orderLines));
+            $outbound->items()->createMany($substituteLines);
             $outbound->bundles()->createMany($lines->bundles);
 
-            return $outbound->load('items.product', 'bundles.bundle');
+            return $outbound->load('items.product', 'items.substitutedFrom', 'bundles.bundle');
         });
     }
 }

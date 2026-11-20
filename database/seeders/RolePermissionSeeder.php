@@ -83,6 +83,7 @@ class RolePermissionSeeder extends Seeder
             'outbounds.update' => 'Mengubah penjualan manual & pengiriman pesanan',
             'outbounds.delete' => 'Menghapus penjualan manual & pengiriman pesanan',
             'outbounds.scan' => 'Verifikasi scan resi & barang',
+            'outbounds.substitute' => 'Substitusi SKU saat QC Kemas',
             'outbounds.post' => 'Mengajukan & membatalkan penjualan',
             'outbounds.approve' => 'Menyetujui penjualan',
         ],

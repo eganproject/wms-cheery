@@ -244,6 +244,7 @@
                                     <span class="font-semibold">Stok tidak mencukupi:</span>
                                     <span class="font-mono" x-text="shortages.map((line) => line.sku).join(', ')"></span>.
                                     Barang ini tidak bisa discan sampai stoknya dicatat lewat Penerimaan Barang.
+                                    @can('outbounds.substitute') Atau scan barang lain sebagai pengganti. @endcan
                                 </span>
                             </p>
                         </div>
@@ -287,6 +288,17 @@
                                                     <span class="truncate" x-text="line.sku"></span>
                                                 </span>
                                                 <p class="mt-0.5 truncate text-sm font-medium text-ink-950" x-text="line.name"></p>
+
+                                                {{-- Baris pengganti hasil substitusi SKU di stasiun ini. --}}
+                                                <template x-if="line.substituted_from">
+                                                    <p class="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-amber-700">
+                                                        <span class="font-medium" x-text="`Pengganti dari ${line.substituted_from.sku}`"></span>
+                                                        <span class="text-amber-400">&middot;</span>
+                                                        <span x-text="line.substitution_reason"></span>
+                                                        <button type="button" x-on:click="revertSubstitution(line)" :disabled="busy"
+                                                                class="text-ink-500 underline underline-offset-2 hover:text-ink-950">Batalkan</button>
+                                                    </p>
+                                                </template>
 
                                                 <p class="flex flex-wrap items-center gap-x-1.5 text-[11px]">
                                                     <span class="truncate font-mono text-ink-400"
@@ -414,6 +426,90 @@
                         </template>
                     </ul>
                 </div>
+            </div>
+        </div>
+
+        {{--
+            Substitusi SKU. Muncul saat barang yang discan tidak ada di pesanan
+            (atau barisnya sudah lengkap) dan bisa menggantikan baris yang
+            masih kurang. Hanya untuk pengguna dengan hak "Substitusi SKU".
+        --}}
+        <div x-show="offer" x-cloak class="fixed inset-0 z-50 flex items-end justify-center bg-ink-950/40 p-0 sm:items-center sm:p-4"
+             x-on:keydown.escape.window="offer && cancelOffer()">
+            <div class="w-full max-w-md rounded-t-2xl bg-white shadow-xl sm:rounded-2xl" x-on:click.outside="cancelOffer()">
+                <template x-if="offer">
+                    <form data-no-ajax @submit.prevent="confirmSubstitution()" class="space-y-4 p-5">
+                        <div class="flex items-start gap-3">
+                            <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                                <x-icon name="refresh" class="h-4 w-4" />
+                            </span>
+                            <div class="min-w-0">
+                                <h3 class="text-base font-semibold text-ink-950">Ganti SKU pesanan?</h3>
+                                <p class="text-xs text-ink-500">Barang yang discan akan dikirim sebagai pengganti. Stok yang berkurang adalah stok barang pengganti.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3 rounded-lg bg-green-50 p-3 ring-1 ring-inset ring-green-200">
+                            <template x-if="offer.product.image_url">
+                                <img :src="offer.product.image_url" alt="" class="h-12 w-12 shrink-0 rounded-lg object-cover">
+                            </template>
+                            <div class="min-w-0">
+                                <p class="text-[11px] text-green-700">Pengganti</p>
+                                <p class="truncate font-mono text-sm font-semibold text-ink-950" x-text="offer.product.sku"></p>
+                                <p class="truncate text-xs text-ink-600" x-text="`${offer.product.name} · stok ${offer.product.stock} ${offer.product.unit}`"></p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <p class="mb-1.5 text-xs font-medium text-ink-700">Menggantikan barang pesanan</p>
+                            <div class="space-y-1.5">
+                                <template x-for="line in offer.lines" :key="line.item_id">
+                                    <label class="flex cursor-pointer items-center gap-3 rounded-lg p-2.5 ring-1 ring-inset transition"
+                                           :class="offerForm.item_id === line.item_id ? 'bg-ink-50 ring-ink-950' : 'ring-ink-200 hover:bg-ink-50'">
+                                        <input type="radio" name="substitute_line" :value="line.item_id"
+                                               x-on:change="offerForm.item_id = line.item_id; offerForm.quantity = Math.min(offerForm.quantity, line.remaining)"
+                                               :checked="offerForm.item_id === line.item_id">
+                                        <div class="min-w-0 flex-1">
+                                            <p class="truncate font-mono text-xs font-semibold text-ink-950" x-text="line.sku"></p>
+                                            <p class="truncate text-[11px] text-ink-500" x-text="line.name"></p>
+                                        </div>
+                                        <span class="shrink-0 text-[11px] text-ink-500" x-text="`sisa ${line.remaining}`"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-3">
+                            <label class="block">
+                                <span class="mb-1 block text-xs font-medium text-ink-700">Jumlah</span>
+                                <input type="number" min="1" :max="offerLine ? offerLine.remaining : 1" inputmode="numeric"
+                                       x-model.number="offerForm.quantity" class="block h-10 w-full rounded-lg text-center">
+                            </label>
+                            <label class="col-span-2 block">
+                                <span class="mb-1 block text-xs font-medium text-ink-700">Alasan</span>
+                                <select x-model="offerForm.reason" class="block h-10 w-full rounded-lg">
+                                    <option value="">Pilih alasan…</option>
+                                    <template x-for="reason in offer.reasons" :key="reason.value">
+                                        <option :value="reason.value" x-text="reason.label"></option>
+                                    </template>
+                                </select>
+                            </label>
+                        </div>
+
+                        <label class="block" x-show="offerForm.reason === 'lainnya'">
+                            <span class="mb-1 block text-xs font-medium text-ink-700">Keterangan</span>
+                            <input type="text" maxlength="255" x-model="offerForm.note" class="block h-10 w-full rounded-lg"
+                                   placeholder="Tulis alasan singkat">
+                        </label>
+
+                        <p x-show="offerError" x-cloak class="rounded-lg bg-red-100 px-3 py-2 text-sm text-red-700" x-text="offerError"></p>
+
+                        <div class="flex gap-2 pt-1">
+                            <button type="button" x-on:click="cancelOffer()" class="btn btn-default flex-1">Batal</button>
+                            <button type="submit" :disabled="busy || ! offerReady" class="btn btn-primary flex-1">Ganti SKU</button>
+                        </div>
+                    </form>
+                </template>
             </div>
         </div>
 

@@ -91,6 +91,8 @@ class AuthController extends Controller
             'can' => [
                 // QC Kemas di web: outbounds.create + outbounds.scan.
                 'kemas' => $user->can('outbounds.create') && $user->can('outbounds.scan'),
+                // Substitusi SKU saat Scan Kemas: outbounds.substitute.
+                'substitusi' => $user->can('outbounds.substitute'),
                 // Serah Terima Paket di web: outbounds.post.
                 'serah_terima' => $user->can('outbounds.post'),
                 // Halaman Pesanan di web: imports.view.

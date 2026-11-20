@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -30,6 +32,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -58,6 +62,9 @@ import id.cheerychic.wmsscan.data.PackBundle
 import id.cheerychic.wmsscan.data.PackItem
 import id.cheerychic.wmsscan.data.PackOutbound
 import id.cheerychic.wmsscan.data.ResiResponse
+import id.cheerychic.wmsscan.data.Session
+import id.cheerychic.wmsscan.data.SubstitutionOffer
+import id.cheerychic.wmsscan.data.SubstitutionResponse
 import id.cheerychic.wmsscan.ui.components.AppCard
 import id.cheerychic.wmsscan.ui.components.Banner
 import id.cheerychic.wmsscan.ui.components.BannerView
@@ -119,7 +126,12 @@ class KemasViewModel : ViewModel() {
     /** Paket yang baru saja lengkap; ditampilkan layar hijau sebentar. */
     var celebrate by mutableStateOf<Packet?>(null)
 
+    /** Tawaran substitusi SKU yang sedang ditampilkan (barang di luar pesanan). */
+    var offer by mutableStateOf<SubstitutionOffer?>(null)
+
     private val lock = Mutex()
+
+    private val canSubstitute get() = Session.user.value?.can?.substitusi == true
 
     /** Paket yang sudah lengkap: scan berikutnya dianggap resi baru. */
     val waitingForResi get() = packet?.complete ?: true
@@ -130,6 +142,62 @@ class KemasViewModel : ViewModel() {
                 busy = true
                 try {
                     if (waitingForResi) scanResi(code) else scanItem(context, code)
+                } catch (e: ApiException) {
+                    banner = Banner(e.message ?: "Gagal", Tone.Error)
+                    Feedback.error(context)
+                    if (!waitingForResi) e.substitution?.let { offer = it }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    banner = Banner("Jawaban server tidak dikenali.", Tone.Error)
+                    Feedback.error(context)
+                } finally {
+                    busy = false
+                }
+            }
+        }
+    }
+
+    /** Konfirmasi substitusi: unit baris pesanan diganti barang yang discan. */
+    fun substitute(context: Context, itemId: Int, quantity: Int, reason: String, note: String?) {
+        val current = packet ?: return
+        val pending = offer ?: return
+        // Dialog ditutup dulu supaya pesan gagal (bila ada) terlihat di layar.
+        offer = null
+        runLocked(context) {
+            applySubstitution(context, current, Api.substitute(current.outbound.id, itemId, pending.code, quantity, reason, note))
+        }
+    }
+
+    /** Batalkan satu baris pengganti; unitnya kembali ke barang pesanan asli. */
+    fun revertSubstitution(context: Context, itemId: Int) {
+        val current = packet ?: return
+        runLocked(context) {
+            applySubstitution(context, current, Api.revertSubstitute(current.outbound.id, itemId))
+        }
+    }
+
+    private fun applySubstitution(context: Context, current: Packet, result: SubstitutionResponse) {
+        val scannedById = result.progress.items.associate { it.id to it.scanned }
+        val next = current.copy(lines = result.items.map { PackLine(it, scannedById[it.id] ?: 0) })
+        packet = next
+        if (next.complete || result.progress.ready) {
+            finishedCount++
+            banner = null
+            celebrate = next
+            Feedback.done(context)
+        } else {
+            banner = Banner(result.message, Tone.Success)
+            Feedback.ok()
+        }
+    }
+
+    private fun runLocked(context: Context, block: suspend () -> Unit) {
+        viewModelScope.launch {
+            lock.withLock {
+                busy = true
+                try {
+                    block()
                 } catch (e: ApiException) {
                     banner = Banner(e.message ?: "Gagal", Tone.Error)
                     Feedback.error(context)
@@ -146,7 +214,7 @@ class KemasViewModel : ViewModel() {
     }
 
     private suspend fun scanResi(code: String) {
-        val result: ResiResponse = Api.scanResi(code)
+        val result: ResiResponse = Api.scanResi(code, canSubstitute)
         val scannedById = result.progress.items.associate { it.id to it.scanned }
         val next = Packet(
             outbound = result.outbound,
@@ -154,6 +222,7 @@ class KemasViewModel : ViewModel() {
             bundles = result.bundles,
         )
         celebrate = null
+        offer = null
         packet = next
         quantity = 1
         banner = if (next.scanned > 0) {
@@ -166,7 +235,8 @@ class KemasViewModel : ViewModel() {
 
     private suspend fun scanItem(context: Context, code: String) {
         val current = packet ?: return
-        val result = Api.scanItem(current.outbound.id, code, quantity.coerceAtLeast(1))
+        offer = null
+        val result = Api.scanItem(current.outbound.id, code, quantity.coerceAtLeast(1), canSubstitute)
         val scannedById = result.progress.items.associate { it.id to it.scanned }
         val next = current.copy(lines = current.lines.map { line ->
             line.copy(scanned = scannedById[line.item.id] ?: line.scanned)
@@ -188,6 +258,7 @@ class KemasViewModel : ViewModel() {
     /** Lepas paket dari layar tanpa menghapus hasil scan di server. */
     fun release() {
         packet = null
+        offer = null
         banner = Banner("Paket tadi bisa dilanjutkan dengan scan resinya lagi.", Tone.Info)
     }
 
@@ -199,6 +270,7 @@ class KemasViewModel : ViewModel() {
                 try {
                     val result = Api.resetPacking(current.outbound.id)
                     packet = null
+                    offer = null
                     banner = Banner(result.message.ifBlank { "Progres scan direset." }, Tone.Info)
                 } catch (e: ApiException) {
                     banner = Banner(e.message ?: "Gagal reset", Tone.Error)
@@ -240,6 +312,13 @@ fun KemasScreen(onBack: () -> Unit, vm: KemasViewModel = viewModel()) {
         )
     }
     if (editQty) QtyDialog(vm.quantity, onDismiss = { editQty = false }) { vm.quantity = it; editQty = false }
+    vm.offer?.let { offer ->
+        SubstitutionDialog(
+            offer = offer,
+            busy = vm.busy,
+            onDismiss = { vm.offer = null },
+        ) { itemId, qty, reason, note -> vm.substitute(context, itemId, qty, reason, note) }
+    }
 
     Box(Modifier.fillMaxSize().background(Night)) {
         Column(Modifier.fillMaxSize()) {
@@ -335,6 +414,7 @@ private fun IdleSheet(vm: KemasViewModel) {
 @Composable
 private fun PacketSheet(packet: Packet, vm: KemasViewModel, onReset: () -> Unit) {
     val o = packet.outbound
+    val context = LocalContext.current
     LazyColumn(
         Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -371,7 +451,9 @@ private fun PacketSheet(packet: Packet, vm: KemasViewModel, onReset: () -> Unit)
             }
         }
         item { BannerView(vm.banner) }
-        items(packet.lines, key = { it.item.id }) { line -> LineCard(line) }
+        items(packet.lines, key = { it.item.id }) { line ->
+            LineCard(line, onRevert = { vm.revertSubstitution(context, line.item.id) })
+        }
         item {
             Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (!packet.complete) {
@@ -400,7 +482,7 @@ private fun PacketSheet(packet: Packet, vm: KemasViewModel, onReset: () -> Unit)
 }
 
 @Composable
-private fun LineCard(line: PackLine) {
+private fun LineCard(line: PackLine, onRevert: () -> Unit) {
     val done = line.complete
     AppCard(
         Modifier.fillMaxWidth().then(if (done) Modifier.border(1.5.dp, Success.copy(alpha = 0.5f), RoundedCornerShape(20.dp)) else Modifier),
@@ -423,6 +505,21 @@ private fun LineCard(line: PackLine) {
                     line.item.name.ifBlank { line.item.barcode ?: "" },
                     color = InkMuted, fontSize = 12.5.sp, maxLines = 1,
                 )
+                line.item.substitutedFrom?.let { from ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Pengganti dari ${from.sku ?: "-"}" + (line.item.substitutionReason?.let { " · $it" } ?: ""),
+                            color = Color(0xFFB45309), fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                            maxLines = 1, modifier = Modifier.weight(1f, fill = false),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "Batalkan",
+                            color = InkMuted, fontSize = 12.sp,
+                            modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClick = onRevert).padding(horizontal = 4.dp, vertical = 2.dp),
+                        )
+                    }
+                }
                 Spacer(Modifier.height(3.dp))
                 ProgressLine(
                     if (line.item.quantity == 0) 0f else line.scanned.toFloat() / line.item.quantity,
@@ -520,6 +617,128 @@ private fun QtyDialog(current: Int, onDismiss: () -> Unit, onSave: (Int) -> Unit
         },
         confirmButton = {
             TextButton(onClick = { onSave(text.toIntOrNull()?.coerceAtLeast(1) ?: 1) }) { Text("Simpan", color = Ink) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Batal", color = InkMuted) } },
+        containerColor = Color.White,
+    )
+}
+
+/**
+ * Substitusi SKU: barang yang discan tidak ada di pesanan, tetapi bisa
+ * menggantikan barang pesanan yang masih kurang. Operator memilih barang
+ * pesanan yang diganti, jumlah, dan alasannya.
+ */
+@Composable
+private fun SubstitutionDialog(
+    offer: SubstitutionOffer,
+    busy: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (itemId: Int, quantity: Int, reason: String, note: String?) -> Unit,
+) {
+    var itemId by remember(offer) { mutableStateOf(offer.lines.singleOrNull()?.itemId) }
+    var qtyText by remember(offer) { mutableStateOf(offer.quantity.coerceAtLeast(1).toString()) }
+    var reason by remember(offer) { mutableStateOf<String?>(null) }
+    var note by remember(offer) { mutableStateOf("") }
+
+    val line = offer.lines.firstOrNull { it.itemId == itemId }
+    val qty = qtyText.toIntOrNull() ?: 0
+    val ready = line != null && qty in 1..line.remaining && reason != null &&
+        (reason != "lainnya" || note.isNotBlank())
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Ganti SKU pesanan?") },
+        text = {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Success.copy(alpha = 0.12f)).padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ProductThumb(offer.product.imageUrl, offer.product.sku, size = 44.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Pengganti", color = SuccessDark, fontSize = 11.sp)
+                        Text(offer.product.sku, color = Ink, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
+                        Text(
+                            "${offer.product.name} · stok ${offer.product.stock} ${offer.product.unit ?: ""}".trim(),
+                            color = InkMuted, fontSize = 12.sp, maxLines = 1,
+                        )
+                    }
+                }
+
+                Text("Menggantikan barang pesanan", color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                offer.lines.forEach { candidate ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .border(1.dp, if (candidate.itemId == itemId) Ink else InkLine, RoundedCornerShape(12.dp))
+                            .clickable {
+                                itemId = candidate.itemId
+                                if (qty > candidate.remaining) qtyText = candidate.remaining.toString()
+                            }
+                            .padding(end = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = candidate.itemId == itemId,
+                            onClick = { itemId = candidate.itemId },
+                            colors = RadioButtonDefaults.colors(selectedColor = Ink),
+                        )
+                        Column(Modifier.weight(1f)) {
+                            Text(candidate.sku, color = Ink, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
+                            Text(candidate.name, color = InkMuted, fontSize = 11.5.sp, maxLines = 1)
+                        }
+                        Text("sisa ${candidate.remaining}", color = InkMuted, fontSize = 12.sp)
+                    }
+                }
+
+                OutlinedTextField(
+                    value = qtyText,
+                    onValueChange = { value -> qtyText = value.filter { it.isDigit() }.take(4) },
+                    label = { Text("Jumlah") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                Text("Alasan", color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                offer.reasons.forEach { option ->
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { reason = option.value },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = reason == option.value,
+                            onClick = { reason = option.value },
+                            colors = RadioButtonDefaults.colors(selectedColor = Ink),
+                        )
+                        Text(option.label, color = Ink, fontSize = 13.sp)
+                    }
+                }
+                if (reason == "lainnya") {
+                    OutlinedTextField(
+                        value = note,
+                        onValueChange = { note = it.take(255) },
+                        label = { Text("Keterangan") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                Text(
+                    "Stok yang berkurang saat serah terima adalah stok barang pengganti.",
+                    color = InkMuted, fontSize = 12.sp,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = ready && !busy,
+                onClick = { onConfirm(itemId!!, qty, reason!!, note.takeIf { it.isNotBlank() }) },
+            ) { Text("Ganti SKU", color = if (ready && !busy) Ink else InkMuted, fontWeight = FontWeight.Bold) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Batal", color = InkMuted) } },
         containerColor = Color.White,
