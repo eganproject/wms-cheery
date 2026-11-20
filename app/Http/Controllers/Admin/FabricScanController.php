@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Employee;
 use App\Models\FabricMovement;
 use App\Models\FabricRoll;
 use App\Models\Product;
@@ -31,7 +32,7 @@ class FabricScanController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('can:fabrics.view', only: ['show', 'lookup', 'recent']),
-            new Middleware('can:fabrics.issue', only: ['issue', 'products']),
+            new Middleware('can:fabrics.issue', only: ['issue', 'products', 'cutters']),
             new Middleware('can:fabrics.adjust', only: ['adjust']),
         ];
     }
@@ -45,6 +46,7 @@ class FabricScanController extends Controller implements HasMiddleware
             'canAdjust' => $user->can('fabrics.adjust'),
             'mode' => $request->input('mode') === 'cek' && $user->can('fabrics.adjust') ? 'cek' : 'keluar',
             'recent' => $this->recentList($request),
+            'cutters' => $this->cutterList(),
         ]);
     }
 
@@ -70,13 +72,14 @@ class FabricScanController extends Controller implements HasMiddleware
             'all' => ['nullable', 'boolean'],
             'quantity' => ['nullable', 'required_unless:all,1,true', 'numeric', 'gt:0', 'max:999999'],
             'product_id' => ['required', 'integer', 'exists:products,id'],
+            'employee_id' => ['nullable', 'integer', 'exists:employees,id'],
             'note' => ['nullable', 'string', 'max:255'],
         ], [
             'product_id.required' => 'Pilih barang yang dibuat dari kain ini.',
             'product_id.exists' => 'Barang yang dipilih tidak ditemukan.',
             'quantity.required_unless' => 'Isi jumlah kain yang keluar, atau pilih ambil semua.',
             'quantity.gt' => 'Jumlah kain keluar harus lebih dari 0.',
-        ], ['quantity' => 'jumlah kain keluar', 'product_id' => 'barang']);
+        ], ['quantity' => 'jumlah kain keluar', 'product_id' => 'barang', 'employee_id' => 'pemotong']);
 
         $roll = $this->rollOrFail($data['code']);
         $movement = $stock->issue(
@@ -85,6 +88,7 @@ class FabricScanController extends Controller implements HasMiddleware
             Product::findOrFail($data['product_id']),
             filled($data['note'] ?? null) ? trim($data['note']) : null,
             $request->user(),
+            filled($data['employee_id'] ?? null) ? Employee::find($data['employee_id']) : null,
         );
 
         $roll->refresh()->load('fabric');
@@ -92,9 +96,10 @@ class FabricScanController extends Controller implements HasMiddleware
 
         return response()->json([
             'message' => "Keluar {$fabric->format(-$movement->quantity)} dari {$roll->code} untuk {$movement->product->sku}"
+                .($movement->cutting ? " ({$movement->cutting->code})" : '')
                 .($roll->isEmpty() ? ' · roll habis' : ' · sisa '.$fabric->format($roll->quantity)),
             'roll' => self::rollData($roll),
-            'movement' => self::movementData($movement->load(['roll.fabric', 'product'])),
+            'movement' => self::movementData($movement->load(['roll.fabric', 'product', 'cutting'])),
             'recent' => $this->recentList($request),
         ]);
     }
@@ -146,6 +151,27 @@ class FabricScanController extends Controller implements HasMiddleware
         return response()->json(['products' => $products->map(fn (Product $product) => self::productData($product))->values()]);
     }
 
+    /** Pemotong (karyawan aktif) untuk kain keluar. */
+    public function cutters(): JsonResponse
+    {
+        return response()->json(['cutters' => $this->cutterList()]);
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    protected function cutterList(): array
+    {
+        return Employee::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'code', 'name', 'position'])
+            ->map(fn (Employee $employee) => [
+                'id' => $employee->id,
+                'name' => $employee->name,
+                'position' => $employee->position,
+            ])
+            ->all();
+    }
+
     /** Kain keluar terakhir oleh pengguna ini hari ini. */
     public function recent(Request $request): JsonResponse
     {
@@ -168,7 +194,7 @@ class FabricScanController extends Controller implements HasMiddleware
     {
         return FabricMovement::query()
             ->issues()
-            ->with(['roll.fabric', 'product'])
+            ->with(['roll.fabric', 'product', 'cutting'])
             ->where('user_id', $request->user()?->id)
             ->where('moved_at', '>=', today())
             ->latest('moved_at')->latest('id')
@@ -251,6 +277,7 @@ class FabricScanController extends Controller implements HasMiddleware
             'product_sku' => $movement->product?->sku,
             'product_name' => $movement->product?->name,
             'destination' => $movement->productLabel(),
+            'cutting_code' => $movement->cutting?->code,
             'time' => $movement->moved_at->format('H:i'),
             'cancelled' => $movement->isCancelled(),
         ];

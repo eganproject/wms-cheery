@@ -426,6 +426,17 @@ data class FabricProduct(
     @SerialName("image_url") val imageUrl: String? = null,
 )
 
+/** Pemotong (karyawan) yang menerima kain untuk Cutting. */
+@Serializable
+data class FabricCutter(
+    val id: Int,
+    val name: String,
+    val position: String? = null,
+)
+
+@Serializable
+data class FabricCutterList(val cutters: List<FabricCutter> = emptyList())
+
 @Serializable
 data class FabricProductList(val products: List<FabricProduct> = emptyList())
 
@@ -439,6 +450,7 @@ data class FabricIssue(
     @SerialName("balance_label") val balanceLabel: String = "",
     val destination: String? = null,
     @SerialName("product_sku") val productSku: String? = null,
+    @SerialName("cutting_code") val cuttingCode: String? = null,
     val time: String = "",
     val cancelled: Boolean = false,
 )

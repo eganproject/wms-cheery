@@ -27,6 +27,7 @@ class StoreInboundRequest extends FormRequest
         return [
             'date' => ['required', 'date'],
             'supplier_id' => ['nullable', 'integer', 'exists:suppliers,id'],
+            'sewing_batch_id' => ['nullable', 'integer', 'exists:sewing_batches,id'],
             'reference' => ['nullable', 'string', 'max:100'],
             'note' => ['nullable', 'string', 'max:1000'],
             'items' => ['required', 'array', 'min:1'],
@@ -48,6 +49,15 @@ class StoreInboundRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             $this->rejectBundleLines($validator);
+
+            // Batch WIP Jahit harus milik penjahit (pemasok) yang dipilih.
+            if ($this->filled('sewing_batch_id')) {
+                $batch = \App\Models\SewingBatch::find($this->integer('sewing_batch_id'));
+
+                if ($batch && (int) $batch->supplier_id !== $this->integer('supplier_id')) {
+                    $validator->errors()->add('sewing_batch_id', 'Batch WIP Jahit ini bukan milik pemasok yang dipilih.');
+                }
+            }
 
             foreach ($this->input('items', []) as $index => $item) {
                 $damaged = (int) ($item['damaged_quantity'] ?? 0);

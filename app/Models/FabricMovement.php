@@ -20,11 +20,15 @@ class FabricMovement extends Model
 
     public const TYPE_CANCEL = 'cancel';
 
+    /** Sisa kain dari cutting dikembalikan ke rollnya. */
+    public const TYPE_RETURN = 'return';
+
     public const TYPES = [
         self::TYPE_IN => 'Kain masuk',
         self::TYPE_OUT => 'Kain keluar',
         self::TYPE_ADJUST => 'Koreksi',
         self::TYPE_CANCEL => 'Batal keluar',
+        self::TYPE_RETURN => 'Kain kembali',
     ];
 
     protected $fillable = [
@@ -35,6 +39,7 @@ class FabricMovement extends Model
         'quantity',
         'balance_after',
         'product_id',
+        'fabric_cutting_id',
         'destination',
         'note',
         'reverses_id',
@@ -66,6 +71,11 @@ class FabricMovement extends Model
     public function receipt(): BelongsTo
     {
         return $this->belongsTo(FabricReceipt::class, 'fabric_receipt_id');
+    }
+
+    public function cutting(): BelongsTo
+    {
+        return $this->belongsTo(FabricCutting::class, 'fabric_cutting_id');
     }
 
     /** Barang yang dibuat dari kain keluar ini. */

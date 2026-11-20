@@ -286,13 +286,28 @@ class FabricStockTest extends TestCase
         // Tunik belum diatur pemakaian kainnya.
         $this->assertSame(['Tunik 1'], $needs->missing->pluck('sku')->all());
 
-        // Kain yang sudah keluar sejak tanggal tertentu mengurangi kebutuhan.
-        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.issue'), ['code' => 'TYB-HTM-001', 'product_id' => $this->product()->id, 'quantity' => 1])->assertOk();
-        $row = $this->actingAs($this->admin)->get(route('admin.fabric-needs.index', ['keluar_sejak' => '2026-06-12']))
-            ->assertOk()->viewData('needs')->rows->first();
-        $this->assertSame(1.0, $row['issued']);
-        $this->assertSame(4.0, $row['remaining']);
-        $this->assertSame(2.0, $row['stock']);
+        // Kain keluar untuk gamis masuk Cutting dan mengurangi kebutuhan.
+        $cutter = \App\Models\Employee::create(['code' => 'K-001', 'name' => 'Pak Cutter', 'attendance_method' => 'machine', 'is_active' => true]);
+        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.issue'), [
+            'code' => 'TYB-HTM-001', 'product_id' => $gamis->id, 'employee_id' => $cutter->id, 'quantity' => 2.5,
+        ])->assertOk();
+        $row = $this->actingAs($this->admin)->get(route('admin.fabric-needs.index'))->assertOk()->viewData('needs')->rows->first();
+        $this->assertSame(2.5, $row['in_cutting']);
+        $this->assertSame(2.5, $row['remaining']);
+        $this->assertSame(0.5, $row['stock']);
+        $this->assertSame(2.0, $row['short']);
+
+        // Hasil potong 1 pcs diserahkan ke penjahit: pindah dari Cutting ke WIP Jahit.
+        $tailor = Supplier::create(['code' => 'SUP-9', 'name' => 'Penjahit Sri', 'is_active' => true, 'is_tailor' => true]);
+        $cutting = \App\Models\FabricCutting::firstOrFail();
+        $this->actingAs($this->admin)->post(route('admin.fabric-cuttings.handover', $cutting), [
+            'supplier_id' => $tailor->id, 'date' => '2026-06-12', 'items' => [$gamis->id => 1],
+        ])->assertSessionHasNoErrors();
+        $row = $this->actingAs($this->admin)->get(route('admin.fabric-needs.index'))->assertOk()->viewData('needs')->rows->first();
+        $this->assertSame(1, $row['wip']);
+        $this->assertSame(1, $row['units']);
+        $this->assertSame(0.0, $row['in_cutting']);
+        $this->assertSame(2.5, $row['remaining']);
         $this->assertSame(2.0, $row['short']);
 
         $this->actingAs($this->admin)->get(route('admin.fabric-needs.export'))->assertOk();
@@ -381,5 +396,89 @@ class FabricStockTest extends TestCase
         // Staf tanpa akses kelola kain tidak bisa mengubah.
         $staff = User::factory()->create(['role_id' => Role::where('slug', 'staff-gudang')->value('id'), 'is_active' => true]);
         $this->actingAs($staff)->put(route('admin.products.fabrics.update', $s), [])->assertForbidden();
+    }
+
+    public function test_cutting_to_sewing_batches_closed_by_inbound_from_tailor(): void
+    {
+        $fabric = $this->fabric();
+        $this->receive($fabric, 50, 2);
+        $group = \App\Models\ProductGroup::create(['name' => 'Gamis', 'option1_name' => 'Ukuran']);
+        $s = Product::create(['sku' => 'GMS-S', 'name' => 'Gamis - S', 'unit' => 'pcs', 'min_stock' => 0, 'product_group_id' => $group->id]);
+        $m = Product::create(['sku' => 'GMS-M', 'name' => 'Gamis - M', 'unit' => 'pcs', 'min_stock' => 0, 'product_group_id' => $group->id]);
+        $cutter = \App\Models\Employee::create(['code' => 'K-001', 'name' => 'Pak Cutter', 'attendance_method' => 'machine', 'is_active' => true]);
+        $tailor = Supplier::create(['code' => 'SUP-9', 'name' => 'Penjahit Sri', 'is_active' => true, 'is_tailor' => true]);
+        $other = Supplier::create(['code' => 'SUP-8', 'name' => 'Toko Biasa', 'is_active' => true]);
+
+        // Dua roll untuk varian berbeda dari induk yang sama → satu Cutting.
+        $this->actingAs($this->admin)->get(route('admin.fabric-scan'))->assertOk()->assertSee('Pak Cutter');
+        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.issue'), ['code' => 'TYB-HTM-001', 'product_id' => $s->id, 'employee_id' => $cutter->id, 'all' => true])
+            ->assertOk()->assertJsonPath('movement.cutting_code', fn ($code) => str_starts_with($code, 'CT-'));
+        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.issue'), ['code' => 'TYB-HTM-002', 'product_id' => $m->id, 'employee_id' => $cutter->id, 'quantity' => 20])
+            ->assertOk();
+        $this->assertSame(1, \App\Models\FabricCutting::count());
+        $cutting = \App\Models\FabricCutting::firstOrFail();
+        $this->assertSame($group->id, $cutting->product_group_id);
+        $this->assertSame(70.0, $cutting->load('movements')->fabricUsed()[$fabric->id]);
+
+        // Kain keluar tanpa pemotong (aplikasi lama) tetap jalan, jadi Cutting sendiri.
+        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.issue'), ['code' => 'TYB-HTM-002', 'product_id' => $m->id, 'quantity' => 1])->assertOk();
+        $this->assertSame(2, \App\Models\FabricCutting::count());
+
+        $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.index'))->assertOk()->assertSee($cutting->code)->assertSee('Pak Cutter');
+        $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.show', $cutting))->assertOk()->assertSee('GMS-S')->assertSee('GMS-M');
+
+        // Penjahit harus bertanda penjahit; minimal satu varian.
+        $this->actingAs($this->admin)->post(route('admin.fabric-cuttings.handover', $cutting), ['supplier_id' => $other->id, 'date' => '2026-06-12', 'items' => [$s->id => 5]])
+            ->assertSessionHasErrors('supplier_id');
+        $this->actingAs($this->admin)->post(route('admin.fabric-cuttings.handover', $cutting), ['supplier_id' => $tailor->id, 'date' => '2026-06-12', 'items' => [$s->id => 0]])
+            ->assertSessionHasErrors('items');
+
+        // Diserahkan bertahap: dua batch.
+        $this->actingAs($this->admin)->post(route('admin.fabric-cuttings.handover', $cutting), ['supplier_id' => $tailor->id, 'date' => '2026-06-12', 'items' => [$s->id => 10, $m->id => 6]])
+            ->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('admin.fabric-cuttings.handover', $cutting), ['supplier_id' => $tailor->id, 'date' => '2026-06-12', 'items' => [$m->id => 4]])
+            ->assertSessionHasNoErrors();
+        [$first, $second] = \App\Models\SewingBatch::orderBy('id')->get()->all();
+        $this->assertSame(16, (int) $first->items()->sum('quantity'));
+        $this->assertSame(10, \App\Support\FabricNeeds::wipByProduct()[$m->id]);
+
+        // Selesai cutting: sisa 3 m roll 002 kembali ke roll.
+        $roll2 = FabricRoll::where('code', 'TYB-HTM-002')->firstOrFail();
+        $before = $roll2->quantity;
+        $this->actingAs($this->admin)->post(route('admin.fabric-cuttings.finish', $cutting), ['returns' => [$roll2->id => 30]])
+            ->assertSessionHasErrors();
+        $this->actingAs($this->admin)->post(route('admin.fabric-cuttings.finish', $cutting), ['returns' => [$roll2->id => 3]])
+            ->assertSessionHasNoErrors();
+        $this->assertSame($before + 3, $roll2->refresh()->quantity);
+        $this->assertSame('done', $cutting->refresh()->status);
+        $this->assertSame(1, FabricMovement::where('type', 'return')->count());
+
+        // Penerimaan dari penjahit memilih batch; batch dari pemasok lain ditolak.
+        $this->actingAs($this->admin)->get(route('admin.inbounds.create'))->assertOk()->assertSee($first->code);
+        $this->actingAs($this->admin)->post(route('admin.inbounds.store'), [
+            'date' => now()->toDateString(), 'supplier_id' => $other->id, 'sewing_batch_id' => $first->id,
+            'items' => [['product_id' => $s->id, 'quantity' => 10]],
+        ])->assertSessionHasErrors('sewing_batch_id');
+
+        $this->actingAs($this->admin)->post(route('admin.inbounds.store'), [
+            'date' => now()->toDateString(), 'supplier_id' => $tailor->id, 'sewing_batch_id' => $first->id,
+            'items' => [['product_id' => $s->id, 'quantity' => 10], ['product_id' => $m->id, 'quantity' => 5]],
+            'submit' => 1,
+        ])->assertSessionHas('success');
+        $this->assertSame([$m->id => 1], $first->refresh()->load('items')->outstanding()->all());
+        $this->assertSame(10, $s->refresh()->stock);
+
+        // Batch kedua salah input bisa dihapus; batch pertama ditutup dengan alasan.
+        $this->actingAs($this->admin)->delete(route('admin.sewing-batches.destroy', $second))->assertSessionHas('success');
+        $this->actingAs($this->admin)->delete(route('admin.sewing-batches.destroy', $first))->assertSessionHas('error');
+        $this->actingAs($this->admin)->post(route('admin.sewing-batches.close', $first), [])->assertSessionHasErrors('reason');
+        $this->actingAs($this->admin)->post(route('admin.sewing-batches.close', $first), ['reason' => '1 pcs rusak'])->assertSessionHas('success');
+        $this->assertSame([], \App\Support\FabricNeeds::wipByProduct()->all());
+        $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.index', ['lihat' => 'jahit', 'status' => 'semua']))->assertOk()->assertSee($first->code);
+        $this->actingAs($this->admin)->get(route('admin.inbounds.show', \App\Models\Inbound::firstOrFail()))->assertOk()->assertSee($first->code);
+
+        // Pemasok bisa ditandai penjahit dari form pemasok.
+        $this->actingAs($this->admin)->put(route('admin.suppliers.update', $other), ['name' => 'Toko Biasa', 'is_active' => 1, 'is_tailor' => 1])->assertSessionHasNoErrors();
+        $this->assertTrue($other->refresh()->is_tailor);
     }
 }

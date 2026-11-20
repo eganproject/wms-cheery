@@ -20,12 +20,14 @@ class Supplier extends Model
         'address',
         'note',
         'is_active',
+        'is_tailor',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'is_tailor' => 'boolean',
         ];
     }
 

@@ -24,12 +24,13 @@ class StoreSupplierRequest extends FormRequest
             'address' => ['nullable', 'string', 'max:1000'],
             'note' => ['nullable', 'string', 'max:255'],
             'is_active' => ['boolean'],
+            'is_tailor' => ['boolean'],
         ];
     }
 
     protected function prepareForValidation(): void
     {
-        $this->merge(['is_active' => $this->boolean('is_active')]);
+        $this->merge(['is_active' => $this->boolean('is_active'), 'is_tailor' => $this->boolean('is_tailor')]);
     }
 
     /**

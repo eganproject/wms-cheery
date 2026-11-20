@@ -45,22 +45,22 @@ class FabricNeedController extends Controller implements HasMiddleware
 
         $export = TableExport::make('Kebutuhan Kain')
             ->note($data['description'])
-            ->note('Kebutuhan = jumlah harus diproduksi (Rencana Produksi) × pemakaian kain per unit.');
+            ->note('Kebutuhan = (harus diproduksi − WIP di penjahit) × pemakaian kain per unit, dikurangi kain yang masih di Cutting.');
 
         $export->sheet('Per Jenis Kain', [
             ['SKU Kain', 'text'], ['Nama Kain', 'text'], ['Satuan', 'text'], ['Unit Harus Diproduksi', 'sum'],
-            ['Kebutuhan', 'number'], ['Sudah Keluar', 'number'], ['Sisa Kebutuhan', 'number'], ['Stok Kain', 'number'], ['Roll Berisi', 'number'], ['Kurang', 'number'],
+            ['Kebutuhan', 'number'], ['Masih di Cutting', 'number'], ['Sisa Kebutuhan', 'number'], ['Stok Kain', 'number'], ['Roll Berisi', 'number'], ['Kurang', 'number'],
         ], $needs->rows->map(fn (array $row) => [
             $row['fabric']->sku, $row['fabric']->displayName(), $row['fabric']->unit, $row['units'],
-            $row['need'], $row['issued'], $row['remaining'], $row['stock'], $row['open_rolls'], $row['short'],
+            $row['need'], $row['in_cutting'], $row['remaining'], $row['stock'], $row['open_rolls'], $row['short'],
         ]));
 
         $export->sheet('Rincian per Barang', [
             ['SKU Kain', 'text'], ['Nama Kain', 'text'], ['SKU Barang', 'text'], ['Nama Barang', 'text'],
-            ['Harus Diproduksi', 'sum'], ['Pemakaian / Unit', 'number'], ['Kebutuhan Kain', 'number'], ['Satuan', 'text'],
+            ['Harus Diproduksi', 'sum'], ['WIP di Penjahit', 'sum'], ['Sisa Diproduksi', 'sum'], ['Pemakaian / Unit', 'number'], ['Kebutuhan Kain', 'number'], ['Satuan', 'text'],
         ], $needs->rows->flatMap(fn (array $row) => $row['products']->map(fn (array $product) => [
             $row['fabric']->sku, $row['fabric']->displayName(), $product['sku'], $product['name'],
-            $product['short'], $product['usage'], $product['need'], $row['fabric']->unit,
+            $product['short'], $product['wip'], $product['net'], $product['usage'], $product['need'], $row['fabric']->unit,
         ])));
 
         if ($needs->missing->isNotEmpty()) {
@@ -83,13 +83,12 @@ class FabricNeedController extends Controller implements HasMiddleware
         $dates = ProductionPlan::datesFrom(null, $from->format('Y-m-d'), $to->format('Y-m-d'));
         $plan = ProductionPlan::for($base, $dates, PackingList::BY_PRODUCT);
 
-        $issuedSince = $this->date($request->input('keluar_sejak'));
-        $needs = FabricNeeds::from($plan, $issuedSince);
+        $needs = FabricNeeds::from($plan);
 
         $description = collect([
             'Jenis: '.PoDeadlineController::KINDS[$kind],
             'Batas kirim: '.PoDeadlineController::describeDates($dates),
-            $issuedSince ? 'Dikurangi kain keluar sejak '.$issuedSince->translatedFormat('d M Y') : null,
+            'Dikurangi WIP di penjahit & kain di Cutting',
         ])->filter()->implode(' · ');
 
         return [
@@ -98,7 +97,6 @@ class FabricNeedController extends Controller implements HasMiddleware
             'kind' => $kind,
             'from' => $from,
             'to' => $to,
-            'issuedSince' => $issuedSince,
             'description' => $description,
             'productionUrl' => route('admin.orders.deadlines.production', ['dari' => $from->format('Y-m-d'), 'sampai' => $to->format('Y-m-d'), 'jenis' => $kind]),
         ];

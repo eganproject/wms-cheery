@@ -76,6 +76,7 @@ Route::prefix('mobile')
             Route::post('/kain/cek', [FabricScanController::class, 'adjust'])->name('kain.adjust');
             Route::get('/kain/terakhir', [FabricScanController::class, 'recent'])->name('kain.recent');
             Route::get('/kain/barang', [FabricScanController::class, 'products'])->name('kain.products');
+            Route::get('/kain/pemotong', [FabricScanController::class, 'cutters'])->name('kain.cutters');
 
             // Daftar pesanan: belum dikemas, sudah dikemas, dikirim.
 

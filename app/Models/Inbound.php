@@ -22,6 +22,7 @@ class Inbound extends Model
         'code',
         'date',
         'supplier_id',
+        'sewing_batch_id',
         'reference',
         'note',
         'status',
@@ -60,6 +61,12 @@ class Inbound extends Model
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    /** Batch WIP Jahit yang diterima lewat dokumen ini (opsional). */
+    public function sewingBatch(): BelongsTo
+    {
+        return $this->belongsTo(SewingBatch::class);
     }
 
     public function isDraft(): bool

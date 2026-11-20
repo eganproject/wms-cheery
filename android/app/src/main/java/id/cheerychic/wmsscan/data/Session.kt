@@ -39,6 +39,10 @@ object Session {
         set(value) = prefs.edit().putBoolean("camera", value).apply()
 
     /** Barang terakhir untuk kain keluar; terpilih otomatis bila memakai kain yang sama. */
+    var kainPemotong: Int
+        get() = prefs.getInt("kain_pemotong", 0)
+        set(value) = prefs.edit().putInt("kain_pemotong", value).apply()
+
     var kainBarang: Int
         get() = prefs.getInt("kain_barang", 0)
         set(value) = prefs.edit().putInt("kain_barang", value).apply()

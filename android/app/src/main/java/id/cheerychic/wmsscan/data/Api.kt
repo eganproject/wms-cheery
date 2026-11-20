@@ -165,12 +165,15 @@ object Api {
         json.decodeFromString(call("POST", "/kain/lookup", buildJsonObject { put("code", code) }))
 
     /** Kain keluar dari roll; [quantity] null = ambil semua sisanya. */
-    suspend fun kainKeluar(code: String, quantity: Double?, productId: Int, note: String?): FabricResponse =
+    suspend fun kainPemotong(): FabricCutterList = json.decodeFromString(call("GET", "/kain/pemotong"))
+
+    suspend fun kainKeluar(code: String, quantity: Double?, productId: Int, cutterId: Int?, note: String?): FabricResponse =
         json.decodeFromString(
             call("POST", "/kain/keluar", buildJsonObject {
                 put("code", code)
                 if (quantity == null) put("all", true) else put("quantity", quantity)
                 put("product_id", productId)
+                if (cutterId != null) put("employee_id", cutterId)
                 if (!note.isNullOrBlank()) put("note", note)
             })
         )

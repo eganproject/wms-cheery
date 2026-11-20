@@ -102,6 +102,7 @@ class InboundController extends Controller implements HasMiddleware
             'products' => $this->products(),
             'suppliers' => $this->suppliers(),
             'openReturns' => $this->openSupplierReturns(),
+            'sewingBatches' => $this->openSewingBatches(),
         ]);
     }
 
@@ -114,6 +115,7 @@ class InboundController extends Controller implements HasMiddleware
                 'code' => Inbound::nextCode(),
                 'date' => $data['date'],
                 'supplier_id' => $data['supplier_id'] ?? null,
+                'sewing_batch_id' => $data['sewing_batch_id'] ?? null,
                 'reference' => $data['reference'] ?? null,
                 'note' => $data['note'] ?? null,
                 'status' => Inbound::STATUS_DRAFT,
@@ -138,7 +140,7 @@ class InboundController extends Controller implements HasMiddleware
 
     public function show(Inbound $inbound): View
     {
-        $inbound->load(['items.product', 'user']);
+        $inbound->load(['items.product', 'user', 'sewingBatch.cutting']);
 
         return view('admin.inbounds.show', compact('inbound'));
     }
@@ -159,6 +161,7 @@ class InboundController extends Controller implements HasMiddleware
             'products' => $this->products(),
             'suppliers' => $this->suppliers(),
             'openReturns' => $this->openSupplierReturns(),
+            'sewingBatches' => $this->openSewingBatches($inbound->sewing_batch_id),
         ]);
     }
 
@@ -180,6 +183,7 @@ class InboundController extends Controller implements HasMiddleware
             $inbound->update([
                 'date' => $data['date'],
                 'supplier_id' => $data['supplier_id'] ?? null,
+                'sewing_batch_id' => $data['sewing_batch_id'] ?? null,
                 'reference' => $data['reference'] ?? null,
                 'note' => $data['note'] ?? null,
             ]);
@@ -329,6 +333,40 @@ class InboundController extends Controller implements HasMiddleware
                 'status' => $return->returnStatusLabel(),
                 'units' => $return->outstandingQuantity(),
             ])->values()->all())
+            ->all();
+    }
+
+    /**
+     * Batch WIP Jahit yang masih ditunggu, per penjahit (pemasok). Dipilih di
+     * form supaya penerimaan barang jadi mengurangi batchnya.
+     *
+     * @return array<int, array<int, array<string, mixed>>>
+     */
+    protected function openSewingBatches(?int $include = null): array
+    {
+        $batches = \App\Models\SewingBatch::query()
+            ->where(fn ($query) => $query->notClosed()->when($include, fn ($query) => $query->orWhere('id', $include)))
+            ->with(['items.product:id,sku,name', 'cutting.group', 'cutting.product'])
+            ->oldest('date')
+            ->oldest('id')
+            ->get();
+
+        $received = \App\Models\SewingBatch::receivedFor($batches->pluck('id'));
+
+        return $batches
+            ->map(function ($batch) use ($received, $include) {
+                $left = $batch->outstanding($received->get($batch->id, collect()));
+
+                return $left->isEmpty() && $batch->id !== $include ? null : [
+                    'id' => $batch->id,
+                    'supplier_id' => $batch->supplier_id,
+                    'label' => "{$batch->code} · {$batch->cutting->productName()} · sisa {$left->sum()} pcs",
+                    'items' => $left->map(fn ($quantity, $productId) => ['product_id' => $productId, 'quantity' => $quantity])->values()->all(),
+                ];
+            })
+            ->filter()
+            ->groupBy('supplier_id')
+            ->map(fn ($rows) => $rows->values()->all())
             ->all();
     }
 

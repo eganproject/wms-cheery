@@ -82,6 +82,9 @@
                                     <x-ui.badge :variant="$supplier->is_active ? 'success' : 'danger'">
                                         {{ $supplier->is_active ? 'Aktif' : 'Nonaktif' }}
                                     </x-ui.badge>
+                                    @if ($supplier->is_tailor)
+                                        <x-ui.badge variant="info">Penjahit</x-ui.badge>
+                                    @endif
                                 </td>
                                 <td>
                                     <div class="flex items-center justify-end gap-1">

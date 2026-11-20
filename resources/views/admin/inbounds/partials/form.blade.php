@@ -22,8 +22,17 @@
                                   :value="old('date', $inbound?->date?->format('Y-m-d') ?? now()->format('Y-m-d'))" required />
                 </x-ui.field>
 
-                <div x-data="{ supplier: @js((string) old('supplier_id', $inbound?->supplier_id ?? '')), returns: @js((object) ($openReturns ?? [])) }"
-                     x-on:change="if ($event.target.name === 'supplier_id') supplier = $event.target.value"
+                <div x-data="{
+                        supplier: @js((string) old('supplier_id', $inbound?->supplier_id ?? '')),
+                        returns: @js((object) ($openReturns ?? [])),
+                        batches: @js((object) ($sewingBatches ?? [])),
+                        batch: @js((string) old('sewing_batch_id', $inbound?->sewing_batch_id ?? '')),
+                        fill() {
+                            const found = (this.batches[this.supplier] ?? []).find((item) => String(item.id) === String(this.batch));
+                            if (found) window.dispatchEvent(new CustomEvent('resi-items-found', { detail: found.items }));
+                        },
+                     }"
+                     x-on:change="if ($event.target.name === 'supplier_id') { supplier = $event.target.value; if (! (batches[supplier] ?? []).some((item) => String(item.id) === String(batch))) batch = '' }"
                      class="space-y-2">
                 <x-ui.field label="Pemasok" info="Pemasok asal barang. Boleh dikosongkan untuk penerimaan non-pembelian." for="supplier_id" :error="$errors->get('supplier_id')">
                     <x-ui.select id="supplier_id" name="supplier_id" data-placeholder="Pilih pemasok…">
@@ -41,6 +50,23 @@
                         </p>
                     @endcan
                 </x-ui.field>
+
+                {{-- Batch WIP Jahit dari penjahit ini (Cutting & Jahit). --}}
+                <template x-if="(batches[supplier] ?? []).length || batch">
+                    <div class="rounded-lg bg-sky-50 px-3 py-2.5 text-xs text-sky-900 ring-1 ring-inset ring-sky-200">
+                        <label class="font-semibold" for="sewing_batch_id">Barang jadi dari batch WIP Jahit</label>
+                        <div class="mt-1.5 flex gap-2">
+                            <select id="sewing_batch_id" name="sewing_batch_id" x-model="batch" x-on:change.stop="fill()" class="form-control h-9 flex-1 bg-white text-xs">
+                                <option value="">Bukan dari batch jahit</option>
+                                <template x-for="item in (batches[supplier] ?? [])" :key="item.id">
+                                    <option :value="item.id" :selected="String(item.id) === String(batch)" x-text="item.label"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <p class="mt-1">Memilih batch mengisi baris barang dengan sisa per varian; ubah qty sesuai yang datang. Batch berkurang setelah penerimaan disetujui.</p>
+                    </div>
+                </template>
+                <x-input-error :messages="$errors->get('sewing_batch_id')" />
 
                 {{-- Pengingat retur yang masih ditunggu dari pemasok ini. --}}
                 <template x-if="returns[supplier] && returns[supplier].length">

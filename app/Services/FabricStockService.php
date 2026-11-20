@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Employee;
 use App\Models\Fabric;
+use App\Models\FabricCutting;
 use App\Models\FabricMovement;
 use App\Models\FabricReceipt;
 use App\Models\FabricRoll;
@@ -74,9 +76,9 @@ class FabricStockService
      * Kain keluar dari satu roll (hasil scan). $quantity null = ambil semua
      * sisanya.
      */
-    public function issue(FabricRoll $roll, ?float $quantity, ?Product $product, ?string $note, ?User $user): FabricMovement
+    public function issue(FabricRoll $roll, ?float $quantity, ?Product $product, ?string $note, ?User $user, ?Employee $cutter = null): FabricMovement
     {
-        return DB::transaction(function () use ($roll, $quantity, $product, $note, $user) {
+        return DB::transaction(function () use ($roll, $quantity, $product, $note, $user, $cutter) {
             $roll = FabricRoll::query()->with('fabric')->lockForUpdate()->findOrFail($roll->id);
 
             if ($roll->isEmpty()) {
@@ -99,6 +101,7 @@ class FabricStockService
 
             return $this->record($roll, FabricMovement::TYPE_OUT, -$take, $user, [
                 'product_id' => $product?->id,
+                'fabric_cutting_id' => $product ? $this->openCutting($product, $cutter, $user)->id : null,
                 'note' => $note,
             ]);
         });
@@ -135,8 +138,51 @@ class FabricStockService
             return $this->record($roll, FabricMovement::TYPE_CANCEL, -$movement->quantity, $user, [
                 'reverses_id' => $movement->id,
                 'product_id' => $movement->product_id,
+                'fabric_cutting_id' => $movement->fabric_cutting_id,
                 'destination' => $movement->destination,
                 'note' => 'Batal keluar '.$movement->moved_at->format('d/m/Y H:i'),
+            ]);
+        });
+    }
+
+    /**
+     * Cutting terbuka untuk barang (induk) + pemotong yang sama; dibuat bila
+     * belum ada. Beberapa roll untuk barang yang sama masuk satu cutting.
+     */
+    public function openCutting(Product $product, ?Employee $cutter, ?User $user): FabricCutting
+    {
+        $cutting = FabricCutting::query()
+            ->open()
+            ->when(
+                $product->product_group_id,
+                fn ($query, $groupId) => $query->where('product_group_id', $groupId),
+                fn ($query) => $query->whereNull('product_group_id')->where('product_id', $product->id),
+            )
+            ->where('employee_id', $cutter?->id)
+            ->lockForUpdate()
+            ->oldest('id')
+            ->first();
+
+        return $cutting ?? FabricCutting::create([
+            'code' => FabricCutting::nextCode(),
+            'product_id' => $product->id,
+            'product_group_id' => $product->product_group_id,
+            'employee_id' => $cutter?->id,
+            'status' => FabricCutting::STATUS_CUTTING,
+            'user_id' => $user?->id,
+        ]);
+    }
+
+    /** Sisa kain dari cutting dikembalikan ke roll asalnya. */
+    public function returnToRoll(FabricRoll $roll, float $quantity, FabricCutting $cutting, ?User $user, ?string $note = null): FabricMovement
+    {
+        return DB::transaction(function () use ($roll, $quantity, $cutting, $user, $note) {
+            $roll = FabricRoll::query()->lockForUpdate()->findOrFail($roll->id);
+
+            return $this->record($roll, FabricMovement::TYPE_RETURN, round($quantity, 2), $user, [
+                'fabric_cutting_id' => $cutting->id,
+                'product_id' => $cutting->product_id,
+                'note' => $note ?? 'Sisa cutting '.$cutting->code,
             ]);
         });
     }

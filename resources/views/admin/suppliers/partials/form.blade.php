@@ -67,6 +67,11 @@
                                  label="Pemasok aktif"
                                  description="Pemasok nonaktif tidak muncul di dropdown dokumen baru." />
                 </div>
+                <div class="mt-3 rounded-xl border border-ink-100 bg-ink-50/50 p-4">
+                    <x-ui.toggle name="is_tailor" :checked="(bool) old('is_tailor', $supplier?->is_tailor ?? false)"
+                                 label="Penjahit / Konveksi"
+                                 description="Bisa menerima hasil cutting (WIP Jahit); penerimaan barang darinya bisa memilih batch jahit." />
+                </div>
             </x-ui.card>
 
             <div class="flex flex-col gap-2 sm:flex-row">

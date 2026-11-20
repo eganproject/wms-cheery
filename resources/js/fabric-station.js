@@ -21,6 +21,7 @@ import { cameraState } from './scan-state';
 
 const NUMBER = /^\d+(?:[.,]\d{1,3})?$/;
 const PRODUCT_KEY = 'fabric-station-product';
+const CUTTER_KEY = 'fabric-station-cutter';
 
 export default function fabricStation(config) {
     return {
@@ -33,6 +34,10 @@ export default function fabricStation(config) {
         code: '',
         quantity: '',
         note: '',
+
+        /** Pemotong (karyawan) yang menerima kain; diingat di perangkat ini. */
+        cutters: config.cutters ?? [],
+        cutterId: '',
 
         /** Barang tujuan kain keluar. */
         product: null,
@@ -51,9 +56,19 @@ export default function fabricStation(config) {
         init() {
             try {
                 this.lastProductId = Number(localStorage.getItem(PRODUCT_KEY)) || null;
+                const saved = localStorage.getItem(CUTTER_KEY) ?? '';
+                this.cutterId = this.cutters.some((cutter) => String(cutter.id) === saved) ? saved : '';
             } catch (error) {
                 this.lastProductId = null;
             }
+
+            this.$watch('cutterId', (value) => {
+                try {
+                    localStorage.setItem(CUTTER_KEY, value ?? '');
+                } catch (error) {
+                    // Penyimpanan peramban tidak tersedia; pemotong tidak diingat.
+                }
+            });
 
             this.$watch('mode', () => this.cancel());
             this.focusCode();
@@ -143,6 +158,13 @@ export default function fabricStation(config) {
 
             const raw = String(this.quantity ?? '').trim().replace(',', '.');
 
+            if (! this.isCheck && this.cutters.length && ! this.cutterId) {
+                this.report('error', 'Pilih pemotong yang menerima kain ini.', 'error');
+                this.$nextTick(() => this.$refs.cutter?.focus());
+
+                return;
+            }
+
             if (! this.isCheck && ! this.product) {
                 this.report('error', 'Pilih barang yang dibuat dari kain ini.', 'error');
                 this.$nextTick(() => this.$refs.productSearch?.focus());
@@ -167,6 +189,7 @@ export default function fabricStation(config) {
                         all,
                         quantity: all ? null : Number(raw),
                         product_id: this.product.id,
+                        employee_id: this.cutterId || null,
                         note: this.note || null,
                     });
 

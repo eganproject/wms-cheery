@@ -23,6 +23,7 @@
                 canIssue: {{ $canIssue ? 'true' : 'false' }},
                 canAdjust: {{ $canAdjust ? 'true' : 'false' }},
                 recent: {{ Js::from($recent) }},
+                cutters: {{ Js::from($cutters) }},
              })"
              x-on:camera-scan.window="code = $event.detail.code; submit()"
              class="mx-auto w-full max-w-3xl space-y-5">
@@ -51,6 +52,23 @@
                 </div>
 
                 <div class="p-5 sm:p-8 sm:pt-6">
+                    <template x-if="! isCheck">
+                        <div class="mb-4">
+                            <label for="fabric-cutter" class="form-label">Pemotong (cutter)</label>
+                            @if (count($cutters))
+                                <select id="fabric-cutter" x-ref="cutter" x-model="cutterId" class="form-control">
+                                    <option value="">Pilih pemotong…</option>
+                                    @foreach ($cutters as $cutter)
+                                        <option value="{{ $cutter['id'] }}">{{ $cutter['name'] }}{{ $cutter['position'] ? ' · '.$cutter['position'] : '' }}</option>
+                                    @endforeach
+                                </select>
+                                <p class="form-help">Kain masuk ke Cutting barang ini atas nama pemotong tersebut. Diingat di perangkat ini.</p>
+                            @else
+                                <p class="form-help">Belum ada data karyawan. Tambahkan di Absensi &gt; Karyawan supaya pemotong bisa dipilih.</p>
+                            @endif
+                        </div>
+                    </template>
+
                     <div class="flex items-stretch gap-2">
                         @include('admin.partials.camera-scan', [
                             'scanTitle' => "roll ? 'Roll ' + roll.code + ' terbuka' : 'Scan QR roll kain'",
@@ -207,7 +225,7 @@
                             <span class="w-12 text-xs tabular-nums text-ink-400" x-text="item.time"></span>
                             <div class="min-w-0 flex-1">
                                 <p class="truncate font-mono text-sm font-semibold text-ink-950" x-text="item.code"></p>
-                                <p class="truncate text-xs text-ink-500" x-text="[item.name, item.product_sku ? `untuk ${item.product_sku}` : (item.destination ? `ke ${item.destination}` : null)].filter(Boolean).join(' · ')"></p>
+                                <p class="truncate text-xs text-ink-500" x-text="[item.name, item.product_sku ? `untuk ${item.product_sku}` : (item.destination ? `ke ${item.destination}` : null), item.cutting_code].filter(Boolean).join(' · ')"></p>
                             </div>
                             <div class="text-right">
                                 <p class="text-sm font-semibold tabular-nums" :class="item.cancelled ? 'text-ink-400 line-through' : 'text-rose-600'" x-text="`-${item.quantity_label}`"></p>

@@ -46,6 +46,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import id.cheerychic.wmsscan.data.Api
 import id.cheerychic.wmsscan.data.ApiException
+import id.cheerychic.wmsscan.data.FabricCutter
 import id.cheerychic.wmsscan.data.FabricIssue
 import id.cheerychic.wmsscan.data.FabricProduct
 import id.cheerychic.wmsscan.data.FabricRoll
@@ -84,6 +85,10 @@ class KainViewModel : ViewModel() {
     var roll by mutableStateOf<FabricRoll?>(null)
         private set
     var quantity by mutableStateOf("")
+    val cutters = mutableStateListOf<FabricCutter>()
+    var cutter by mutableStateOf<FabricCutter?>(null)
+        private set
+    var cutterPicking by mutableStateOf(false)
     var product by mutableStateOf<FabricProduct?>(null)
     var productQuery by mutableStateOf("")
         private set
@@ -104,6 +109,19 @@ class KainViewModel : ViewModel() {
         viewModelScope.launch {
             runCatching { Api.kainRecent() }.getOrNull()?.recent?.let { replaceRecent(it) }
         }
+        viewModelScope.launch {
+            val list = runCatching { Api.kainPemotong() }.getOrNull()?.cutters ?: return@launch
+            cutters.clear()
+            cutters.addAll(list)
+            cutter = list.firstOrNull { it.id == Session.kainPemotong }
+            cutterPicking = cutter == null && list.isNotEmpty()
+        }
+    }
+
+    fun pickCutter(item: FabricCutter) {
+        cutter = item
+        cutterPicking = false
+        Session.kainPemotong = item.id
     }
 
     fun switchMode(next: String) {
@@ -201,6 +219,12 @@ class KainViewModel : ViewModel() {
         val current = roll ?: return
         val value = quantity.trim().replace(',', '.').toDoubleOrNull()
         val chosen = product
+        if (mode == MODE_OUT && cutters.isNotEmpty() && cutter == null) {
+            banner = Banner("Pilih pemotong yang menerima kain ini.", Tone.Error)
+            cutterPicking = true
+            Feedback.error(context)
+            return
+        }
         if (mode == MODE_OUT && chosen == null) {
             banner = Banner("Pilih barang yang dibuat dari kain ini.", Tone.Error)
             productPicking = true
@@ -219,7 +243,7 @@ class KainViewModel : ViewModel() {
                     val result = if (mode == MODE_CHECK) {
                         Api.kainCek(current.code, value ?: 0.0, note)
                     } else {
-                        Api.kainKeluar(current.code, if (all) null else value, chosen!!.id, note)
+                        Api.kainKeluar(current.code, if (all) null else value, chosen!!.id, cutter?.id, note)
                     }
                     banner = Banner(result.message, Tone.Success)
                     result.recent?.let { replaceRecent(it) }
@@ -279,6 +303,9 @@ fun KainScreen(onBack: () -> Unit, vm: KainViewModel = viewModel()) {
                         ModeButton("Cek Roll", vm.mode == KainViewModel.MODE_CHECK, Modifier.weight(1f)) { vm.switchMode(KainViewModel.MODE_CHECK) }
                     }
                 }
+            }
+            if (vm.mode == KainViewModel.MODE_OUT && vm.cutters.isNotEmpty()) {
+                item { CutterPicker(vm) }
             }
             item {
                 ScanArea(
@@ -384,6 +411,46 @@ private fun RollCard(roll: FabricRoll, vm: KainViewModel, context: Context) {
     }
 }
 
+/** Pemotong yang menerima kain; diingat di HP ini. */
+@Composable
+private fun CutterPicker(vm: KainViewModel) {
+    val chosen = vm.cutter
+    AppCard(Modifier.fillMaxWidth(), radius = 18.dp) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Pemotong (cutter)", color = InkMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            if (chosen != null && !vm.cutterPicking) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(chosen.name, color = Ink, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        chosen.position?.let { Text(it, color = InkMuted, fontSize = 12.sp) }
+                    }
+                    Text(
+                        "Ganti",
+                        color = Ink,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { vm.cutterPicking = true }.padding(8.dp),
+                    )
+                }
+            } else {
+                vm.cutters.forEach { item ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (item.id == chosen?.id) BrandBg else Color.Transparent)
+                            .clickable { vm.pickCutter(item) }
+                            .padding(horizontal = 10.dp, vertical = 9.dp),
+                    ) {
+                        Text(item.name, color = Ink, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                        item.position?.let { Text(it, color = InkMuted, fontSize = 12.sp) }
+                    }
+                }
+            }
+        }
+    }
+}
+
 /** Pilih barang yang dibuat dari kain roll ini. */
 @Composable
 private fun ProductPicker(vm: KainViewModel) {
@@ -453,7 +520,7 @@ private fun IssueCard(entry: FabricIssue) {
             Column(Modifier.weight(1f)) {
                 Text(entry.code, color = Ink, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
                 Text(
-                    listOfNotNull(entry.name, entry.productSku?.let { "untuk $it" } ?: entry.destination?.let { "ke $it" }).joinToString(" · "),
+                    listOfNotNull(entry.name, entry.productSku?.let { "untuk $it" } ?: entry.destination?.let { "ke $it" }, entry.cuttingCode).joinToString(" · "),
                     color = InkMuted, fontSize = 12.5.sp, maxLines = 1,
                 )
             }
