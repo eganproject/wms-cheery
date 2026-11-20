@@ -90,7 +90,7 @@
                                     class="form-control">
                                 <option value="">Pilih barang…</option>
                                 <template x-for="product in products" :key="product.id">
-                                    <option :value="product.id" x-text="`${product.sku} — ${product.name}`"></option>
+                                    <option :value="product.id" :selected="String(product.id) === String(row.product_id)" x-text="`${product.sku} — ${product.name}`"></option>
                                 </template>
                             </select>
 
