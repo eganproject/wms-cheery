@@ -11,7 +11,7 @@
                     <h3 class="text-base font-semibold text-ink-950">Kirim {{ $batch->code }} ke Penjahit</h3>
                     <p class="text-xs text-ink-500">Boleh sebagian; sisanya tetap di gudang.</p>
                 </div>
-                <select name="supplier_id" required class="form-control w-full" data-native>
+                <select name="supplier_id" required class="form-control w-full">
                     <option value="">Pilih penjahit…</option>
                     @foreach ($tailors as $tailor)
                         <option value="{{ $tailor->id }}">{{ $tailor->name }}</option>
