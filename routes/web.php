@@ -53,6 +53,7 @@ use App\Http\Controllers\Admin\FabricIssueController;
 use App\Http\Controllers\Admin\FabricLabelController;
 use App\Http\Controllers\Admin\FabricNeedController;
 use App\Http\Controllers\Admin\FabricOpnameController;
+use App\Http\Controllers\Admin\SewingBatchController;
 use App\Http\Controllers\Admin\FabricReceiptController;
 use App\Http\Controllers\Admin\FabricScanController;
 use App\Http\Controllers\Admin\WorkShiftController;
@@ -216,6 +217,7 @@ Route::middleware('auth')
         Route::get('fabric-cuttings/{fabricCutting}', [FabricCuttingController::class, 'show'])->name('fabric-cuttings.show');
         Route::post('fabric-cuttings/{fabricCutting}/handover', [FabricCuttingController::class, 'handover'])->name('fabric-cuttings.handover');
         Route::post('fabric-cuttings/{fabricCutting}/finish', [FabricCuttingController::class, 'finish'])->name('fabric-cuttings.finish');
+        Route::resource('sewing-batches', SewingBatchController::class)->only(['create', 'store', 'edit', 'update']);
         Route::post('sewing-batches/{sewingBatch}/send', [FabricCuttingController::class, 'send'])->name('sewing-batches.send');
         Route::post('sewing-batches/{sewingBatch}/close', [FabricCuttingController::class, 'closeBatch'])->name('sewing-batches.close');
         Route::delete('sewing-batches/{sewingBatch}', [FabricCuttingController::class, 'destroyBatch'])->name('sewing-batches.destroy');

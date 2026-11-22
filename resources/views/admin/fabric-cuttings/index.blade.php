@@ -38,6 +38,11 @@
         </x-ui.select>
 
         <x-ui.button type="submit" variant="secondary" icon="filter" class="lg:flex-none">Terapkan</x-ui.button>
+        @if ($view === 'jahit')
+            @can('fabrics.issue')
+                <x-ui.button :href="route('admin.sewing-batches.create')" variant="secondary" icon="plus" class="lg:flex-none">Input Manual</x-ui.button>
+            @endcan
+        @endif
     </form>
 
     <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
@@ -106,7 +111,7 @@
         @else
             @if ($batches->isEmpty())
                 <x-ui.empty-state icon="truck" title="Tidak ada batch hasil potong"
-                                  description="Batch dibuat dari detail Cutting lewat Catat Hasil Potong." />
+                                  description="Batch dibuat dari detail Cutting lewat Catat Hasil Potong, atau lewat Input Manual untuk saldo yang sudah berjalan." />
             @else
                 <div class="overflow-x-auto">
                     <table class="erp-table">
@@ -119,6 +124,7 @@
                                 <th class="text-right">Diterima</th>
                                 <th class="text-right">Sisa</th>
                                 <th>Status</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -129,8 +135,8 @@
                                 @endphp
                                 <tr>
                                     <td>
-                                        <a href="{{ route('admin.fabric-cuttings.show', $batch->cutting) }}#{{ $batch->code }}" class="font-mono text-sm font-semibold text-ink-950 hover:underline">{{ $batch->code }}</a>
-                                        <p class="text-[11px] text-ink-400">{{ $batch->date->format('d/m/Y') }} · {{ $batch->cutting->code }}</p>
+                                        <a href="{{ $batch->cutting ? $batch->url() : (auth()->user()->can('fabrics.issue') ? route('admin.sewing-batches.edit', $batch) : '#') }}" class="font-mono text-sm font-semibold text-ink-950 hover:underline">{{ $batch->code }}</a>
+                                        <p class="text-[11px] text-ink-400">{{ $batch->date->format('d/m/Y') }} · {{ $batch->cutting?->code ?? 'input manual' }}</p>
                                     </td>
                                     <td class="text-sm">
                                         @if ($batch->inWarehouse())
@@ -142,7 +148,7 @@
                                         @endif
                                     </td>
                                     <td class="text-sm">
-                                        <span class="block font-medium text-ink-950">{{ $batch->cutting->productName() }}</span>
+                                        <span class="block font-medium text-ink-950">{{ $batch->productName() }}</span>
                                         <span class="block text-[11px] text-ink-500">
                                             {{ $batch->items->map(fn ($item) => $item->product->sku.' '.$item->quantity)->implode(' · ') }}
                                         </span>
@@ -160,6 +166,16 @@
                                         @else
                                             <x-ui.badge variant="info">WIP Jahit</x-ui.badge>
                                         @endif
+                                    </td>
+                                    <td class="text-right">
+                                        @can('fabrics.issue')
+                                            @if (! $batch->closed_at)
+                                                <a href="{{ route('admin.sewing-batches.edit', $batch) }}" title="Ubah"
+                                                   class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-950">
+                                                    <x-icon name="pencil" class="h-4 w-4" />
+                                                </a>
+                                            @endif
+                                        @endcan
                                     </td>
                                 </tr>
                             @endforeach

@@ -75,7 +75,8 @@ class CuttingReport
 
         // Hasil potong per pemotong × barang.
         $pieces = [];
-        foreach ($batches as $batch) {
+        foreach ($batches->whereNotNull('fabric_cutting_id') as $batch) {
+            // Input manual (saldo awal) bukan hasil kerja pemotong pada periode ini.
             $cutter = (int) ($cutterOf[$batch->fabric_cutting_id] ?? 0);
             foreach ($batch->items as $item) {
                 $pieces[$cutter][$item->product_id] = ($pieces[$cutter][$item->product_id] ?? 0) + (int) $item->quantity;

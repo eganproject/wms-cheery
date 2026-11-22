@@ -482,6 +482,60 @@ class FabricStockTest extends TestCase
         $this->actingAs($this->admin)->delete(route('admin.fabric-opnames.destroy', $opname))->assertSessionHas('error');
     }
 
+    public function test_manual_cut_pieces_in_warehouse_and_at_tailor_can_be_managed(): void
+    {
+        $s = Product::create(['sku' => 'GMS-S', 'name' => 'Gamis - S', 'unit' => 'pcs', 'min_stock' => 0]);
+        $m = Product::create(['sku' => 'GMS-M', 'name' => 'Gamis - M', 'unit' => 'pcs', 'min_stock' => 0]);
+        $tailor = Supplier::create(['code' => 'SUP-9', 'name' => 'Penjahit Sri', 'is_active' => true, 'is_tailor' => true]);
+
+        $this->actingAs($this->admin)->get(route('admin.sewing-batches.create'))->assertOk();
+        $this->actingAs($this->admin)->post(route('admin.sewing-batches.store'), [
+            'posisi' => 'gudang', 'date' => '2026-06-10', 'items' => [['product_id' => $s->id, 'quantity' => 20], ['product_id' => $m->id, 'quantity' => 0]],
+        ])->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('admin.sewing-batches.store'), [
+            'posisi' => 'penjahit', 'date' => '2026-06-10', 'items' => [['product_id' => $m->id, 'quantity' => 8]],
+        ])->assertSessionHasErrors('supplier_id');
+        $this->actingAs($this->admin)->post(route('admin.sewing-batches.store'), [
+            'posisi' => 'penjahit', 'supplier_id' => $tailor->id, 'date' => '2026-06-10', 'items' => [['product_id' => $m->id, 'quantity' => 8]],
+        ])->assertSessionHasNoErrors();
+
+        [$warehouse, $atTailor] = \App\Models\SewingBatch::orderBy('id')->get()->all();
+        $this->assertNull($warehouse->fabric_cutting_id);
+        $this->assertTrue($warehouse->inWarehouse());
+        $this->assertSame('2026-06-10', $atTailor->sent_at->toDateString());
+        $this->assertSame([$s->id => 20, $m->id => 8], \App\Support\FabricNeeds::wipByProduct()->sortKeys()->all());
+        $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.index', ['lihat' => 'jahit']))->assertOk()->assertSee($warehouse->code)->assertSee('input manual');
+        $this->actingAs($this->admin)->get(route('admin.sewing-batches.edit', $warehouse))->assertOk();
+
+        // Batch manual di penjahit diterima lewat penerimaan.
+        $this->actingAs($this->admin)->post(route('admin.inbounds.store'), [
+            'date' => now()->toDateString(), 'supplier_id' => $tailor->id, 'sewing_batch_id' => $atTailor->id,
+            'items' => [['product_id' => $m->id, 'quantity' => 5]], 'submit' => 1,
+        ])->assertSessionHas('success');
+        $this->actingAs($this->admin)->get(route('admin.inbounds.show', \App\Models\Inbound::firstOrFail()))->assertOk()->assertSee($atTailor->code);
+
+        // Ubah: tidak boleh kurang dari yang sudah diterima, penjahit tidak bisa diganti.
+        $this->actingAs($this->admin)->put(route('admin.sewing-batches.update', $atTailor), [
+            'posisi' => 'penjahit', 'supplier_id' => $tailor->id, 'date' => '2026-06-10', 'items' => [['product_id' => $m->id, 'quantity' => 4]],
+        ])->assertSessionHasErrors('items');
+        $this->actingAs($this->admin)->put(route('admin.sewing-batches.update', $atTailor), [
+            'posisi' => 'penjahit', 'supplier_id' => $tailor->id, 'date' => '2026-06-10', 'items' => [['product_id' => $m->id, 'quantity' => 6]],
+        ])->assertSessionHasNoErrors();
+        $this->assertSame(1, $atTailor->load('items')->outstanding()->sum());
+
+        $this->actingAs($this->admin)->put(route('admin.sewing-batches.update', $warehouse), [
+            'posisi' => 'gudang', 'date' => '2026-06-10', 'items' => [['product_id' => $s->id, 'quantity' => 15], ['product_id' => $m->id, 'quantity' => 3]],
+        ])->assertSessionHasNoErrors();
+        $this->assertSame([$s->id => 15, $m->id => 3], $warehouse->items()->orderBy('product_id')->pluck('quantity', 'product_id')->all());
+
+        // Rekap: input manual tidak dihitung sebagai hasil pemotong.
+        $report = \App\Support\CuttingReport::for(\Illuminate\Support\Carbon::parse('2026-06-01'), now());
+        $this->assertSame(6, $report->tailors->first()['handed']);
+
+        $this->actingAs($this->admin)->delete(route('admin.sewing-batches.destroy', $warehouse))->assertSessionHas('success');
+        $this->assertSame(1, \App\Models\SewingBatch::count());
+    }
+
     public function test_unprocessed_fabric_issue_can_be_deleted(): void
     {
         $fabric = $this->fabric();

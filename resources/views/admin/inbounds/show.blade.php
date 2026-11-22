@@ -80,7 +80,7 @@
                             <dt class="text-ink-500">Batch WIP Jahit</dt>
                             <dd class="text-right font-medium text-ink-950">
                                 @can('fabrics.view')
-                                    <a href="{{ route('admin.fabric-cuttings.show', $inbound->sewingBatch->cutting) }}#{{ $inbound->sewingBatch->code }}" class="font-mono underline underline-offset-2">{{ $inbound->sewingBatch->code }}</a>
+                                    <a href="{{ $inbound->sewingBatch->url() }}" class="font-mono underline underline-offset-2">{{ $inbound->sewingBatch->code }}</a>
                                 @else
                                     <span class="font-mono">{{ $inbound->sewingBatch->code }}</span>
                                 @endcan

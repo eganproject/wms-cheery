@@ -346,7 +346,7 @@ class InboundController extends Controller implements HasMiddleware
     {
         $batches = \App\Models\SewingBatch::query()
             ->where(fn ($query) => $query->where(fn ($query) => $query->notClosed()->atTailor())->when($include, fn ($query) => $query->orWhere('id', $include)))
-            ->with(['items.product:id,sku,name', 'cutting.group', 'cutting.product'])
+            ->with(['items.product.group', 'cutting.group', 'cutting.product'])
             ->oldest('date')
             ->oldest('id')
             ->get();
@@ -360,7 +360,7 @@ class InboundController extends Controller implements HasMiddleware
                 return $left->isEmpty() && $batch->id !== $include ? null : [
                     'id' => $batch->id,
                     'supplier_id' => $batch->supplier_id,
-                    'label' => "{$batch->code} · {$batch->cutting->productName()} · sisa {$left->sum()} pcs",
+                    'label' => "{$batch->code} · {$batch->productName()} · sisa {$left->sum()} pcs",
                     'items' => $left->map(fn ($quantity, $productId) => ['product_id' => $productId, 'quantity' => $quantity])->values()->all(),
                 ];
             })

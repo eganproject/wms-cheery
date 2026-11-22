@@ -80,7 +80,7 @@ class FabricCuttingController extends Controller implements HasMiddleware
 
         if ($view === 'jahit') {
             $batches = SewingBatch::query()
-                ->with(['supplier:id,name', 'cutting.product', 'cutting.group', 'items.product:id,sku,name'])
+                ->with(['supplier:id,name', 'cutting.product', 'cutting.group', 'items.product:id,sku,name,product_group_id', 'items.product.group'])
                 ->when($request->filled('supplier_id'), fn (Builder $query) => $query->where('supplier_id', $request->integer('supplier_id')))
                 ->when($term, fn (Builder $query) => $query->where(fn (Builder $query) => $query
                     ->where('code', 'like', "%{$term}%")
@@ -374,7 +374,11 @@ class FabricCuttingController extends Controller implements HasMiddleware
 
         $sewingBatch->delete();
 
-        return back()->with('success', "Batch {$sewingBatch->code} dihapus.");
+        return redirect()
+            ->to($sewingBatch->fabric_cutting_id
+                ? route('admin.fabric-cuttings.show', $sewingBatch->fabric_cutting_id)
+                : route('admin.fabric-cuttings.index', ['lihat' => 'jahit']))
+            ->with('success', "Batch {$sewingBatch->code} dihapus.");
     }
 
     /**

@@ -110,6 +110,32 @@ class SewingBatch extends Model
             ->filter(fn (int $left) => $left > 0);
     }
 
+    /** Diinput manual (saldo yang sudah berjalan), bukan dari Cutting. */
+    public function isManual(): bool
+    {
+        return $this->fabric_cutting_id === null;
+    }
+
+    /** Nama barang induk dari cutting, atau dari barang pertama untuk batch manual. */
+    public function productName(): string
+    {
+        if ($this->cutting) {
+            return $this->cutting->productName();
+        }
+
+        $product = $this->items->first()?->product;
+
+        return $product?->group?->name ?? $product?->name ?? 'Input manual';
+    }
+
+    /** Halaman untuk melihat batch: detail cutting-nya, atau daftar hasil potong. */
+    public function url(): string
+    {
+        return $this->fabric_cutting_id
+            ? route('admin.fabric-cuttings.show', $this->fabric_cutting_id).'#'.$this->code
+            : route('admin.fabric-cuttings.index', ['lihat' => 'jahit', 'status' => 'semua', 'search' => $this->code]);
+    }
+
     /** Hasil potong yang masih disimpan di gudang, belum ke penjahit. */
     public function inWarehouse(): bool
     {
