@@ -55,7 +55,7 @@ class SewingBatchController extends Controller implements HasMiddleware
         });
 
         return redirect()
-            ->route('admin.fabric-cuttings.index', ['lihat' => 'jahit', 'status' => $batch->inWarehouse() ? 'gudang' : 'penjahit'])
+            ->route('admin.fabric-cuttings.index', ['lihat' => $batch->inWarehouse() ? 'gudang' : 'jahit'])
             ->with('success', "{$batch->code}: {$data['lines']->sum()} pcs dicatat ".($batch->inWarehouse() ? 'di gudang.' : 'di penjahit.'));
     }
 
@@ -103,7 +103,7 @@ class SewingBatchController extends Controller implements HasMiddleware
         });
 
         return redirect()
-            ->to($sewingBatch->cutting ? $sewingBatch->url() : route('admin.fabric-cuttings.index', ['lihat' => 'jahit', 'status' => 'semua']))
+            ->to($sewingBatch->cutting ? $sewingBatch->url() : route('admin.fabric-cuttings.index', ['lihat' => $sewingBatch->inWarehouse() ? 'gudang' : 'jahit', 'status' => 'semua']))
             ->with('success', "Batch {$sewingBatch->code} diperbarui.");
     }
 

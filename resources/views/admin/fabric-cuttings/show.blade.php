@@ -65,31 +65,7 @@
                                             @if ($batch->inWarehouse())
                                                 <x-ui.badge variant="warning">Di Gudang · {{ $left->sum() }} pcs</x-ui.badge>
                                                 @if ($canIssue && $tailors->isNotEmpty())
-                                                    <div x-data="{ open: false }" class="relative">
-                                                        <x-ui.button type="button" size="sm" icon="truck" x-on:click="open = ! open">Kirim ke Penjahit</x-ui.button>
-                                                        <form x-show="open" x-cloak x-on:click.outside="open = false" method="POST" action="{{ route('admin.sewing-batches.send', $batch) }}"
-                                                              class="absolute right-0 z-20 mt-1 w-80 space-y-3 rounded-xl bg-white p-3 text-left shadow-lg ring-1 ring-ink-100">
-                                                            @csrf
-                                                            <select name="supplier_id" required class="form-control w-full" data-native>
-                                                                <option value="">Pilih penjahit…</option>
-                                                                @foreach ($tailors as $tailor)
-                                                                    <option value="{{ $tailor->id }}">{{ $tailor->name }}</option>
-                                                                @endforeach
-                                                            </select>
-                                                            <input type="date" name="date" value="{{ now()->format('Y-m-d') }}" required class="form-control w-full">
-                                                            <div class="space-y-1.5">
-                                                                <p class="text-[11px] text-ink-500">Jumlah dikirim (boleh sebagian, sisanya tetap di gudang)</p>
-                                                                @foreach ($batch->items as $item)
-                                                                    <label class="flex items-center gap-2 text-xs">
-                                                                        <span class="min-w-0 flex-1 truncate"><span class="font-mono font-semibold">{{ $item->product->sku }}</span> · ada {{ $item->quantity }}</span>
-                                                                        <input type="number" name="items[{{ $item->product_id }}]" value="{{ $item->quantity }}" min="0" max="{{ $item->quantity }}" step="1"
-                                                                               class="form-control h-9 w-20 text-right tabular-nums">
-                                                                    </label>
-                                                                @endforeach
-                                                            </div>
-                                                            <x-ui.button type="submit" size="sm" icon="truck" class="w-full">Kirim</x-ui.button>
-                                                        </form>
-                                                    </div>
+                                                    @include('admin.fabric-cuttings.partials.send-form', ['batch' => $batch])
                                                 @endif
                                             @else
                                                 <x-ui.badge variant="info">WIP Jahit · sisa {{ $left->sum() }} pcs</x-ui.badge>

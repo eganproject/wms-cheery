@@ -504,7 +504,8 @@ class FabricStockTest extends TestCase
         $this->assertTrue($warehouse->inWarehouse());
         $this->assertSame('2026-06-10', $atTailor->sent_at->toDateString());
         $this->assertSame([$s->id => 20, $m->id => 8], \App\Support\FabricNeeds::wipByProduct()->sortKeys()->all());
-        $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.index', ['lihat' => 'jahit']))->assertOk()->assertSee($warehouse->code)->assertSee('input manual');
+        $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.index', ['lihat' => 'gudang']))->assertOk()->assertSee($warehouse->code)->assertSee('input manual')->assertSee('Kirim ke Penjahit');
+        $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.index', ['lihat' => 'jahit']))->assertOk()->assertSee($atTailor->code)->assertDontSee($warehouse->code);
         $this->actingAs($this->admin)->get(route('admin.sewing-batches.edit', $warehouse))->assertOk();
 
         // Batch manual di penjahit diterima lewat penerimaan.

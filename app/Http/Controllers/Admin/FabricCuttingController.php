@@ -57,8 +57,12 @@ class FabricCuttingController extends Controller implements HasMiddleware
             ]);
         }
 
-        $view = $request->input('lihat') === 'jahit' ? 'jahit' : 'cutting';
+        $view = in_array($request->input('lihat'), ['gudang', 'jahit'], true) ? $request->input('lihat') : 'cutting';
         $status = (string) $request->input('status', 'terbuka');
+        // Tautan lama: Hasil Potong difilter "di gudang" kini tab sendiri.
+        if ($view === 'jahit' && $status === 'gudang') {
+            [$view, $status] = ['gudang', 'terbuka'];
+        }
         $term = $request->string('search')->trim()->value();
 
         $cuttings = $view === 'cutting'
@@ -78,8 +82,10 @@ class FabricCuttingController extends Controller implements HasMiddleware
         $batches = null;
         $received = collect();
 
-        if ($view === 'jahit') {
+        if ($view !== 'cutting') {
             $batches = SewingBatch::query()
+                ->when($view === 'gudang', fn (Builder $query) => $query->inWarehouse())
+                ->when($view === 'jahit', fn (Builder $query) => $query->atTailor())
                 ->with(['supplier:id,name', 'cutting.product', 'cutting.group', 'items.product:id,sku,name,product_group_id', 'items.product.group'])
                 ->when($request->filled('supplier_id'), fn (Builder $query) => $query->where('supplier_id', $request->integer('supplier_id')))
                 ->when($term, fn (Builder $query) => $query->where(fn (Builder $query) => $query
@@ -87,8 +93,6 @@ class FabricCuttingController extends Controller implements HasMiddleware
                     ->orWhereHas('cutting', fn (Builder $query) => $query->where('code', 'like', "%{$term}%"))
                     ->orWhereHas('items.product', fn (Builder $query) => $query->where('sku', 'like', "%{$term}%")->orWhere('name', 'like', "%{$term}%"))))
                 ->when($status !== 'semua', fn (Builder $query) => $query->notClosed())
-                ->when($status === 'gudang', fn (Builder $query) => $query->inWarehouse())
-                ->when($status === 'penjahit', fn (Builder $query) => $query->atTailor())
                 ->latest('id')
                 ->get();
 
@@ -100,7 +104,7 @@ class FabricCuttingController extends Controller implements HasMiddleware
 
                     return $batch;
                 })
-                ->when(in_array($status, ['terbuka', 'gudang', 'penjahit'], true), fn ($rows) => $rows->filter(fn (SewingBatch $batch) => $batch->outstanding_total > 0))
+                ->when($status === 'terbuka', fn ($rows) => $rows->filter(fn (SewingBatch $batch) => $batch->outstanding_total > 0))
                 ->when($status === 'selesai', fn ($rows) => $rows->filter(fn (SewingBatch $batch) => $batch->closed_at || $batch->outstanding_total === 0))
                 ->values();
         }
@@ -377,7 +381,7 @@ class FabricCuttingController extends Controller implements HasMiddleware
         return redirect()
             ->to($sewingBatch->fabric_cutting_id
                 ? route('admin.fabric-cuttings.show', $sewingBatch->fabric_cutting_id)
-                : route('admin.fabric-cuttings.index', ['lihat' => 'jahit']))
+                : route('admin.fabric-cuttings.index', ['lihat' => $sewingBatch->inWarehouse() ? 'gudang' : 'jahit']))
             ->with('success', "Batch {$sewingBatch->code} dihapus.");
     }
 

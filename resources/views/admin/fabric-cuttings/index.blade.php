@@ -1,21 +1,21 @@
 {{--
-    Cutting & Jahit: kain yang sedang dipotong (Cutting) dan hasil potong
-    yang sedang dijahit di penjahit (WIP Jahit).
+    Cutting & Jahit: kain yang sedang dipotong (Cutting), hasil potong yang
+    disimpan di gudang, dan yang sedang dijahit di penjahit (WIP Jahit).
 --}}
 <x-app-layout title="Cutting & Jahit">
     @include('admin.fabric-cuttings.partials.header')
 
     <form method="GET" action="{{ route('admin.fabric-cuttings.index') }}" data-auto-submit
           class="mb-5 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4 lg:flex-row lg:items-center">
-        @if ($view === 'jahit')
-            <input type="hidden" name="lihat" value="jahit">
+        @if ($view !== 'cutting')
+            <input type="hidden" name="lihat" value="{{ $view }}">
         @endif
         <div class="relative flex-1">
             <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
                 <x-icon name="search" class="h-4 w-4" />
             </span>
             <x-text-input type="search" name="search" :value="request('search')"
-                          :placeholder="$view === 'jahit' ? 'Cari no. batch, no. cutting, atau SKU barang...' : 'Cari no. cutting, barang, atau pemotong...'" class="pl-8" />
+                          :placeholder="$view !== 'cutting' ? 'Cari no. batch, no. cutting, atau SKU barang...' : 'Cari no. cutting, barang, atau pemotong...'" class="pl-8" />
         </div>
 
         @if ($view === 'jahit')
@@ -28,17 +28,15 @@
         @endif
 
         <x-ui.select name="status" class="lg:w-44">
-            <option value="terbuka" @selected($status === 'terbuka')>{{ $view === 'jahit' ? 'Belum selesai' : 'Sedang cutting' }}</option>
-            @if ($view === 'jahit')
-                <option value="gudang" @selected($status === 'gudang')>Di gudang</option>
-                <option value="penjahit" @selected($status === 'penjahit')>Di penjahit</option>
+            <option value="terbuka" @selected($status === 'terbuka')>{{ ['cutting' => 'Sedang cutting', 'gudang' => 'Masih di gudang', 'jahit' => 'Masih di penjahit'][$view] }}</option>
+            @if ($view !== 'gudang')
+                <option value="selesai" @selected($status === 'selesai')>Selesai</option>
             @endif
-            <option value="selesai" @selected($status === 'selesai')>Selesai</option>
             <option value="semua" @selected($status === 'semua')>Semua</option>
         </x-ui.select>
 
         <x-ui.button type="submit" variant="secondary" icon="filter" class="lg:flex-none">Terapkan</x-ui.button>
-        @if ($view === 'jahit')
+        @if ($view !== 'cutting')
             @can('fabrics.issue')
                 <x-ui.button :href="route('admin.sewing-batches.create')" variant="secondary" icon="plus" class="lg:flex-none">Input Manual</x-ui.button>
             @endcan
@@ -110,7 +108,7 @@
             @endif
         @else
             @if ($batches->isEmpty())
-                <x-ui.empty-state icon="truck" title="Tidak ada batch hasil potong"
+                <x-ui.empty-state icon="truck" :title="$view === 'gudang' ? 'Tidak ada hasil potong di gudang' : 'Tidak ada batch WIP Jahit'"
                                   description="Batch dibuat dari detail Cutting lewat Catat Hasil Potong, atau lewat Input Manual untuk saldo yang sudah berjalan." />
             @else
                 <div class="overflow-x-auto">
@@ -170,10 +168,15 @@
                                     <td class="text-right">
                                         @can('fabrics.issue')
                                             @if (! $batch->closed_at)
+                                                <div class="inline-flex items-center gap-1">
+                                                @if ($batch->inWarehouse() && $batch->outstanding_total > 0 && $tailors->isNotEmpty())
+                                                    @include('admin.fabric-cuttings.partials.send-form', ['batch' => $batch])
+                                                @endif
                                                 <a href="{{ route('admin.sewing-batches.edit', $batch) }}" title="Ubah"
                                                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-950">
                                                     <x-icon name="pencil" class="h-4 w-4" />
                                                 </a>
+                                                </div>
                                             @endif
                                         @endcan
                                     </td>

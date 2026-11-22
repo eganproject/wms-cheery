@@ -12,18 +12,20 @@
     <x-ui.stat-card label="Cutting Berjalan" :value="number_format($summary['cutting'], 0, ',', '.')" icon="clipboard" accent
                     hint="Kain sudah keluar, belum selesai dipotong" :href="route('admin.fabric-cuttings.index')" />
     <x-ui.stat-card label="Hasil Potong di Gudang" :value="number_format($summary['warehouse'], 0, ',', '.').' pcs'" icon="box"
-                    hint="Belum dikirim ke penjahit" :href="route('admin.fabric-cuttings.index', ['lihat' => 'jahit', 'status' => 'gudang'])" />
+                    hint="Belum dikirim ke penjahit" :href="route('admin.fabric-cuttings.index', ['lihat' => 'gudang'])" />
     <x-ui.stat-card label="Batch di Penjahit" :value="number_format($summary['batches'], 0, ',', '.')" icon="truck"
-                    hint="Batch WIP Jahit yang belum diterima lengkap" :href="route('admin.fabric-cuttings.index', ['lihat' => 'jahit', 'status' => 'penjahit'])" />
+                    hint="Batch WIP Jahit yang belum diterima lengkap" :href="route('admin.fabric-cuttings.index', ['lihat' => 'jahit'])" />
     <x-ui.stat-card label="Pcs di Penjahit" :value="number_format($summary['wip'], 0, ',', '.').' pcs'" icon="layers"
                     hint="Belum diterima sebagai barang jadi" />
 </div>
 
-<div class="mb-4 flex rounded-xl bg-control p-1 sm:w-[30rem]">
+<div class="mb-4 flex rounded-xl bg-control p-1 sm:w-[36rem]">
     <a href="{{ route('admin.fabric-cuttings.index') }}"
        class="flex-1 rounded-lg px-3 py-2 text-center text-sm font-semibold {{ $view === 'cutting' ? 'bg-white text-ink-950 shadow-sm' : 'text-ink-500' }}">Cutting</a>
+    <a href="{{ route('admin.fabric-cuttings.index', ['lihat' => 'gudang']) }}"
+       class="flex-1 rounded-lg px-3 py-2 text-center text-sm font-semibold {{ $view === 'gudang' ? 'bg-white text-ink-950 shadow-sm' : 'text-ink-500' }}">Hasil Potong di Gudang</a>
     <a href="{{ route('admin.fabric-cuttings.index', ['lihat' => 'jahit']) }}"
-       class="flex-1 rounded-lg px-3 py-2 text-center text-sm font-semibold {{ $view === 'jahit' ? 'bg-white text-ink-950 shadow-sm' : 'text-ink-500' }}">Hasil Potong</a>
+       class="flex-1 rounded-lg px-3 py-2 text-center text-sm font-semibold {{ $view === 'jahit' ? 'bg-white text-ink-950 shadow-sm' : 'text-ink-500' }}">WIP Jahit</a>
     <a href="{{ route('admin.fabric-cuttings.index', ['lihat' => 'rekap']) }}"
        class="flex-1 rounded-lg px-3 py-2 text-center text-sm font-semibold {{ $view === 'rekap' ? 'bg-white text-ink-950 shadow-sm' : 'text-ink-500' }}">Rekap</a>
 </div>

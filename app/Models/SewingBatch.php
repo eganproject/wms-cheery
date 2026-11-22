@@ -133,7 +133,7 @@ class SewingBatch extends Model
     {
         return $this->fabric_cutting_id
             ? route('admin.fabric-cuttings.show', $this->fabric_cutting_id).'#'.$this->code
-            : route('admin.fabric-cuttings.index', ['lihat' => 'jahit', 'status' => 'semua', 'search' => $this->code]);
+            : route('admin.fabric-cuttings.index', ['lihat' => $this->inWarehouse() ? 'gudang' : 'jahit', 'status' => 'semua', 'search' => $this->code]);
     }
 
     /** Hasil potong yang masih disimpan di gudang, belum ke penjahit. */

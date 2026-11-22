@@ -10,7 +10,7 @@
 <x-app-layout :title="$title">
     <x-ui.page-header :title="$title"
                       :subtitle="$editing && $batch->cutting ? 'Dari cutting '.$batch->cutting->code.'. Jumlah tidak boleh kurang dari yang sudah diterima.' : 'Catat hasil potong yang sudah ada di gudang atau sedang dijahit, tanpa lewat Cutting.'"
-                      :back="route('admin.fabric-cuttings.index', ['lihat' => 'jahit'])">
+                      :back="route('admin.fabric-cuttings.index', ['lihat' => $editing && ! $batch->inWarehouse() ? 'jahit' : 'gudang'])">
         @if ($editing && $batch->inbounds()->doesntExist())
             <x-slot name="actions">
                 <x-ui.confirm-delete :action="route('admin.sewing-batches.destroy', $batch)" title="Hapus batch ini?"
