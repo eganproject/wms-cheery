@@ -52,6 +52,7 @@ use App\Http\Controllers\Admin\FabricCuttingController;
 use App\Http\Controllers\Admin\FabricIssueController;
 use App\Http\Controllers\Admin\FabricLabelController;
 use App\Http\Controllers\Admin\FabricNeedController;
+use App\Http\Controllers\Admin\FabricOpnameController;
 use App\Http\Controllers\Admin\FabricReceiptController;
 use App\Http\Controllers\Admin\FabricScanController;
 use App\Http\Controllers\Admin\WorkShiftController;
@@ -203,6 +204,9 @@ Route::middleware('auth')
         Route::get('fabrics/export', [FabricController::class, 'export'])->name('fabrics.export');
         Route::put('fabrics/{fabric}/usages', [FabricController::class, 'usages'])->name('fabrics.usages');
         Route::resource('fabrics', FabricController::class);
+        Route::post('fabric-opnames/{fabricOpname}/count', [FabricOpnameController::class, 'count'])->name('fabric-opnames.count');
+        Route::post('fabric-opnames/{fabricOpname}/apply', [FabricOpnameController::class, 'apply'])->name('fabric-opnames.apply');
+        Route::resource('fabric-opnames', FabricOpnameController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
         Route::get('fabric-receipts/export', [FabricReceiptController::class, 'export'])->name('fabric-receipts.export');
         Route::resource('fabric-receipts', FabricReceiptController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
         Route::get('fabric-labels', [FabricLabelController::class, 'create'])->name('fabric-labels.create');

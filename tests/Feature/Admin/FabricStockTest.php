@@ -449,6 +449,39 @@ class FabricStockTest extends TestCase
         $this->assertSame(15, $report->tailors->first()['handed']);
     }
 
+    public function test_fabric_opname_counts_rolls_and_applies_differences(): void
+    {
+        $fabric = $this->fabric();
+        $this->receive($fabric, 50, 3);
+        [$r1, $r2, $r3] = FabricRoll::orderBy('id')->get()->all();
+
+        $this->actingAs($this->admin)->get(route('admin.fabric-opnames.index'))->assertOk();
+        $this->actingAs($this->admin)->get(route('admin.fabric-opnames.create'))->assertOk();
+        $this->actingAs($this->admin)->post(route('admin.fabric-opnames.store'), ['date' => '2026-06-12', 'fabric_id' => $fabric->id])->assertRedirect();
+        $opname = \App\Models\FabricOpname::firstOrFail();
+        $this->assertSame(3, $opname->lines()->count());
+
+        $this->actingAs($this->admin)->postJson(route('admin.fabric-opnames.count', $opname), ['code' => 'tyb-htm-001', 'counted' => 48.5])->assertOk();
+        $this->actingAs($this->admin)->postJson(route('admin.fabric-opnames.count', $opname), ['code' => 'XXX-001', 'counted' => 1])->assertStatus(422);
+        $line2 = $opname->lines()->where('fabric_roll_id', $r2->id)->firstOrFail();
+        $this->actingAs($this->admin)->postJson(route('admin.fabric-opnames.count', $opname), ['line_id' => $line2->id, 'counted' => 50])->assertOk();
+        $this->actingAs($this->admin)->get(route('admin.fabric-opnames.show', $opname))->assertOk()->assertSee('TYB-HTM-003');
+
+        // Staf boleh menghitung tapi tidak menerapkan.
+        $staff = User::factory()->create(['role_id' => Role::where('slug', 'staff-gudang')->value('id'), 'is_active' => true]);
+        $this->actingAs($staff)->postJson(route('admin.fabric-opnames.count', $opname), ['line_id' => $line2->id, 'counted' => 50])->assertOk();
+        $this->actingAs($staff)->post(route('admin.fabric-opnames.apply', $opname), ['missing_rule' => 'empty'])->assertForbidden();
+
+        $this->actingAs($this->admin)->post(route('admin.fabric-opnames.apply', $opname), ['missing_rule' => 'empty'])->assertSessionHas('success');
+        $this->assertSame(48.5, $r1->refresh()->quantity);
+        $this->assertSame(50.0, $r2->refresh()->quantity);
+        $this->assertSame(0.0, $r3->refresh()->quantity);
+        $this->assertSame(2, FabricMovement::where('type', 'adjust')->where('note', 'like', 'Opname%')->count());
+        $this->assertSame('applied', $opname->refresh()->status);
+        $this->actingAs($this->admin)->postJson(route('admin.fabric-opnames.count', $opname), ['line_id' => $line2->id, 'counted' => 1])->assertStatus(422);
+        $this->actingAs($this->admin)->delete(route('admin.fabric-opnames.destroy', $opname))->assertSessionHas('error');
+    }
+
     public function test_unprocessed_fabric_issue_can_be_deleted(): void
     {
         $fabric = $this->fabric();
