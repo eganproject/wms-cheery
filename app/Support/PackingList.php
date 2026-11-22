@@ -47,26 +47,66 @@ class PackingList
      */
     public static function for(Builder $orders, string $mode = self::BY_SKU): self
     {
-        $lines = [];
-        $orderCount = 0;
-        $doneCount = 0;
+        return static::grouped($orders, $mode)[''] ?? static::build([], 0, 0);
+    }
+
+    /**
+     * Satu daftar per tanggal batas kirim (Y-m-d), dihitung dalam satu kali
+     * baca resi. Hasil tiap tanggal sama dengan for() untuk resi tanggal itu.
+     *
+     * @return array<string, self>
+     */
+    public static function perShipDate(Builder $orders, string $mode = self::BY_SKU): array
+    {
+        $lists = static::grouped(
+            $orders,
+            $mode,
+            // Nilai mentah (Y-m-d H:i:s) cukup dipotong; sama dengan DATE() di SQL
+            // dan jauh lebih ringan daripada membuat Carbon untuk tiap resi.
+            fn (ShipmentOrder $order) => substr((string) $order->getRawOriginal('ship_by'), 0, 10),
+        );
+        ksort($lists);
+
+        return $lists;
+    }
+
+    /**
+     * @param  (\Closure(ShipmentOrder): ?string)|null  $bucket
+     * @return array<string, self>
+     */
+    protected static function grouped(Builder $orders, string $mode, ?\Closure $bucket = null): array
+    {
+        $groups = [];
+        $recipes = collect();
+
+        // Hanya kolom yang dibaca di sini: resi besar jadi jauh lebih ringan.
+        if ($orders->getQuery()->columns === null) {
+            $orders->select(['shipment_orders.id', 'shipment_orders.tracking_number', 'shipment_orders.ship_by']);
+        }
 
         $orders
             ->open()
-            ->with(['items', 'outbound.items'])
-            ->orderBy('shipment_orders.id')
-            ->chunk(500, function (Collection $chunk) use (&$lines, &$orderCount, &$doneCount, $mode) {
-                $recipes = static::recipes($chunk);
+            ->with([
+                'items:id,shipment_order_id,product_id,sku,product_name,quantity',
+                'outbound.items:id,outbound_id,product_id,quantity,scanned_quantity',
+            ])
+            ->reorder()
+            // Per id, bukan offset: tetap cepat sampai halaman terakhir.
+            ->chunkById(500, function (Collection $chunk) use (&$groups, &$recipes, $mode, $bucket) {
+                $recipes = static::recipes($chunk, $recipes);
 
                 foreach ($chunk as $order) {
-                    $orderCount++;
+                    $key = $bucket ? (string) $bucket($order) : '';
+                    $group = &$groups[$key];
+                    $group ??= ['lines' => [], 'orders' => 0, 'done' => 0];
+                    $group['orders']++;
                     $orderLines = $mode === self::BY_PRODUCT
                         ? static::linesOf($order, $recipes)
                         : static::skuLinesOf($order, $recipes);
                     $complete = true;
 
-                    foreach ($orderLines as $key => $line) {
-                        $lines[$key] ??= [
+                    foreach ($orderLines as $lineKey => $line) {
+                        $group['lines'][$lineKey] ??= [
                             'product_id' => $line['product_id'],
                             'sku' => $line['sku'],
                             'name' => $line['name'],
@@ -77,45 +117,65 @@ class PackingList
                             'open_orders' => 0,
                             'open_resi' => [],
                         ];
+                        $target = &$group['lines'][$lineKey];
 
                         $scanned = min($line['scanned'], $line['quantity']);
-                        $lines[$key]['ordered'] += $line['quantity'];
-                        $lines[$key]['scanned'] += $scanned;
-                        $lines[$key]['orders']++;
-                        $lines[$key]['from_bundle'] = $lines[$key]['from_bundle'] || $line['from_bundle'];
+                        $target['ordered'] += $line['quantity'];
+                        $target['scanned'] += $scanned;
+                        $target['orders']++;
+                        $target['from_bundle'] = $target['from_bundle'] || $line['from_bundle'];
 
                         if ($scanned < $line['quantity']) {
                             $complete = false;
-                            $lines[$key]['open_orders']++;
+                            $target['open_orders']++;
 
-                            if (count($lines[$key]['open_resi']) < self::RESI_SAMPLE) {
-                                $lines[$key]['open_resi'][] = $order->tracking_number;
+                            if (count($target['open_resi']) < self::RESI_SAMPLE) {
+                                $target['open_resi'][] = $order->tracking_number;
                             }
                         }
+
+                        unset($target);
                     }
 
                     if ($complete && $orderLines !== [] && $order->outbound?->isResiVerified()) {
-                        $doneCount++;
+                        $group['done']++;
                     }
-                }
-            });
 
-        $products = Product::query()
-            ->whereIn('id', collect($lines)->pluck('product_id')->filter()->unique())
+                    unset($group);
+                }
+            }, 'shipment_orders.id', 'id');
+
+        $productIds = collect($groups)->flatMap(fn (array $group) => array_column($group['lines'], 'product_id'))->filter()->unique();
+        $products = $productIds->isEmpty() ? collect() : Product::query()
+            ->whereIn('id', $productIds)
             ->with('group:id,image_path')
             ->get(['id', 'sku', 'name', 'image_path', 'product_group_id'])
             ->keyBy('id');
 
+        // Data barang dihitung sekali per barang, bukan sekali per baris tiap tanggal.
+        $meta = $products->map(fn (Product $product) => static::productMeta($product))->all();
+
+        return array_map(fn (array $group) => static::build($group['lines'], $group['orders'], $group['done'], $meta), $groups);
+    }
+
+    /**
+     * @param  array<string, array<string, mixed>>  $lines
+     * @param  array<int, array<string, ?string>>  $meta  data barang per id (lihat productMeta)
+     */
+    protected static function build(array $lines, int $orderCount, int $doneCount, array $meta = []): self
+    {
+        $none = static::productMeta(null);
+
         $rows = collect($lines)
-            ->map(function (array $line) use ($products) {
-                $product = $line['product_id'] ? $products->get($line['product_id']) : null;
+            ->map(function (array $line) use ($meta, $none) {
+                $product = $line['product_id'] ? ($meta[$line['product_id']] ?? $none) : $none;
 
                 return array_merge($line, [
-                    'sku' => $line['sku'] ?? $product?->sku,
-                    'name' => $product?->name ?? $line['name'],
-                    'image_url' => $product?->image_url,
+                    'sku' => $line['sku'] ?? $product['sku'],
+                    'name' => $product['name'] ?? $line['name'],
+                    'image_url' => $product['image_url'],
                     // Untuk PDF: berkas gambar di disk, milik barang atau induk variannya.
-                    'image_path' => $product ? ($product->image_path ?: $product->group?->image_path) : null,
+                    'image_path' => $product['image_path'],
                     'matched' => $line['product_id'] !== null,
                     'remaining' => $line['ordered'] - $line['scanned'],
                 ]);
@@ -133,6 +193,19 @@ class PackingList
             'remaining' => (int) $rows->sum('remaining'),
             'unmatched' => $rows->where('matched', false)->count(),
         ]);
+    }
+
+    /**
+     * @return array{sku: ?string, name: ?string, image_url: ?string, image_path: ?string}
+     */
+    protected static function productMeta(?Product $product): array
+    {
+        return [
+            'sku' => $product?->sku,
+            'name' => $product?->name,
+            'image_url' => $product?->image_url,
+            'image_path' => $product ? ($product->image_path ?: $product->group?->image_path) : null,
+        ];
     }
 
     /**
@@ -301,21 +374,25 @@ class PackingList
      * @param  Collection<int, ShipmentOrder>  $orders
      * @return Collection<int, Product>
      */
-    protected static function recipes(Collection $orders): Collection
+    protected static function recipes(Collection $orders, ?Collection $known = null): Collection
     {
+        $known ??= collect();
+
+        // Barang yang sudah dimuat di potongan sebelumnya tidak dibaca ulang.
         $ids = $orders
             ->flatMap(fn (ShipmentOrder $order) => $order->items->pluck('product_id'))
             ->filter()
-            ->unique();
+            ->unique()
+            ->reject(fn ($id) => $known->has($id));
 
         if ($ids->isEmpty()) {
-            return collect();
+            return $known;
         }
 
-        return Product::query()
+        return $known->union(Product::query()
             ->with('bundleComponents')
             ->whereIn('id', $ids)
             ->get()
-            ->keyBy('id');
+            ->keyBy('id'));
     }
 }

@@ -49,24 +49,20 @@ class ProductionPlan
 
         // Semua tanggal batas kirim sampai tanggal terakhir yang dipilih, karena
         // tanggal yang tidak dipilih di antaranya juga memakai stok.
-        $allDays = $base()->toBase()
-            ->whereNotNull('shipment_orders.ship_by')
-            ->where('shipment_orders.ship_by', '<=', $dates->last()->copy()->endOfDay())
-            ->selectRaw('DATE(shipment_orders.ship_by) AS day')
-            ->groupBy('day')
-            ->orderBy('day')
-            ->pluck('day')
-            ->map(fn ($day) => Carbon::parse($day)->format('Y-m-d'));
+        $lists = PackingList::perShipDate(
+            $base()
+                ->whereNotNull('shipment_orders.ship_by')
+                ->where('shipment_orders.ship_by', '<=', $dates->last()->copy()->endOfDay()),
+            $mode,
+        );
+        $allDays = collect(array_keys($lists))->filter()->values();
 
         $lines = [];
         $orders = 0;
 
+        // Satu kali baca resi untuk semua tanggal, lalu digabung per tanggal urut.
         foreach ($allDays as $day) {
-            $start = Carbon::parse($day)->startOfDay();
-            $list = PackingList::for(
-                $base()->whereBetween('shipment_orders.ship_by', [$start, $start->copy()->endOfDay()]),
-                $mode,
-            );
+            $list = $lists[$day];
             $isSelected = $selected->has($day);
 
             if ($isSelected) {
