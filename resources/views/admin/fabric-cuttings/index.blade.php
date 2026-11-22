@@ -115,7 +115,7 @@
                                 <th>No. Batch</th>
                                 <th>Posisi</th>
                                 <th>Barang</th>
-                                <th class="text-right">Diserahkan</th>
+                                <th class="text-right">Pcs</th>
                                 <th class="text-right">Diterima</th>
                                 <th class="text-right">Sisa</th>
                                 <th>Status</th>

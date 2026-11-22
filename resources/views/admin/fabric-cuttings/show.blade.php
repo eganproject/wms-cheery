@@ -189,7 +189,7 @@
                         <div class="grid grid-cols-2 gap-1 rounded-xl bg-control p-1">
                             <label class="cursor-pointer rounded-lg px-3 py-2 text-center text-sm font-semibold"
                                    :class="tujuan === 'gudang' ? 'bg-white text-ink-950 shadow-sm' : 'text-ink-500'">
-                                <input type="radio" name="tujuan" value="gudang" x-model="tujuan" class="sr-only"> Simpan di Gudang
+                                <input type="radio" name="tujuan" value="gudang" x-model="tujuan" class="sr-only"> Ke Gudang
                             </label>
                             <label class="cursor-pointer rounded-lg px-3 py-2 text-center text-sm font-semibold"
                                    :class="tujuan === 'penjahit' ? 'bg-white text-ink-950 shadow-sm' : 'text-ink-500'">

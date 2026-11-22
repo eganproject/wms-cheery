@@ -16,7 +16,7 @@
     <x-ui.stat-card label="Batch di Penjahit" :value="number_format($summary['batches'], 0, ',', '.')" icon="truck"
                     hint="Batch WIP Jahit yang belum diterima lengkap" :href="route('admin.fabric-cuttings.index', ['lihat' => 'jahit', 'status' => 'penjahit'])" />
     <x-ui.stat-card label="Pcs di Penjahit" :value="number_format($summary['wip'], 0, ',', '.').' pcs'" icon="layers"
-                    hint="Hasil potong (gudang & penjahit) mengurangi kebutuhan kain" />
+                    hint="Belum diterima sebagai barang jadi" />
 </div>
 
 <div class="mb-4 flex rounded-xl bg-control p-1 sm:w-[30rem]">
