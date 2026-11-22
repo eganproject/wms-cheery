@@ -24,7 +24,7 @@
 
     <div class="space-y-6">
         <x-ui.card title="Pemotong" padding="p-0"
-                   subtitle="Roll diambil menurut tanggal scan keluar; pcs hasil potong menurut tanggal diserahkan ke penjahit.">
+                   subtitle="Roll diambil menurut tanggal scan keluar; pcs hasil potong menurut tanggal dicatat (termasuk yang disimpan di gudang).">
             @if ($report->cutters->isEmpty())
                 <p class="px-5 py-6 text-sm text-ink-400">Belum ada cutting pada periode ini.</p>
             @else
@@ -102,7 +102,7 @@
         </x-ui.card>
 
         <x-ui.card title="Penjahit" padding="p-0"
-                   subtitle="Batch yang diserahkan pada periode ini. Diterima = penerimaan barang yang sudah disetujui.">
+                   subtitle="Batch yang dikirim ke penjahit pada periode ini. Diterima = penerimaan barang yang sudah disetujui.">
             @if ($report->tailors->isEmpty())
                 <p class="px-5 py-6 text-sm text-ink-400">Belum ada batch WIP Jahit pada periode ini.</p>
             @else

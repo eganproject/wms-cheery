@@ -10,22 +10,24 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 
 /**
- * Batch WIP Jahit: hasil cutting yang diserahkan ke satu penjahit, per varian.
- * Berkurang oleh penerimaan barang (yang sudah disetujui) yang merujuk batch
- * ini; selesai bila semua sudah diterima atau ditutup dengan alasan.
+ * Batch hasil potong per varian. Tanpa penjahit = masih disimpan di gudang
+ * ("Di Gudang"); setelah dikirim ke penjahit menjadi WIP Jahit. Berkurang
+ * oleh penerimaan barang (yang sudah disetujui) yang merujuk batch ini;
+ * selesai bila semua sudah diterima atau ditutup dengan alasan.
  */
 class SewingBatch extends Model
 {
     use GeneratesDocumentCode;
 
     protected $fillable = [
-        'code', 'fabric_cutting_id', 'supplier_id', 'date', 'note', 'closed_at', 'close_reason', 'user_id',
+        'code', 'fabric_cutting_id', 'supplier_id', 'date', 'sent_at', 'note', 'closed_at', 'close_reason', 'user_id',
     ];
 
     protected function casts(): array
     {
         return [
             'date' => 'date',
+            'sent_at' => 'date',
             'closed_at' => 'datetime',
         ];
     }
@@ -106,6 +108,22 @@ class SewingBatch extends Model
         return $this->items
             ->mapWithKeys(fn (SewingBatchItem $item) => [$item->product_id => max(0, $item->quantity - (int) ($received[$item->product_id] ?? 0))])
             ->filter(fn (int $left) => $left > 0);
+    }
+
+    /** Hasil potong yang masih disimpan di gudang, belum ke penjahit. */
+    public function inWarehouse(): bool
+    {
+        return $this->supplier_id === null;
+    }
+
+    public function scopeInWarehouse(Builder $query): Builder
+    {
+        return $query->whereNull('supplier_id');
+    }
+
+    public function scopeAtTailor(Builder $query): Builder
+    {
+        return $query->whereNotNull('supplier_id');
     }
 
     /** Batch yang belum ditutup manual (bisa saja sudah diterima lengkap). */

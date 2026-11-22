@@ -45,7 +45,7 @@ class FabricNeedController extends Controller implements HasMiddleware
 
         $export = TableExport::make('Kebutuhan Kain')
             ->note($data['description'])
-            ->note('Kebutuhan = (harus diproduksi − WIP di penjahit) × pemakaian kain per unit, dikurangi kain yang masih di Cutting.');
+            ->note('Kebutuhan = (harus diproduksi − hasil potong di gudang & penjahit) × pemakaian kain per unit, dikurangi kain yang masih di Cutting.');
 
         $export->sheet('Per Jenis Kain', [
             ['SKU Kain', 'text'], ['Nama Kain', 'text'], ['Satuan', 'text'], ['Unit Harus Diproduksi', 'sum'],
@@ -57,7 +57,7 @@ class FabricNeedController extends Controller implements HasMiddleware
 
         $export->sheet('Rincian per Barang', [
             ['SKU Kain', 'text'], ['Nama Kain', 'text'], ['SKU Barang', 'text'], ['Nama Barang', 'text'],
-            ['Harus Diproduksi', 'sum'], ['WIP di Penjahit', 'sum'], ['Sisa Diproduksi', 'sum'], ['Pemakaian / Unit', 'number'], ['Kebutuhan Kain', 'number'], ['Satuan', 'text'],
+            ['Harus Diproduksi', 'sum'], ['Sudah Dipotong (Gudang & Penjahit)', 'sum'], ['Sisa Diproduksi', 'sum'], ['Pemakaian / Unit', 'number'], ['Kebutuhan Kain', 'number'], ['Satuan', 'text'],
         ], $needs->rows->flatMap(fn (array $row) => $row['products']->map(fn (array $product) => [
             $row['fabric']->sku, $row['fabric']->displayName(), $product['sku'], $product['name'],
             $product['short'], $product['wip'], $product['net'], $product['usage'], $product['need'], $row['fabric']->unit,
@@ -88,7 +88,7 @@ class FabricNeedController extends Controller implements HasMiddleware
         $description = collect([
             'Jenis: '.PoDeadlineController::KINDS[$kind],
             'Batas kirim: '.PoDeadlineController::describeDates($dates),
-            'Dikurangi WIP di penjahit & kain di Cutting',
+            'Dikurangi hasil potong (gudang & penjahit) & kain di Cutting',
         ])->filter()->implode(' · ');
 
         return [

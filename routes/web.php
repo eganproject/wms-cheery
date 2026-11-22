@@ -212,6 +212,7 @@ Route::middleware('auth')
         Route::get('fabric-cuttings/{fabricCutting}', [FabricCuttingController::class, 'show'])->name('fabric-cuttings.show');
         Route::post('fabric-cuttings/{fabricCutting}/handover', [FabricCuttingController::class, 'handover'])->name('fabric-cuttings.handover');
         Route::post('fabric-cuttings/{fabricCutting}/finish', [FabricCuttingController::class, 'finish'])->name('fabric-cuttings.finish');
+        Route::post('sewing-batches/{sewingBatch}/send', [FabricCuttingController::class, 'send'])->name('sewing-batches.send');
         Route::post('sewing-batches/{sewingBatch}/close', [FabricCuttingController::class, 'closeBatch'])->name('sewing-batches.close');
         Route::delete('sewing-batches/{sewingBatch}', [FabricCuttingController::class, 'destroyBatch'])->name('sewing-batches.destroy');
         Route::get('fabric-scan', [FabricScanController::class, 'show'])->name('fabric-scan');

@@ -398,6 +398,57 @@ class FabricStockTest extends TestCase
         $this->actingAs($staff)->put(route('admin.products.fabrics.update', $s), [])->assertForbidden();
     }
 
+    public function test_cut_pieces_can_wait_in_warehouse_then_be_sent_partially(): void
+    {
+        $fabric = $this->fabric();
+        $this->receive($fabric, 50, 1);
+        $group = \App\Models\ProductGroup::create(['name' => 'Gamis', 'option1_name' => 'Ukuran']);
+        $s = Product::create(['sku' => 'GMS-S', 'name' => 'Gamis - S', 'unit' => 'pcs', 'min_stock' => 0, 'product_group_id' => $group->id]);
+        $m = Product::create(['sku' => 'GMS-M', 'name' => 'Gamis - M', 'unit' => 'pcs', 'min_stock' => 0, 'product_group_id' => $group->id]);
+        $tailor = Supplier::create(['code' => 'SUP-9', 'name' => 'Penjahit Sri', 'is_active' => true, 'is_tailor' => true]);
+        $other = Supplier::create(['code' => 'SUP-8', 'name' => 'Toko Biasa', 'is_active' => true]);
+
+        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.issue'), ['code' => 'TYB-HTM-001', 'product_id' => $s->id, 'quantity' => 30])->assertOk();
+        $cutting = \App\Models\FabricCutting::firstOrFail();
+
+        // Simpan di gudang: tanpa penjahit.
+        $this->actingAs($this->admin)->post(route('admin.fabric-cuttings.handover', $cutting), ['tujuan' => 'gudang', 'date' => '2026-06-12', 'items' => [$s->id => 10, $m->id => 5]])
+            ->assertSessionHasNoErrors();
+        $stored = \App\Models\SewingBatch::firstOrFail();
+        $this->assertTrue($stored->inWarehouse());
+        $this->assertNull($stored->sent_at);
+        $this->assertSame(10, \App\Support\FabricNeeds::wipByProduct()[$s->id]);
+        $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.index', ['lihat' => 'jahit', 'status' => 'gudang']))->assertOk()->assertSee($stored->code)->assertSee('Di Gudang');
+        $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.show', $cutting))->assertOk()->assertSee('Kirim ke Penjahit');
+        $this->actingAs($this->admin)->get(route('admin.inbounds.create'))->assertOk()->assertDontSee($stored->code);
+
+        // Kirim sebagian: jadi batch baru di penjahit, sisanya tetap di gudang.
+        $this->actingAs($this->admin)->post(route('admin.sewing-batches.send', $stored), ['supplier_id' => $other->id, 'date' => '2026-06-12', 'items' => [$s->id => 4]])
+            ->assertSessionHasErrors('supplier_id');
+        $this->actingAs($this->admin)->post(route('admin.sewing-batches.send', $stored), ['supplier_id' => $tailor->id, 'date' => '2026-06-12', 'items' => [$s->id => 11]])
+            ->assertSessionHasErrors();
+        $this->actingAs($this->admin)->post(route('admin.sewing-batches.send', $stored), ['supplier_id' => $tailor->id, 'date' => '2026-06-12', 'items' => [$s->id => 4]])
+            ->assertSessionHas('success');
+        $sent = \App\Models\SewingBatch::whereKeyNot($stored->id)->firstOrFail();
+        $this->assertSame($tailor->id, $sent->supplier_id);
+        $this->assertSame([$s->id => 4], $sent->items()->pluck('quantity', 'product_id')->all());
+        $this->assertSame([$s->id => 6, $m->id => 5], $stored->items()->orderBy('product_id')->pluck('quantity', 'product_id')->all());
+        $this->assertTrue($stored->refresh()->inWarehouse());
+        $this->actingAs($this->admin)->get(route('admin.inbounds.create'))->assertOk()->assertSee($sent->code);
+
+        // Kirim semua sisanya: batch gudang itu sendiri pindah ke penjahit.
+        $this->actingAs($this->admin)->post(route('admin.sewing-batches.send', $stored), ['supplier_id' => $tailor->id, 'date' => '2026-06-12', 'items' => [$s->id => 6, $m->id => 5]])
+            ->assertSessionHas('success');
+        $this->assertFalse($stored->refresh()->inWarehouse());
+        $this->assertSame('2026-06-12', $stored->sent_at->toDateString());
+        $this->assertSame(2, \App\Models\SewingBatch::count());
+
+        // Rekap: pcs hasil potong tidak dobel; penjahit menerima semua 15.
+        $report = \App\Support\CuttingReport::for(\Illuminate\Support\Carbon::parse('2026-06-01'), now());
+        $this->assertSame(15, $report->cutters->first()['pieces']);
+        $this->assertSame(15, $report->tailors->first()['handed']);
+    }
+
     public function test_unprocessed_fabric_issue_can_be_deleted(): void
     {
         $fabric = $this->fabric();

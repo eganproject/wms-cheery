@@ -345,7 +345,7 @@ class InboundController extends Controller implements HasMiddleware
     protected function openSewingBatches(?int $include = null): array
     {
         $batches = \App\Models\SewingBatch::query()
-            ->where(fn ($query) => $query->notClosed()->when($include, fn ($query) => $query->orWhere('id', $include)))
+            ->where(fn ($query) => $query->where(fn ($query) => $query->notClosed()->atTailor())->when($include, fn ($query) => $query->orWhere('id', $include)))
             ->with(['items.product:id,sku,name', 'cutting.group', 'cutting.product'])
             ->oldest('date')
             ->oldest('id')

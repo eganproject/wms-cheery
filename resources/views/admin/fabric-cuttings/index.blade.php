@@ -28,7 +28,11 @@
         @endif
 
         <x-ui.select name="status" class="lg:w-44">
-            <option value="terbuka" @selected($status === 'terbuka')>{{ $view === 'jahit' ? 'Masih di penjahit' : 'Sedang cutting' }}</option>
+            <option value="terbuka" @selected($status === 'terbuka')>{{ $view === 'jahit' ? 'Belum selesai' : 'Sedang cutting' }}</option>
+            @if ($view === 'jahit')
+                <option value="gudang" @selected($status === 'gudang')>Di gudang</option>
+                <option value="penjahit" @selected($status === 'penjahit')>Di penjahit</option>
+            @endif
             <option value="selesai" @selected($status === 'selesai')>Selesai</option>
             <option value="semua" @selected($status === 'semua')>Semua</option>
         </x-ui.select>
@@ -101,15 +105,15 @@
             @endif
         @else
             @if ($batches->isEmpty())
-                <x-ui.empty-state icon="truck" title="Tidak ada batch WIP Jahit"
-                                  description="Batch dibuat dari halaman Cutting lewat tombol Serahkan ke Penjahit." />
+                <x-ui.empty-state icon="truck" title="Tidak ada batch hasil potong"
+                                  description="Batch dibuat dari detail Cutting lewat Catat Hasil Potong." />
             @else
                 <div class="overflow-x-auto">
                     <table class="erp-table">
                         <thead>
                             <tr>
                                 <th>No. Batch</th>
-                                <th>Penjahit</th>
+                                <th>Posisi</th>
                                 <th>Barang</th>
                                 <th class="text-right">Diserahkan</th>
                                 <th class="text-right">Diterima</th>
@@ -128,7 +132,15 @@
                                         <a href="{{ route('admin.fabric-cuttings.show', $batch->cutting) }}#{{ $batch->code }}" class="font-mono text-sm font-semibold text-ink-950 hover:underline">{{ $batch->code }}</a>
                                         <p class="text-[11px] text-ink-400">{{ $batch->date->format('d/m/Y') }} · {{ $batch->cutting->code }}</p>
                                     </td>
-                                    <td class="text-sm font-medium text-ink-950">{{ $batch->supplier->name }}</td>
+                                    <td class="text-sm">
+                                        @if ($batch->inWarehouse())
+                                            <span class="font-medium text-amber-700">Gudang</span>
+                                            <p class="text-[11px] text-ink-400">dipotong {{ $batch->date->format('d/m/Y') }}</p>
+                                        @else
+                                            <span class="font-medium text-ink-950">{{ $batch->supplier->name }}</span>
+                                            <p class="text-[11px] text-ink-400">dikirim {{ ($batch->sent_at ?? $batch->date)->format('d/m/Y') }}</p>
+                                        @endif
+                                    </td>
                                     <td class="text-sm">
                                         <span class="block font-medium text-ink-950">{{ $batch->cutting->productName() }}</span>
                                         <span class="block text-[11px] text-ink-500">
@@ -141,6 +153,8 @@
                                     <td>
                                         @if ($batch->closed_at)
                                             <x-ui.badge variant="gray" title="{{ $batch->close_reason }}">Ditutup</x-ui.badge>
+                                        @elseif ($batch->inWarehouse())
+                                            <x-ui.badge variant="warning">Di Gudang</x-ui.badge>
                                         @elseif ($batch->outstanding_total === 0)
                                             <x-ui.badge variant="success">Selesai</x-ui.badge>
                                         @else

@@ -38,7 +38,7 @@ class FabricCuttingController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('can:fabrics.view', only: ['index', 'show', 'export']),
-            new Middleware('can:fabrics.issue', only: ['handover', 'finish', 'destroyBatch']),
+            new Middleware('can:fabrics.issue', only: ['handover', 'send', 'finish', 'destroyBatch']),
             new Middleware('can:fabrics.adjust', only: ['closeBatch']),
         ];
     }
@@ -87,6 +87,8 @@ class FabricCuttingController extends Controller implements HasMiddleware
                     ->orWhereHas('cutting', fn (Builder $query) => $query->where('code', 'like', "%{$term}%"))
                     ->orWhereHas('items.product', fn (Builder $query) => $query->where('sku', 'like', "%{$term}%")->orWhere('name', 'like', "%{$term}%"))))
                 ->when($status !== 'semua', fn (Builder $query) => $query->notClosed())
+                ->when($status === 'gudang', fn (Builder $query) => $query->inWarehouse())
+                ->when($status === 'penjahit', fn (Builder $query) => $query->atTailor())
                 ->latest('id')
                 ->get();
 
@@ -98,7 +100,7 @@ class FabricCuttingController extends Controller implements HasMiddleware
 
                     return $batch;
                 })
-                ->when($status === 'terbuka', fn ($rows) => $rows->filter(fn (SewingBatch $batch) => $batch->outstanding_total > 0))
+                ->when(in_array($status, ['terbuka', 'gudang', 'penjahit'], true), fn ($rows) => $rows->filter(fn (SewingBatch $batch) => $batch->outstanding_total > 0))
                 ->when($status === 'selesai', fn ($rows) => $rows->filter(fn (SewingBatch $batch) => $batch->closed_at || $batch->outstanding_total === 0))
                 ->values();
         }
@@ -164,23 +166,26 @@ class FabricCuttingController extends Controller implements HasMiddleware
     }
 
     /**
-     * Serahkan hasil cutting ke penjahit: qty per varian. Menjadi satu batch
-     * WIP Jahit; bisa diulang bertahap untuk penjahit yang sama atau lain.
+     * Catat hasil potong: qty per varian. Disimpan dulu di gudang (batch "Di
+     * Gudang", tanpa penjahit) atau langsung diserahkan ke penjahit (WIP
+     * Jahit). Bisa diulang bertahap.
      */
     public function handover(Request $request, FabricCutting $fabricCutting): RedirectResponse
     {
+        $toWarehouse = $request->input('tujuan') === 'gudang';
+
         $data = $request->validate([
-            'supplier_id' => ['required', 'integer', 'exists:suppliers,id'],
+            'supplier_id' => [$toWarehouse ? 'nullable' : 'required', 'integer', 'exists:suppliers,id'],
             'date' => ['required', 'date', 'before_or_equal:today'],
             'items' => ['required', 'array'],
             'items.*' => ['nullable', 'integer', 'min:0', 'max:100000'],
             'note' => ['nullable', 'string', 'max:255'],
         ], [
-            'supplier_id.required' => 'Pilih penjahit yang menerima hasil cutting.',
+            'supplier_id.required' => 'Pilih penjahit yang menerima hasil potong, atau pilih Simpan di Gudang.',
         ], ['supplier_id' => 'penjahit', 'items.*' => 'jumlah pcs']);
 
-        if (! Supplier::whereKey($data['supplier_id'])->where('is_tailor', true)->exists()) {
-            throw ValidationException::withMessages(['supplier_id' => 'Pemasok ini belum ditandai sebagai Penjahit/Konveksi.']);
+        if (! $toWarehouse) {
+            $this->ensureTailor((int) $data['supplier_id']);
         }
 
         $allowed = $fabricCutting->variants()->pluck('id')->flip();
@@ -192,12 +197,13 @@ class FabricCuttingController extends Controller implements HasMiddleware
             throw ValidationException::withMessages(['items' => 'Isi jumlah pcs minimal untuk satu varian.']);
         }
 
-        $batch = DB::transaction(function () use ($fabricCutting, $data, $lines, $request) {
+        $batch = DB::transaction(function () use ($fabricCutting, $data, $lines, $request, $toWarehouse) {
             $batch = SewingBatch::create([
                 'code' => SewingBatch::nextCode(),
                 'fabric_cutting_id' => $fabricCutting->id,
-                'supplier_id' => $data['supplier_id'],
+                'supplier_id' => $toWarehouse ? null : $data['supplier_id'],
                 'date' => $data['date'],
+                'sent_at' => $toWarehouse ? null : $data['date'],
                 'note' => filled($data['note'] ?? null) ? trim($data['note']) : null,
                 'user_id' => $request->user()->id,
             ]);
@@ -211,7 +217,87 @@ class FabricCuttingController extends Controller implements HasMiddleware
 
         return redirect()
             ->route('admin.fabric-cuttings.show', $fabricCutting)
-            ->with('success', "{$batch->code}: {$lines->sum()} pcs diserahkan ke {$batch->supplier->name}. Status WIP Jahit.");
+            ->with('success', $toWarehouse
+                ? "{$batch->code}: {$lines->sum()} pcs hasil potong disimpan di gudang."
+                : "{$batch->code}: {$lines->sum()} pcs diserahkan ke {$batch->supplier->name}. Status WIP Jahit.");
+    }
+
+    /**
+     * Kirim hasil potong yang disimpan di gudang ke penjahit. Bisa sebagian:
+     * yang dikirim jadi batch baru, sisanya tetap di gudang.
+     */
+    public function send(Request $request, SewingBatch $sewingBatch): RedirectResponse
+    {
+        if (! $sewingBatch->inWarehouse() || $sewingBatch->closed_at) {
+            return back()->with('error', "Batch {$sewingBatch->code} tidak sedang di gudang.");
+        }
+
+        $data = $request->validate([
+            'supplier_id' => ['required', 'integer', 'exists:suppliers,id'],
+            'date' => ['required', 'date', 'before_or_equal:today'],
+            'items' => ['required', 'array'],
+            'items.*' => ['nullable', 'integer', 'min:0', 'max:100000'],
+        ], ['supplier_id.required' => 'Pilih penjahit tujuan.'], ['supplier_id' => 'penjahit', 'items.*' => 'jumlah pcs']);
+
+        $this->ensureTailor((int) $data['supplier_id']);
+
+        $stored = $sewingBatch->items()->get()->keyBy('product_id');
+        $lines = collect($data['items'])
+            ->mapWithKeys(fn ($quantity, $productId) => [(int) $productId => (int) $quantity])
+            ->filter(fn (int $quantity) => $quantity > 0);
+
+        foreach ($lines as $productId => $quantity) {
+            $have = (int) ($stored[$productId]->quantity ?? 0);
+            if ($quantity > $have) {
+                throw ValidationException::withMessages(["items.{$productId}" => "Jumlah melebihi hasil potong di gudang ({$have} pcs)."]);
+            }
+        }
+
+        if ($lines->isEmpty()) {
+            throw ValidationException::withMessages(['items' => 'Isi jumlah pcs yang dikirim minimal untuk satu varian.']);
+        }
+
+        $all = $stored->every(fn ($item) => (int) ($lines[$item->product_id] ?? 0) === (int) $item->quantity);
+
+        $sent = DB::transaction(function () use ($sewingBatch, $data, $lines, $stored, $all, $request) {
+            if ($all) {
+                $sewingBatch->forceFill(['supplier_id' => $data['supplier_id'], 'sent_at' => $data['date']])->save();
+
+                return $sewingBatch;
+            }
+
+            $batch = SewingBatch::create([
+                'code' => SewingBatch::nextCode(),
+                'fabric_cutting_id' => $sewingBatch->fabric_cutting_id,
+                'supplier_id' => $data['supplier_id'],
+                // Tanggal potong tetap tanggal batch asal, supaya rekap pemotong tidak dobel.
+                'date' => $sewingBatch->date,
+                'sent_at' => $data['date'],
+                'note' => 'Dari '.$sewingBatch->code,
+                'user_id' => $request->user()->id,
+            ]);
+
+            foreach ($lines as $productId => $quantity) {
+                $batch->items()->create(['product_id' => $productId, 'quantity' => $quantity]);
+                $item = $stored[$productId];
+                $left = (int) $item->quantity - $quantity;
+                $left > 0 ? $item->update(['quantity' => $left]) : $item->delete();
+            }
+
+            return $batch;
+        });
+
+        $sent->load('supplier');
+
+        return back()->with('success', "{$sent->code}: {$lines->sum()} pcs dikirim ke {$sent->supplier->name}."
+            .($all ? '' : " Sisanya tetap di gudang ({$sewingBatch->code})."));
+    }
+
+    protected function ensureTailor(int $supplierId): void
+    {
+        if (! Supplier::whereKey($supplierId)->where('is_tailor', true)->exists()) {
+            throw ValidationException::withMessages(['supplier_id' => 'Pemasok ini belum ditandai sebagai Penjahit/Konveksi.']);
+        }
     }
 
     /**
@@ -316,7 +402,7 @@ class FabricCuttingController extends Controller implements HasMiddleware
         $period = $from->format('d/m/Y').' – '.$to->format('d/m/Y');
 
         return TableExport::make('Rekap Cutting & Jahit')
-            ->note('Periode '.$period.'. Kain terpakai menurut tanggal scan keluar; pcs hasil potong & penjahit menurut tanggal batch.')
+            ->note('Periode '.$period.'. Kain terpakai menurut tanggal scan keluar; pcs hasil potong menurut tanggal dicatat; penjahit menurut tanggal kirim.')
             ->sheet('Pemotong', [
                 ['Pemotong', 'text'], ['Jabatan', 'text'], ['Cutting Dimulai', 'sum'], ['Roll Diambil', 'sum'], ['Pcs Hasil Potong', 'sum'], ['Jenis Barang', 'number'],
             ], $report->cutters->map(fn ($row) => [$row['name'], $row['position'], $row['cuttings'], $row['rolls'], $row['pieces'], $row['products']]))
@@ -357,12 +443,14 @@ class FabricCuttingController extends Controller implements HasMiddleware
     {
         $open = SewingBatch::query()->notClosed()->with('items')->get();
         $received = SewingBatch::receivedFor($open->pluck('id'));
-        $wip = $open->sum(fn (SewingBatch $batch) => $batch->outstanding($received->get($batch->id, collect()))->sum());
+        $left = fn (SewingBatch $batch) => $batch->outstanding($received->get($batch->id, collect()))->sum();
+        $atTailor = $open->filter(fn (SewingBatch $batch) => ! $batch->inWarehouse() && $left($batch) > 0);
 
         return [
             'cutting' => FabricCutting::query()->open()->count(),
-            'batches' => $open->filter(fn (SewingBatch $batch) => $batch->outstanding($received->get($batch->id, collect()))->sum() > 0)->count(),
-            'wip' => (int) $wip,
+            'warehouse' => (int) $open->filter(fn (SewingBatch $batch) => $batch->inWarehouse())->sum($left),
+            'batches' => $atTailor->count(),
+            'wip' => (int) $atTailor->sum($left),
         ];
     }
 }

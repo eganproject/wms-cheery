@@ -17,8 +17,8 @@ use Illuminate\Support\Collection;
  * Rekap Cutting & Jahit dalam satu periode.
  *
  * - Pemotong: kain yang diambil (tanggal scan keluar) dan pcs hasil potong
- *   yang diserahkan ke penjahit (tanggal batch), dibandingkan standar BOM.
- * - Penjahit: batch yang diserahkan dalam periode, berapa yang sudah
+ *   (tanggal dicatat, termasuk yang disimpan di gudang), dibandingkan standar BOM.
+ * - Penjahit: batch yang dikirim ke penjahit dalam periode, berapa yang sudah
  *   diterima (penerimaan disetujui), sisa di penjahit, dan selisih batch
  *   yang ditutup.
  */
@@ -58,12 +58,18 @@ class CuttingReport
             ->get(['id', 'fabric_cutting_id', 'fabric_id', 'fabric_roll_id', 'type', 'quantity']);
 
         $batches = SewingBatch::query()
-            ->whereDate('date', '>=', $this->from->toDateString())
-            ->whereDate('date', '<=', $this->to->toDateString())
+            ->where(fn ($query) => $query
+                ->where(fn ($query) => $query->whereDate('date', '>=', $this->from->toDateString())->whereDate('date', '<=', $this->to->toDateString()))
+                ->orWhere(fn ($query) => $query->whereDate('sent_at', '>=', $this->from->toDateString())->whereDate('sent_at', '<=', $this->to->toDateString())))
             ->with('items:id,sewing_batch_id,product_id,quantity')
-            ->get(['id', 'fabric_cutting_id', 'supplier_id', 'date', 'closed_at']);
+            ->get(['id', 'fabric_cutting_id', 'supplier_id', 'date', 'sent_at', 'closed_at']);
+
+        $inPeriod = fn ($date) => $date && $date->betweenIncluded($this->from->copy()->startOfDay(), $this->to);
+        $tailorBatches = $batches->filter(fn ($batch) => $batch->supplier_id && $inPeriod($batch->sent_at ?? $batch->date));
+        $batches = $batches->filter(fn ($batch) => $inPeriod($batch->date));
 
         $cuttingIds = $movements->pluck('fabric_cutting_id')->merge($batches->pluck('fabric_cutting_id'))->unique();
+
         $cuttings = FabricCutting::query()->whereIn('id', $cuttingIds)->get(['id', 'employee_id', 'created_at', 'status']);
         $cutterOf = $cuttings->pluck('employee_id', 'id');
 
@@ -150,7 +156,7 @@ class CuttingReport
             ->sortBy([['cutter', 'asc'], ['pieces', 'desc']])
             ->values();
 
-        $this->buildTailors($batches, $products);
+        $this->buildTailors($tailorBatches->values(), $products);
     }
 
     protected function buildTailors(Collection $batches, Collection $products): void

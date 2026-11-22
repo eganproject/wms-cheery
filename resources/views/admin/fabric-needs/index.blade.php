@@ -4,7 +4,7 @@
 --}}
 <x-app-layout title="Kebutuhan Kain">
     <x-ui.page-header title="Kebutuhan Kain" icon="restock"
-                      subtitle="Dari Rencana Produksi: (harus diproduksi − WIP di penjahit) × pemakaian kain per unit, dikurangi kain yang masih di Cutting, dibandingkan dengan sisa roll kain.">
+                      subtitle="Dari Rencana Produksi: (harus diproduksi − hasil potong di gudang & penjahit) × pemakaian kain per unit, dikurangi kain yang masih di Cutting, dibandingkan dengan sisa roll kain.">
         <x-slot name="actions">
             <x-ui.button :href="$productionUrl" variant="secondary" icon="calendar-days">Rencana Produksi</x-ui.button>
             <x-ui.button :href="route('admin.fabric-needs.export', request()->query())" variant="secondary" icon="excel" data-no-ajax>
@@ -42,7 +42,7 @@
 
     <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <x-ui.stat-card label="Harus Diproduksi" :value="number_format($needs->totals['units'], 0, ',', '.').' unit'" icon="box"
-                        :hint="$needs->totals['products'].' barang kurang stok · '.number_format($needs->totals['wip_units'], 0, ',', '.').' unit sudah WIP di penjahit'" :href="$productionUrl" />
+                        :hint="$needs->totals['products'].' barang kurang stok · '.number_format($needs->totals['wip_units'], 0, ',', '.').' unit sudah dipotong (gudang & penjahit)'" :href="$productionUrl" />
         <x-ui.stat-card label="Jenis Kain Dibutuhkan" :value="number_format($needs->totals['fabrics'], 0, ',', '.')" icon="layers" hint="Dari pemakaian kain per barang" />
         <x-ui.stat-card label="Kain Kurang" :value="number_format($needs->totals['short_fabrics'], 0, ',', '.')" icon="warning" accent
                         hint="Jenis kain yang stoknya tidak cukup" />
@@ -86,7 +86,7 @@
                                 </td>
                                 <td class="text-right text-sm tabular-nums">{{ number_format($row['units'], 0, ',', '.') }}
                                     @if ($row['wip'] > 0)
-                                        <p class="text-[11px] text-ink-400">{{ number_format($row['wip'], 0, ',', '.') }} WIP jahit</p>
+                                        <p class="text-[11px] text-ink-400">{{ number_format($row['wip'], 0, ',', '.') }} sudah dipotong</p>
                                     @endif
                                 </td>
                                 <td class="text-right text-sm font-semibold tabular-nums">{{ $fabric->format($row['need']) }}</td>
@@ -109,7 +109,7 @@
                                             <tr class="text-[11px] uppercase tracking-wide text-ink-400">
                                                 <th class="py-2 pl-6 text-left font-medium">Barang</th>
                                                 <th class="py-2 text-right font-medium">Harus diproduksi</th>
-                                                <th class="py-2 text-right font-medium">WIP jahit</th>
+                                                <th class="py-2 text-right font-medium">Sudah dipotong</th>
                                                 <th class="py-2 text-right font-medium">Sisa</th>
                                                 <th class="py-2 text-right font-medium">Pemakaian / unit</th>
                                                 <th class="py-2 pr-2 text-right font-medium">Kebutuhan</th>
