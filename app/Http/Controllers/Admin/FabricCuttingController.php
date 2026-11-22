@@ -379,40 +379,19 @@ class FabricCuttingController extends Controller implements HasMiddleware
             ->orderBy('moved_at')
             ->orderBy('id')]);
 
-        $rolls = $fabricCutting->movements
-            ->groupBy('fabric_roll_id')
-            ->map(function ($rows) {
-                $taken = -$rows->whereIn('type', [FabricMovement::TYPE_OUT, FabricMovement::TYPE_CANCEL])->sum('quantity');
-
-                return [
-                    'code' => $rows->first()->roll?->code ?? '—',
-                    'fabric' => $rows->first()->fabric,
-                    'date' => $rows->where('type', FabricMovement::TYPE_OUT)->min('moved_at'),
-                    'taken' => round((float) $taken, 2),
-                    'returned' => round((float) $rows->where('type', FabricMovement::TYPE_RETURN)->sum('quantity'), 2),
-                ];
-            })
-            // Pengambilan yang dibatalkan tidak ikut di surat jalan.
-            ->filter(fn ($row) => $row['taken'] > 0)
-            ->sortBy([['date', 'asc'], ['code', 'asc']])
-            ->values();
+        $rolls = $fabricCutting->deliveryRolls();
 
         if ($rolls->isEmpty()) {
             return back()->with('error', "Belum ada kain keluar untuk {$fabricCutting->code}.");
         }
 
-        $totals = $rolls->groupBy(fn ($row) => $row['fabric']->id)->map(fn ($rows) => [
-            'fabric' => $rows->first()['fabric'],
-            'rolls' => $rows->count(),
-            'taken' => $rows->sum('taken'),
-            'returned' => $rows->sum('returned'),
-        ])->values();
+        $totals = FabricCutting::deliveryTotals($rolls);
 
         return \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.fabric-cuttings.pdf.cutting-note', [
             'cutting' => $fabricCutting,
             'rolls' => $rolls,
             'totals' => $totals,
-            'qr' => \App\Support\QrCode::file(route('admin.fabric-cuttings.show', $fabricCutting)),
+            'qr' => \App\Support\QrCode::file($fabricCutting->deliveryNoteUrl()),
         ])->setPaper('a4')->stream('surat-jalan-kain-'.$fabricCutting->code.'.pdf');
     }
 
@@ -427,7 +406,7 @@ class FabricCuttingController extends Controller implements HasMiddleware
 
         return \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.fabric-cuttings.pdf.batch-note', [
             'batch' => $sewingBatch,
-            'qr' => \App\Support\QrCode::file(url($sewingBatch->url())),
+            'qr' => \App\Support\QrCode::file($sewingBatch->deliveryNoteUrl()),
         ])->setPaper('a4')->stream('surat-jalan-jahit-'.$sewingBatch->code.'.pdf');
     }
 

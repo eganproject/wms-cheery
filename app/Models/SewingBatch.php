@@ -136,6 +136,12 @@ class SewingBatch extends Model
             : route('admin.fabric-cuttings.index', ['lihat' => $this->inWarehouse() ? 'gudang' : 'jahit', 'status' => 'semua', 'search' => $this->code]);
     }
 
+    /** Halaman info surat jalan ke penjahit (tanpa login, tautan bertanda tangan) untuk QR. */
+    public function deliveryNoteUrl(): string
+    {
+        return \Illuminate\Support\Facades\URL::signedRoute('delivery-notes.batch', $this);
+    }
+
     /** Hasil potong yang masih disimpan di gudang, belum ke penjahit. */
     public function inWarehouse(): bool
     {

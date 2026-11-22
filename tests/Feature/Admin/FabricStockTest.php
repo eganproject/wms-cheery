@@ -445,6 +445,13 @@ class FabricStockTest extends TestCase
         $this->assertSame('application/pdf', $note->headers->get('Content-Type'));
         $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.index', ['lihat' => 'jahit']))->assertSee(route('admin.sewing-batches.delivery-note', $sent));
 
+        // QR surat jalan: halaman info + riwayat tanpa login, hanya lewat tautan bertanda tangan.
+        auth()->logout();
+        $this->get(route('delivery-notes.batch', $sent))->assertForbidden();
+        $this->get($sent->deliveryNoteUrl())->assertOk()->assertSee($sent->code)->assertSee('Penjahit Sri')
+            ->assertSee('Kain masuk gudang')->assertSee('Kain diambil pemotong')->assertSee('dikirim ke penjahit')->assertDontSee('Buka di WMS');
+        $this->get($cutting->deliveryNoteUrl())->assertOk()->assertSee($cutting->code)->assertSee('TYB-HTM-001')->assertSee($stored->code)->assertSee('Riwayat');
+
         // Kirim semua sisanya: batch gudang itu sendiri pindah ke penjahit.
         $this->actingAs($this->admin)->post(route('admin.sewing-batches.send', $stored), ['supplier_id' => $tailor->id, 'date' => '2026-06-12', 'items' => [$s->id => 6, $m->id => 5]])
             ->assertSessionHas('success');

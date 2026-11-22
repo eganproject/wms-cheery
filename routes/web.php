@@ -70,6 +70,12 @@ Route::get('unduh-aplikasi', AppDownloadPageController::class)
     ->middleware('throttle:60,1')
     ->name('app.download-page');
 
+// Tujuan QR di surat jalan kain/jahit: tanpa login, tautan bertanda tangan.
+Route::middleware(['signed', 'throttle:60,1'])->prefix('surat-jalan')->name('delivery-notes.')->group(function () {
+    Route::get('cutting/{fabricCutting}', [\App\Http\Controllers\DeliveryNotePageController::class, 'cutting'])->name('cutting');
+    Route::get('jahit/{sewingBatch}', [\App\Http\Controllers\DeliveryNotePageController::class, 'batch'])->name('batch');
+});
+
 // Mesin fingerprint ZKTeco (protokol push iclock). Tanpa login: yang dilayani
 // hanya nomor seri yang terdaftar di Lokasi & Mesin Absen.
 Route::middleware('throttle:iclock')->group(function () {

@@ -144,6 +144,48 @@ class FabricCutting extends Model
             ->map(fn ($rows) => round(-$rows->sum('quantity'), 2));
     }
 
+    /**
+     * Roll yang diambil pemotong untuk surat jalan: per roll diambil (tanpa
+     * yang dibatalkan) dan yang dikembalikan. Butuh movements.roll & .fabric.
+     *
+     * @return Collection<int, array{code: string, fabric: Fabric, date: ?\Illuminate\Support\Carbon, taken: float, returned: float}>
+     */
+    public function deliveryRolls(): Collection
+    {
+        return $this->movements
+            ->whereIn('type', [FabricMovement::TYPE_OUT, FabricMovement::TYPE_CANCEL, FabricMovement::TYPE_RETURN])
+            ->groupBy('fabric_roll_id')
+            ->map(fn ($rows) => [
+                'code' => $rows->first()->roll?->code ?? '—',
+                'fabric' => $rows->first()->fabric,
+                'date' => $rows->where('type', FabricMovement::TYPE_OUT)->min('moved_at'),
+                'taken' => round((float) -$rows->whereIn('type', [FabricMovement::TYPE_OUT, FabricMovement::TYPE_CANCEL])->sum('quantity'), 2),
+                'returned' => round((float) $rows->where('type', FabricMovement::TYPE_RETURN)->sum('quantity'), 2),
+            ])
+            ->filter(fn ($row) => $row['taken'] > 0)
+            ->sortBy([['date', 'asc'], ['code', 'asc']])
+            ->values();
+    }
+
+    /**
+     * @return Collection<int, array{fabric: Fabric, rolls: int, taken: float, returned: float}>
+     */
+    public static function deliveryTotals(Collection $rolls): Collection
+    {
+        return $rolls->groupBy(fn ($row) => $row['fabric']->id)->map(fn ($rows) => [
+            'fabric' => $rows->first()['fabric'],
+            'rolls' => $rows->count(),
+            'taken' => round($rows->sum('taken'), 2),
+            'returned' => round($rows->sum('returned'), 2),
+        ])->values();
+    }
+
+    /** Halaman info surat jalan kain (tanpa login, tautan bertanda tangan) untuk QR. */
+    public function deliveryNoteUrl(): string
+    {
+        return \Illuminate\Support\Facades\URL::signedRoute('delivery-notes.cutting', $this);
+    }
+
     /** Pcs yang sudah diserahkan ke penjahit dari cutting ini. */
     public function handedQuantity(): int
     {
