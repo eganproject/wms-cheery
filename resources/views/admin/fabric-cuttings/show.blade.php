@@ -13,6 +13,9 @@
                       :status="\App\Models\FabricCutting::STATUSES[$cutting->status] ?? null"
                       :statusVariant="$cutting->isOpen() ? 'warning' : 'success'">
         <x-slot name="actions">
+            @if ($cutting->movements->isNotEmpty())
+                <x-ui.button :href="route('admin.fabric-cuttings.delivery-note', $cutting)" variant="secondary" icon="printer" target="_blank" data-no-ajax>Surat Jalan Kain</x-ui.button>
+            @endif
             @if ($canIssue && $cutting->isOpen())
                 <x-ui.button :href="route('admin.fabric-scan')" variant="secondary" icon="scan">Tambah Kain (Scan)</x-ui.button>
             @endif
@@ -57,6 +60,9 @@
                                         @endif
                                     </div>
                                     <div class="flex items-center gap-2">
+                                        @unless ($batch->inWarehouse())
+                                            <x-ui.button :href="route('admin.sewing-batches.delivery-note', $batch)" variant="ghost" size="sm" icon="printer" target="_blank" data-no-ajax>Surat Jalan</x-ui.button>
+                                        @endunless
                                         @if ($batch->closed_at)
                                             <x-ui.badge variant="gray">Ditutup: {{ $batch->close_reason }}</x-ui.badge>
                                         @elseif ($left->isEmpty())

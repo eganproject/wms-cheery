@@ -215,6 +215,8 @@ Route::middleware('auth')
         Route::get('fabric-cuttings', [FabricCuttingController::class, 'index'])->name('fabric-cuttings.index');
         Route::get('fabric-cuttings/rekap/export', [FabricCuttingController::class, 'export'])->name('fabric-cuttings.export');
         Route::get('fabric-cuttings/{fabricCutting}', [FabricCuttingController::class, 'show'])->name('fabric-cuttings.show');
+        Route::get('fabric-cuttings/{fabricCutting}/surat-jalan', [FabricCuttingController::class, 'cuttingNote'])->name('fabric-cuttings.delivery-note');
+        Route::get('sewing-batches/{sewingBatch}/surat-jalan', [FabricCuttingController::class, 'batchNote'])->name('sewing-batches.delivery-note');
         Route::post('fabric-cuttings/{fabricCutting}/handover', [FabricCuttingController::class, 'handover'])->name('fabric-cuttings.handover');
         Route::post('fabric-cuttings/{fabricCutting}/finish', [FabricCuttingController::class, 'finish'])->name('fabric-cuttings.finish');
         Route::resource('sewing-batches', SewingBatchController::class)->only(['create', 'store', 'edit', 'update']);

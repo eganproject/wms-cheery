@@ -37,7 +37,7 @@ class FabricCuttingController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:fabrics.view', only: ['index', 'show', 'export']),
+            new Middleware('can:fabrics.view', only: ['index', 'show', 'export', 'cuttingNote', 'batchNote']),
             new Middleware('can:fabrics.issue', only: ['handover', 'send', 'finish', 'destroyBatch']),
             new Middleware('can:fabrics.adjust', only: ['closeBatch']),
         ];
@@ -370,6 +370,67 @@ class FabricCuttingController extends Controller implements HasMiddleware
     }
 
     /** Hapus batch salah input, selama belum ada penerimaan yang merujuknya. */
+    /** Surat jalan kain dari gudang ke pemotong: roll yang diambil untuk cutting ini. */
+    public function cuttingNote(FabricCutting $fabricCutting): \Illuminate\Http\Response|RedirectResponse
+    {
+        $fabricCutting->load(['employee', 'user:id,name', 'product', 'group', 'movements' => fn ($query) => $query
+            ->whereIn('type', [FabricMovement::TYPE_OUT, FabricMovement::TYPE_CANCEL, FabricMovement::TYPE_RETURN])
+            ->with(['roll:id,code', 'fabric'])
+            ->orderBy('moved_at')
+            ->orderBy('id')]);
+
+        $rolls = $fabricCutting->movements
+            ->groupBy('fabric_roll_id')
+            ->map(function ($rows) {
+                $taken = -$rows->whereIn('type', [FabricMovement::TYPE_OUT, FabricMovement::TYPE_CANCEL])->sum('quantity');
+
+                return [
+                    'code' => $rows->first()->roll?->code ?? '—',
+                    'fabric' => $rows->first()->fabric,
+                    'date' => $rows->where('type', FabricMovement::TYPE_OUT)->min('moved_at'),
+                    'taken' => round((float) $taken, 2),
+                    'returned' => round((float) $rows->where('type', FabricMovement::TYPE_RETURN)->sum('quantity'), 2),
+                ];
+            })
+            // Pengambilan yang dibatalkan tidak ikut di surat jalan.
+            ->filter(fn ($row) => $row['taken'] > 0)
+            ->sortBy([['date', 'asc'], ['code', 'asc']])
+            ->values();
+
+        if ($rolls->isEmpty()) {
+            return back()->with('error', "Belum ada kain keluar untuk {$fabricCutting->code}.");
+        }
+
+        $totals = $rolls->groupBy(fn ($row) => $row['fabric']->id)->map(fn ($rows) => [
+            'fabric' => $rows->first()['fabric'],
+            'rolls' => $rows->count(),
+            'taken' => $rows->sum('taken'),
+            'returned' => $rows->sum('returned'),
+        ])->values();
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.fabric-cuttings.pdf.cutting-note', [
+            'cutting' => $fabricCutting,
+            'rolls' => $rolls,
+            'totals' => $totals,
+            'qr' => \App\Support\QrCode::file(route('admin.fabric-cuttings.show', $fabricCutting)),
+        ])->setPaper('a4')->stream('surat-jalan-kain-'.$fabricCutting->code.'.pdf');
+    }
+
+    /** Surat jalan hasil potong ke penjahit (satu batch WIP Jahit). */
+    public function batchNote(SewingBatch $sewingBatch): \Illuminate\Http\Response|RedirectResponse
+    {
+        if ($sewingBatch->inWarehouse()) {
+            return back()->with('error', "{$sewingBatch->code} masih di gudang; surat jalan dibuat saat dikirim ke penjahit.");
+        }
+
+        $sewingBatch->load(['supplier', 'user:id,name', 'items.product', 'cutting.employee']);
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.fabric-cuttings.pdf.batch-note', [
+            'batch' => $sewingBatch,
+            'qr' => \App\Support\QrCode::file(url($sewingBatch->url())),
+        ])->setPaper('a4')->stream('surat-jalan-jahit-'.$sewingBatch->code.'.pdf');
+    }
+
     public function destroyBatch(SewingBatch $sewingBatch): RedirectResponse
     {
         if ($sewingBatch->inbounds()->exists()) {

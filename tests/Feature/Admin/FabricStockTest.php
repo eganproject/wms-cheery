@@ -422,6 +422,12 @@ class FabricStockTest extends TestCase
         $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.show', $cutting))->assertOk()->assertSee('Kirim ke Penjahit');
         $this->actingAs($this->admin)->get(route('admin.inbounds.create'))->assertOk()->assertDontSee($stored->code);
 
+        // Surat jalan kain ke pemotong; hasil potong di gudang belum punya surat jalan jahit.
+        $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.show', $cutting))->assertSee('Surat Jalan Kain');
+        $note = $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.delivery-note', $cutting))->assertOk();
+        $this->assertSame('application/pdf', $note->headers->get('Content-Type'));
+        $this->actingAs($this->admin)->get(route('admin.sewing-batches.delivery-note', $stored))->assertRedirect()->assertSessionHas('error');
+
         // Kirim sebagian: jadi batch baru di penjahit, sisanya tetap di gudang.
         $this->actingAs($this->admin)->post(route('admin.sewing-batches.send', $stored), ['supplier_id' => $other->id, 'date' => '2026-06-12', 'items' => [$s->id => 4]])
             ->assertSessionHasErrors('supplier_id');
@@ -435,6 +441,9 @@ class FabricStockTest extends TestCase
         $this->assertSame([$s->id => 6, $m->id => 5], $stored->items()->orderBy('product_id')->pluck('quantity', 'product_id')->all());
         $this->assertTrue($stored->refresh()->inWarehouse());
         $this->actingAs($this->admin)->get(route('admin.inbounds.create'))->assertOk()->assertSee($sent->code);
+        $note = $this->actingAs($this->admin)->get(route('admin.sewing-batches.delivery-note', $sent))->assertOk();
+        $this->assertSame('application/pdf', $note->headers->get('Content-Type'));
+        $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.index', ['lihat' => 'jahit']))->assertSee(route('admin.sewing-batches.delivery-note', $sent));
 
         // Kirim semua sisanya: batch gudang itu sendiri pindah ke penjahit.
         $this->actingAs($this->admin)->post(route('admin.sewing-batches.send', $stored), ['supplier_id' => $tailor->id, 'date' => '2026-06-12', 'items' => [$s->id => 6, $m->id => 5]])

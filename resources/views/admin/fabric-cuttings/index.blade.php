@@ -166,6 +166,13 @@
                                         @endif
                                     </td>
                                     <td class="text-right">
+                                        <div class="inline-flex items-center gap-1">
+                                        @unless ($batch->inWarehouse())
+                                            <a href="{{ route('admin.sewing-batches.delivery-note', $batch) }}" title="Cetak surat jalan" target="_blank" data-no-ajax
+                                               class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-400 transition hover:bg-ink-100 hover:text-ink-950">
+                                                <x-icon name="printer" class="h-4 w-4" />
+                                            </a>
+                                        @endunless
                                         @can('fabrics.issue')
                                             @if (! $batch->closed_at)
                                                 <div class="inline-flex items-center gap-1">
@@ -179,6 +186,7 @@
                                                 </div>
                                             @endif
                                         @endcan
+                                        </div>
                                     </td>
                                 </tr>
                             @endforeach
