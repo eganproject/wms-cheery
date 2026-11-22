@@ -23,7 +23,7 @@
     <a href="{{ route('admin.fabric-cuttings.index') }}"
        class="flex-1 rounded-lg px-3 py-2 text-center text-sm font-semibold {{ $view === 'cutting' ? 'bg-white text-ink-950 shadow-sm' : 'text-ink-500' }}">Cutting</a>
     <a href="{{ route('admin.fabric-cuttings.index', ['lihat' => 'gudang']) }}"
-       class="flex-1 rounded-lg px-3 py-2 text-center text-sm font-semibold {{ $view === 'gudang' ? 'bg-white text-ink-950 shadow-sm' : 'text-ink-500' }}">Hasil Potong di Gudang</a>
+       class="flex-1 rounded-lg px-3 py-2 text-center text-sm font-semibold {{ $view === 'gudang' ? 'bg-white text-ink-950 shadow-sm' : 'text-ink-500' }}">Hasil Potong</a>
     <a href="{{ route('admin.fabric-cuttings.index', ['lihat' => 'jahit']) }}"
        class="flex-1 rounded-lg px-3 py-2 text-center text-sm font-semibold {{ $view === 'jahit' ? 'bg-white text-ink-950 shadow-sm' : 'text-ink-500' }}">WIP Jahit</a>
     <a href="{{ route('admin.fabric-cuttings.index', ['lihat' => 'rekap']) }}"
