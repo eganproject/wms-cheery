@@ -398,6 +398,39 @@ class FabricStockTest extends TestCase
         $this->actingAs($staff)->put(route('admin.products.fabrics.update', $s), [])->assertForbidden();
     }
 
+    public function test_unprocessed_fabric_issue_can_be_deleted(): void
+    {
+        $fabric = $this->fabric();
+        $this->receive($fabric, 50, 2);
+        $product = Product::create(['sku' => 'GMS-01', 'name' => 'Gamis', 'unit' => 'pcs', 'min_stock' => 0]);
+        $tailor = Supplier::create(['code' => 'SUP-9', 'name' => 'Penjahit Sri', 'is_active' => true, 'is_tailor' => true]);
+        $roll1 = FabricRoll::where('code', 'TYB-HTM-001')->firstOrFail();
+        $roll2 = FabricRoll::where('code', 'TYB-HTM-002')->firstOrFail();
+
+        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.issue'), ['code' => $roll1->code, 'product_id' => $product->id, 'all' => true])->assertOk();
+        $first = FabricMovement::where('type', 'out')->latest('id')->firstOrFail();
+        $this->actingAs($this->admin)->get(route('admin.fabric-issues.index'))->assertOk()->assertSee(route('admin.fabric-issues.destroy', $first));
+
+        $this->actingAs($this->admin)->delete(route('admin.fabric-issues.destroy', $first))->assertSessionHas('success');
+        $this->assertSame(50.0, $roll1->refresh()->quantity);
+        $this->assertNull($roll1->emptied_at);
+        $this->assertSame(0, FabricMovement::where('type', 'out')->count());
+        $this->assertSame(0, \App\Models\FabricCutting::count());
+
+        // Sudah diserahkan ke penjahit: tidak bisa dihapus, hanya dibatalkan.
+        $this->actingAs($this->admin)->postJson(route('admin.fabric-scan.issue'), ['code' => $roll2->code, 'product_id' => $product->id, 'quantity' => 10])->assertOk();
+        $second = FabricMovement::where('type', 'out')->latest('id')->firstOrFail();
+        $cutting = \App\Models\FabricCutting::firstOrFail();
+        $this->actingAs($this->admin)->post(route('admin.fabric-cuttings.handover', $cutting), ['supplier_id' => $tailor->id, 'date' => '2026-06-12', 'items' => [$product->id => 4]])
+            ->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->delete(route('admin.fabric-issues.destroy', $second))->assertSessionHasErrors('movement');
+        $this->assertSame(40.0, $roll2->refresh()->quantity);
+
+        // Staf tidak boleh menghapus.
+        $staff = User::factory()->create(['role_id' => Role::where('slug', 'staff-gudang')->value('id'), 'is_active' => true]);
+        $this->actingAs($staff)->delete(route('admin.fabric-issues.destroy', $second))->assertForbidden();
+    }
+
     public function test_handover_only_lists_variants_using_the_fabric_when_bom_exists(): void
     {
         $fabric = $this->fabric();

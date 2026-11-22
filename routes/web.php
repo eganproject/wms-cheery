@@ -224,6 +224,7 @@ Route::middleware('auth')
         Route::get('fabric-issues/export', [FabricIssueController::class, 'export'])->name('fabric-issues.export');
         Route::get('fabric-issues', [FabricIssueController::class, 'index'])->name('fabric-issues.index');
         Route::post('fabric-issues/{movement}/cancel', [FabricIssueController::class, 'cancel'])->name('fabric-issues.cancel');
+        Route::delete('fabric-issues/{movement}', [FabricIssueController::class, 'destroy'])->name('fabric-issues.destroy');
         Route::get('fabric-needs/export', [FabricNeedController::class, 'export'])->name('fabric-needs.export');
         Route::get('fabric-needs', [FabricNeedController::class, 'index'])->name('fabric-needs.index');
 

@@ -146,6 +146,69 @@ class FabricStockService
     }
 
     /**
+     * Kain keluar yang belum diproses boleh dihapus (salah scan): belum
+     * dibatalkan, belum ada gerakan lain sesudahnya di roll itu, dan
+     * cuttingnya masih berjalan tanpa batch penjahit. Jumlahnya kembali ke
+     * roll; cutting yang jadi kosong ikut dihapus.
+     */
+    public function deletable(FabricMovement $movement): bool
+    {
+        return $this->deletableIds(collect([$movement]))->isNotEmpty();
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, FabricMovement>  $movements
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public function deletableIds($movements)
+    {
+        $candidates = $movements->filter(fn (FabricMovement $movement) => $movement->type === FabricMovement::TYPE_OUT && ! $movement->cancelled_at);
+        if ($candidates->isEmpty()) {
+            return collect();
+        }
+
+        $latest = FabricMovement::query()
+            ->whereIn('fabric_roll_id', $candidates->pluck('fabric_roll_id')->unique())
+            ->selectRaw('fabric_roll_id, MAX(id) AS last_id')
+            ->groupBy('fabric_roll_id')
+            ->pluck('last_id', 'fabric_roll_id');
+
+        $cuttingIds = $candidates->pluck('fabric_cutting_id')->filter()->unique();
+        $busy = FabricCutting::query()
+            ->whereIn('id', $cuttingIds)
+            ->where(fn ($query) => $query->where('status', '!=', FabricCutting::STATUS_CUTTING)->orWhereHas('batches'))
+            ->pluck('id')
+            ->flip();
+
+        return $candidates
+            ->filter(fn (FabricMovement $movement) => (int) ($latest[$movement->fabric_roll_id] ?? 0) === $movement->id
+                && ! ($movement->fabric_cutting_id && $busy->has($movement->fabric_cutting_id)))
+            ->pluck('id')
+            ->values();
+    }
+
+    public function deleteIssue(FabricMovement $movement): void
+    {
+        DB::transaction(function () use ($movement) {
+            $movement = FabricMovement::query()->lockForUpdate()->findOrFail($movement->id);
+            $roll = FabricRoll::query()->lockForUpdate()->findOrFail($movement->fabric_roll_id);
+
+            if (! $this->deletable($movement)) {
+                throw ValidationException::withMessages(['movement' => 'Kain keluar ini sudah diproses (ada gerakan roll sesudahnya atau hasil potong sudah diserahkan ke penjahit). Gunakan Batalkan.']);
+            }
+
+            $balance = round($roll->quantity - $movement->quantity, 2);
+            $roll->forceFill(['quantity' => $balance, 'emptied_at' => $balance <= 0 ? $roll->emptied_at : null])->save();
+            $cuttingId = $movement->fabric_cutting_id;
+            $movement->delete();
+
+            if ($cuttingId && ! FabricMovement::query()->where('fabric_cutting_id', $cuttingId)->exists()) {
+                FabricCutting::query()->whereKey($cuttingId)->delete();
+            }
+        });
+    }
+
+    /**
      * Cutting terbuka untuk barang (induk) + pemotong yang sama; dibuat bila
      * belum ada. Beberapa roll untuk barang yang sama masuk satu cutting.
      */

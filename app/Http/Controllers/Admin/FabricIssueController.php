@@ -28,7 +28,7 @@ class FabricIssueController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('can:fabrics.view', only: ['index', 'export']),
-            new Middleware('can:fabrics.adjust', only: ['cancel']),
+            new Middleware('can:fabrics.adjust', only: ['cancel', 'destroy']),
         ];
     }
 
@@ -57,6 +57,7 @@ class FabricIssueController extends Controller implements HasMiddleware
 
         return view('admin.fabric-issues.index', [
             'movements' => $movements,
+            'deletable' => app(FabricStockService::class)->deletableIds($movements->getCollection())->flip(),
             'perFabric' => $perFabric,
             'fabrics' => Fabric::query()->orderBy('sku')->get(['id', 'sku', 'name', 'color']),
             'products' => Product::query()
@@ -93,6 +94,14 @@ class FabricIssueController extends Controller implements HasMiddleware
         $movement->load('roll');
 
         return back()->with('success', 'Kain keluar dibatalkan; jumlahnya kembali ke roll '.$movement->roll->code.'.');
+    }
+
+    public function destroy(FabricMovement $movement, FabricStockService $stock): RedirectResponse
+    {
+        $code = $movement->roll?->code;
+        $stock->deleteIssue($movement);
+
+        return back()->with('success', 'Kain keluar dihapus'.($code ? '; jumlahnya kembali ke roll '.$code : '').'.');
     }
 
     protected function filtered(Request $request): Builder

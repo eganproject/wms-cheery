@@ -117,11 +117,18 @@
                                         <x-ui.badge variant="gray">Dibatalkan</x-ui.badge>
                                     @else
                                         @can('fabrics.adjust')
-                                            <form method="POST" action="{{ route('admin.fabric-issues.cancel', $movement) }}"
-                                                  onsubmit="return confirm('Batalkan kain keluar ini? Jumlahnya kembali ke roll {{ $movement->roll->code }}.')">
-                                                @csrf
-                                                <x-ui.button type="submit" variant="ghost" size="sm">Batalkan</x-ui.button>
-                                            </form>
+                                            <div class="inline-flex items-center justify-end gap-1">
+                                                <form method="POST" action="{{ route('admin.fabric-issues.cancel', $movement) }}"
+                                                      onsubmit="return confirm('Batalkan kain keluar ini? Jumlahnya kembali ke roll {{ $movement->roll->code }}.')">
+                                                    @csrf
+                                                    <x-ui.button type="submit" variant="ghost" size="sm">Batalkan</x-ui.button>
+                                                </form>
+                                                @if ($deletable->has($movement->id))
+                                                    <x-ui.confirm-delete :action="route('admin.fabric-issues.destroy', $movement)"
+                                                                         title="Hapus kain keluar ini?"
+                                                                         description="Data dihapus seperti tidak pernah di-scan dan {{ rtrim(rtrim(number_format(-$movement->quantity, 2, ',', '.'), '0'), ',') }} {{ $movement->fabric->unit }} kembali ke roll {{ $movement->roll->code }}." />
+                                                @endif
+                                            </div>
                                         @endcan
                                     @endif
                                 </td>
