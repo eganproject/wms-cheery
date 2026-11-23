@@ -323,6 +323,26 @@ class Product extends Model
     }
 
     /**
+     * Barang yang unitnya di paket QC Kemas melebihi stok tercatat: tidak
+     * semua paket yang memuatnya bisa diserahkan. Terjadi bila stok berubah
+     * setelah paket dikemas (opname, penjualan manual, import stok), atau
+     * paket dikemas sebelum pengecekan stok di QC menghitung paket lain.
+     *
+     * @return \Illuminate\Support\Collection<int, object{product_id: int, sku: string, unit: string, stock: int, packed: int}>
+     */
+    public static function overPacked(): \Illuminate\Support\Collection
+    {
+        return static::packedLines()
+            ->join('products as p', 'p.id', '=', 'oi.product_id')
+            ->groupBy('oi.product_id', 'p.sku', 'p.unit', 'p.stock')
+            ->havingRaw('SUM(oi.scanned_quantity) > p.stock')
+            ->select('oi.product_id', 'p.sku', 'p.unit', 'p.stock')
+            ->selectRaw('SUM(oi.scanned_quantity) as packed')
+            ->get()
+            ->keyBy('product_id');
+    }
+
+    /**
      * Unit yang sudah dipesan tetapi belum dikemas: pesanan marketplace yang
      * belum dikirim dan belum batal, dikurangi yang sudah discan.
      *

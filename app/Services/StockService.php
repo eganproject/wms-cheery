@@ -83,7 +83,7 @@ class StockService
             throw ValidationException::withMessages(['status' => $blockers]);
         }
 
-        $this->guardAgainstNegativeStock($outbound->items);
+        $this->guardAgainstNegativeStock($outbound->items, $outbound->isMarketplace() ? $outbound->id : null, ! $outbound->isMarketplace());
 
         DB::transaction(function () use ($outbound) {
             foreach ($outbound->items as $item) {
@@ -259,6 +259,13 @@ class StockService
 
         if ($blockers = $disposal->postingBlockers()) {
             throw ValidationException::withMessages(['status' => $blockers]);
+        }
+
+        // Barang layak jual yang dikeluarkan tidak boleh mengambil unit yang
+        // sudah dikemas di QC Kemas: unit itu sudah di dalam paket, dan paket
+        // tersebut akan tertahan di Serah Terima karena stoknya habis.
+        if (! $disposal->isFromDamaged()) {
+            $this->guardAgainstNegativeStock($disposal->items, null, true);
         }
 
         DB::transaction(function () use ($disposal) {
@@ -647,16 +654,41 @@ class StockService
      *
      * @param  \Illuminate\Support\Collection<int, \App\Models\InboundItem|\App\Models\OutboundItem|\App\Models\ReturnReceiptItem>  $items
      */
-    protected function guardAgainstNegativeStock($items): void
+    protected function guardAgainstNegativeStock($items, ?int $exceptOutboundId = null, bool $reserveHeld = false): void
     {
         $errors = [];
+        $grouped = $items->groupBy('product_id');
 
-        foreach ($items->groupBy('product_id') as $productId => $group) {
+        // Unit yang sudah dikemas di QC Kemas (paket lain) dan belum diserahkan.
+        $held = Product::unitsHeldInPackages($grouped->keys(), $exceptOutboundId);
+
+        foreach ($grouped as $productId => $group) {
             $product = $group->first()->product ?? Product::find($productId);
             $needed = $group->sum('quantity');
 
-            if ($product && $needed > $product->stock) {
-                $errors[] = "Stok {$product->name} tidak mencukupi: butuh {$needed}, tersedia {$product->stock} {$product->unit}.";
+            if (! $product) {
+                continue;
+            }
+
+            $packed = (int) ($held[$productId] ?? 0);
+
+            // Dokumen selain paket marketplace (penjualan manual, barang
+            // keluar/rusak) tidak boleh memakai unit yang sudah di paket QC:
+            // barangnya sudah tidak di rak, dan paket itu akan tertahan di
+            // Serah Terima dengan stok 0.
+            if ($reserveHeld && $packed > 0 && $needed > $product->stock - $packed) {
+                $free = max(0, (int) $product->stock - $packed);
+                $errors[] = "Stok {$product->name} tidak mencukupi: butuh {$needed}, tersedia {$free} {$product->unit} ({$packed} {$product->unit} lainnya sudah di paket QC Kemas menunggu serah terima).";
+
+                continue;
+            }
+
+            if ($needed > $product->stock) {
+                // Paket marketplace: sebut unit di paket lain, supaya jelas
+                // stoknya habis karena sudah dijanjikan ke paket lain — bukan
+                // karena sistemnya salah hitung.
+                $errors[] = "Stok {$product->name} tidak mencukupi: butuh {$needed}, tersedia {$product->stock} {$product->unit}."
+                    .($packed > 0 ? " {$packed} {$product->unit} juga sudah di paket lain yang menunggu serah terima — stok tercatat tidak cukup untuk semua paket." : '');
             }
         }
 

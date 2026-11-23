@@ -121,8 +121,9 @@ class MarketplaceScanTest extends TestCase
         DB::disableQueryLog();
 
         // dokumen, baris barang, barang, paket — masing-masing sekali —
-        // ditambah satu hitungan unit yang sudah dipegang paket lain.
-        $this->assertLessThanOrEqual(5, $selects);
+        // ditambah saldo stok yang dikunci dan hitungan unit yang sudah
+        // dipegang paket lain.
+        $this->assertLessThanOrEqual(6, $selects);
         $this->assertSame(1, (int) $this->outbound->items()->sum('scanned_quantity'));
     }
 

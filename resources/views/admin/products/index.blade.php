@@ -285,10 +285,14 @@
                                 <td>
                                     <div class="flex items-center gap-3 {{ $product->isVariant() ? 'pl-6' : '' }}">
                                         <x-ui.product-image :product="$product" size="sm" />
-                                        <div class="min-w-0">
-                                            <div class="flex items-center gap-2">
+                                        {{-- Lebar kolom dibatasi dan nama dibiarkan turun ke baris
+                                             berikutnya (maks. dua baris): nama marketplace bisa sangat
+                                             panjang, dan tanpa batas ini seluruh tabel melebar ke samping. --}}
+                                        <div class="min-w-0 max-w-md">
+                                            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
                                                 <x-ui.sku :value="$product->sku" />
-                                                <p class="truncate text-sm font-medium text-ink-950">{{ $product->isVariant() ? $product->variantLabel() : $product->name }}</p>
+                                                <p class="line-clamp-2 break-words text-sm font-medium text-ink-950"
+                                                   title="{{ $product->name }}">{{ $product->isVariant() ? $product->variantLabel() : $product->name }}</p>
                                                 @if ($product->isBundle())
                                                     <x-ui.badge variant="dark" icon="sparkles">Paket</x-ui.badge>
                                                 @endif

@@ -14,7 +14,7 @@
 @if (! $product->isBundle() && ($packed > 0 || $unpacked > 0))
     <div @class(["mt-1 flex flex-col gap-0.5 text-[11px]", ($align ?? "end") === "start" ? "items-start" : "items-end"])>
         @if ($packed > 0)
-            <span class="inline-flex items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 font-medium text-amber-700"
+            <span class="inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-amber-50 px-1.5 py-0.5 font-medium text-amber-700"
                   title="Stok tercatat {{ $fmt((int) $product->stock) }} = di rak {{ $fmt(max(0, $onRack)) }} + di paket QC {{ $fmt($packed) }} (sudah dikemas, belum diserahkan ke kurir).">
                 Di rak {{ $fmt(max(0, $onRack)) }} &middot; di paket QC {{ $fmt($packed) }}
             </span>

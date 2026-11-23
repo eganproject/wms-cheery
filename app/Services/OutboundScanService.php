@@ -222,30 +222,39 @@ class OutboundScanService
         // paket bisa lolos QC dari satu stok lalu salah satunya tertahan di
         // Serah Terima dengan stok 0.
         $needed = (int) $outbound->items->where('product_id', $item->product_id)->sum('quantity');
-        $held = (int) (Product::unitsHeldInPackages([$item->product_id], $outbound->id)[$item->product_id] ?? 0);
 
-        if ($item->product->stock - $held < $needed) {
-            throw ValidationException::withMessages([
-                'code' => $this->shortageMessage($item->product, $needed, $held)
-                    .($canSubstitute ? ' · scan barang pengganti untuk mengganti' : ''),
-            ]);
-        }
+        // Pemeriksaan dan kenaikan hitungan dalam satu transaksi dengan baris
+        // barang dikunci: dua stasiun yang memindai unit terakhir pada saat
+        // bersamaan tidak boleh sama-sama lolos.
+        DB::transaction(function () use ($outbound, $item, $quantity, $needed, $canSubstitute) {
+            $stock = (int) Product::whereKey($item->product_id)->lockForUpdate()->value('stock');
+            $held = (int) (Product::unitsHeldInPackages([$item->product_id], $outbound->id)[$item->product_id] ?? 0);
 
-        // Kenaikannya bersyarat di database: scanner yang terpicu dua kali
-        // mengirim dua permintaan hampir bersamaan, dan keduanya membaca sisa
-        // yang sama dari memori. Tanpa syarat ini hitungannya bisa melewati
-        // jumlah pesanan.
-        $applied = OutboundItem::whereKey($item->getKey())
-            ->whereRaw('scanned_quantity + ? <= quantity', [$quantity])
-            ->increment('scanned_quantity', $quantity);
+            if ($stock - $held < $needed) {
+                $item->product->stock = $stock;
 
-        if ($applied === 0) {
-            $item->refresh();
+                throw ValidationException::withMessages([
+                    'code' => $this->shortageMessage($item->product, $needed, $held)
+                        .($canSubstitute ? ' · scan barang pengganti untuk mengganti' : ''),
+                ]);
+            }
 
-            throw ValidationException::withMessages([
-                'code' => "{$item->product->sku} sudah {$item->scanned_quantity}/{$item->quantity} · scan ganda diabaikan",
-            ]);
-        }
+            // Kenaikannya bersyarat di database: scanner yang terpicu dua kali
+            // mengirim dua permintaan hampir bersamaan, dan keduanya membaca sisa
+            // yang sama dari memori. Tanpa syarat ini hitungannya bisa melewati
+            // jumlah pesanan.
+            $applied = OutboundItem::whereKey($item->getKey())
+                ->whereRaw('scanned_quantity + ? <= quantity', [$quantity])
+                ->increment('scanned_quantity', $quantity);
+
+            if ($applied === 0) {
+                $item->refresh();
+
+                throw ValidationException::withMessages([
+                    'code' => "{$item->product->sku} sudah {$item->scanned_quantity}/{$item->quantity} · scan ganda diabaikan",
+                ]);
+            }
+        });
 
         // Model yang sama ada di $outbound->items, jadi nilainya diperbarui di
         // memori dan dokumen tidak perlu dimuat ulang dari database.

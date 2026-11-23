@@ -25,7 +25,7 @@
                     <x-icon name="layers" class="h-4 w-4" />
                 </span>
             @endif
-            <a href="{{ route('admin.products.groups.show', $group) }}" class="min-w-0 truncate text-sm font-semibold text-ink-950 hover:underline">{{ $group->name }}</a>
+            <a href="{{ route('admin.products.groups.show', $group) }}" class="line-clamp-2 min-w-0 max-w-md break-words text-sm font-semibold text-ink-950 hover:underline" title="{{ $group->name }}">{{ $group->name }}</a>
             <x-ui.badge variant="purple" icon="layers">{{ $group->variants_count }} varian</x-ui.badge>
             @if ($group->category)
                 <span class="text-xs text-ink-500">{{ $group->category }}</span>

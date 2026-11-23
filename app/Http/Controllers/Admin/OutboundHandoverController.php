@@ -255,11 +255,24 @@ class OutboundHandoverController extends Controller implements HasMiddleware
     public function index(Request $request): View
     {
         $outbounds = $this->filtered($request)
-            ->with('user', 'shipmentOrder')
+            ->with('user', 'shipmentOrder', 'items:id,outbound_id,product_id')
             ->withCount('items')
             ->withSum('items', 'quantity')
             ->paginate(Listing::perPage($request))
             ->withQueryString();
+
+        // Paket yang memuat barang dengan stok tercatat lebih kecil daripada
+        // seluruh unit di paket QC: tidak semuanya bisa diserahkan. Ditandai
+        // supaya ketahuan sebelum resinya discan, bukan saat ditolak.
+        $overPacked = \App\Models\Product::overPacked();
+        $outbounds->getCollection()->each(fn (Outbound $outbound) => $outbound->setAttribute(
+            'stock_shortages',
+            $outbound->items->pluck('product_id')->unique()
+                ->filter(fn ($id) => $overPacked->has($id))
+                ->map(fn ($id) => $overPacked[$id])
+                ->map(fn (object $row) => "{$row->sku}: stok {$row->stock}, di paket {$row->packed} {$row->unit}")
+                ->values()->all(),
+        ));
 
         return view('admin.outbounds.handover', [
             'outbounds' => $outbounds,
@@ -272,6 +285,7 @@ class OutboundHandoverController extends Controller implements HasMiddleware
             // Sengaja tanpa filter: memindai resi bekerja atas seluruh antrean,
             // bukan hanya atas yang kebetulan tampil di layar.
             'handoverCount' => Outbound::awaitingHandover()->count(),
+            'overPacked' => $overPacked,
         ]);
     }
 
