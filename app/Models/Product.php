@@ -280,20 +280,149 @@ class Product extends Model
      */
     public static function unitsHeldInPackages($productIds, ?int $exceptOutboundId = null): \Illuminate\Support\Collection
     {
+        return static::packedLines()
+            ->when($exceptOutboundId, fn ($query) => $query->where('o.id', '!=', $exceptOutboundId))
+            ->whereIn('oi.product_id', collect($productIds)->all())
+            ->groupBy('oi.product_id')
+            ->select('oi.product_id')
+            ->selectRaw('SUM(oi.scanned_quantity) as held')
+            ->get()
+            ->mapWithKeys(fn (object $row) => [(int) $row->product_id => (int) $row->held]);
+    }
+
+    /**
+     * Baris paket marketplace yang sudah discan (sebagian atau penuh) tetapi
+     * belum diserahkan ke kurir. Satu-satunya definisi "tertahan di QC
+     * Kemas" — dipakai pengecekan stok di QC dan kolom di daftar barang.
+     */
+    public static function packedLines(): \Illuminate\Database\Query\Builder
+    {
         return \Illuminate\Support\Facades\DB::table('outbound_items as oi')
             ->join('outbounds as o', 'o.id', '=', 'oi.outbound_id')
             ->leftJoin('shipment_orders as so', 'so.id', '=', 'o.shipment_order_id')
             ->where('o.type', Outbound::TYPE_MARKETPLACE)
             ->whereIn('o.status', [Outbound::STATUS_DRAFT, Outbound::STATUS_PENDING, Outbound::STATUS_REJECTED])
             ->whereNull('so.cancelled_at')
-            ->when($exceptOutboundId, fn ($query) => $query->where('o.id', '!=', $exceptOutboundId))
-            ->whereIn('oi.product_id', collect($productIds)->all())
-            ->where('oi.scanned_quantity', '>', 0)
-            ->groupBy('oi.product_id')
-            ->select('oi.product_id')
-            ->selectRaw('SUM(oi.scanned_quantity) as held')
+            ->where('oi.scanned_quantity', '>', 0);
+    }
+
+    /**
+     * Jumlah paket dan unit yang sudah dikemas di QC Kemas tetapi belum
+     * diserahkan, di seluruh gudang. Dipakai sebagai peringatan sebelum
+     * stok opname: unitnya tidak ada di rak, tetapi masih termasuk saldo.
+     *
+     * @return array{packages: int, units: int}
+     */
+    public static function packedSummary(): array
+    {
+        $row = static::packedLines()
+            ->selectRaw('COUNT(DISTINCT o.id) as packages, COALESCE(SUM(oi.scanned_quantity), 0) as units')
+            ->first();
+
+        return ['packages' => (int) ($row->packages ?? 0), 'units' => (int) ($row->units ?? 0)];
+    }
+
+    /**
+     * Barang yang unitnya di paket QC Kemas melebihi stok tercatat: tidak
+     * semua paket yang memuatnya bisa diserahkan. Terjadi bila stok berubah
+     * setelah paket dikemas (opname, penjualan manual, import stok), atau
+     * paket dikemas sebelum pengecekan stok di QC menghitung paket lain.
+     *
+     * @return \Illuminate\Support\Collection<int, object{product_id: int, sku: string, unit: string, stock: int, packed: int}>
+     */
+    public static function overPacked(): \Illuminate\Support\Collection
+    {
+        return static::packedLines()
+            ->join('products as p', 'p.id', '=', 'oi.product_id')
+            ->groupBy('oi.product_id', 'p.sku', 'p.unit', 'p.stock')
+            ->havingRaw('SUM(oi.scanned_quantity) > p.stock')
+            ->select('oi.product_id', 'p.sku', 'p.unit', 'p.stock')
+            ->selectRaw('SUM(oi.scanned_quantity) as packed')
             ->get()
-            ->mapWithKeys(fn (object $row) => [(int) $row->product_id => (int) $row->held]);
+            ->keyBy('product_id');
+    }
+
+    /**
+     * Unit yang sudah dipesan tetapi belum dikemas: pesanan marketplace yang
+     * belum dikirim dan belum batal, dikurangi yang sudah discan.
+     *
+     * Dua sumber, karena dokumen gudang baru dibuat saat resinya discan:
+     * - resi yang sudah dibuka di QC Kemas: sisa baris dokumennya (sudah
+     *   dipecah ke barang isi bila paket bundling);
+     * - resi yang belum disentuh: baris pesanan hasil import, dengan paket
+     *   bundling dipecah ke barang isinya di sini.
+     *
+     * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $productIds
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public static function unitsAwaitingPacking($productIds): \Illuminate\Support\Collection
+    {
+        $ids = collect($productIds)->map(fn ($id) => (int) $id)->unique()->values()->all();
+
+        if ($ids === []) {
+            return collect();
+        }
+
+        $opened = \Illuminate\Support\Facades\DB::table('outbound_items as oi')
+            ->join('outbounds as o', 'o.id', '=', 'oi.outbound_id')
+            ->leftJoin('shipment_orders as so', 'so.id', '=', 'o.shipment_order_id')
+            ->where('o.type', Outbound::TYPE_MARKETPLACE)
+            ->whereIn('o.status', [Outbound::STATUS_DRAFT, Outbound::STATUS_PENDING, Outbound::STATUS_REJECTED])
+            ->whereNull('so.cancelled_at')
+            ->whereNull('so.shipped_at')
+            ->whereColumn('oi.scanned_quantity', '<', 'oi.quantity')
+            ->whereIn('oi.product_id', $ids)
+            ->groupBy('oi.product_id')
+            ->selectRaw('oi.product_id as product_id, SUM(oi.quantity - oi.scanned_quantity) as units')
+            ->get();
+
+        $untouched = fn () => \Illuminate\Support\Facades\DB::table('shipment_order_items as soi')
+            ->join('shipment_orders as so', 'so.id', '=', 'soi.shipment_order_id')
+            ->join('products as p', 'p.id', '=', 'soi.product_id')
+            ->whereNull('so.shipped_at')
+            ->whereNull('so.cancelled_at')
+            ->whereNotExists(fn ($query) => $query->selectRaw('1')->from('outbounds as o')
+                ->whereColumn('o.shipment_order_id', 'so.id'));
+
+        $direct = $untouched()
+            ->where('p.type', '!=', self::TYPE_BUNDLE)
+            ->whereIn('soi.product_id', $ids)
+            ->groupBy('soi.product_id')
+            ->selectRaw('soi.product_id as product_id, SUM(soi.quantity) as units')
+            ->get();
+
+        $bundled = $untouched()
+            ->where('p.type', self::TYPE_BUNDLE)
+            ->join('product_bundle_items as pbi', 'pbi.bundle_id', '=', 'p.id')
+            ->whereIn('pbi.component_id', $ids)
+            ->groupBy('pbi.component_id')
+            ->selectRaw('pbi.component_id as product_id, SUM(soi.quantity * pbi.quantity) as units')
+            ->get();
+
+        return $opened->concat($direct)->concat($bundled)
+            ->groupBy('product_id')
+            ->map(fn ($rows) => (int) $rows->sum('units'))
+            ->mapWithKeys(fn (int $units, $productId) => [(int) $productId => $units]);
+    }
+
+    /**
+     * Tambahkan kolom packed_units: unit barang ini yang sudah masuk paket
+     * di QC Kemas dan belum diserahkan ke kurir. Stoknya baru berkurang saat
+     * serah terima, jadi angka ini menjelaskan selisih antara saldo stok dan
+     * barang yang benar-benar masih di rak.
+     */
+    public function scopeWithPackedUnits(Builder $query): Builder
+    {
+        if ($query->getQuery()->columns === null) {
+            $query->select('products.*');
+        }
+
+        return $query->selectSub(
+            static::packedLines()
+                ->whereColumn('oi.product_id', 'products.id')
+                ->selectRaw('COALESCE(SUM(oi.scanned_quantity), 0)'),
+            'packed_units',
+        );
     }
 
     public static function committedUnits($productIds): \Illuminate\Support\Collection

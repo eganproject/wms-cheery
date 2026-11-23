@@ -41,6 +41,10 @@
         </x-slot>
     </x-ui.page-header>
 
+    @if ($opname->isEditable())
+        @include('admin.opnames.partials.packed-warning')
+    @endif
+
     @php
         // Satu query agregat, dipakai seluruh halaman.
         $summary = $opname->summary();

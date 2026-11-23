@@ -39,6 +39,8 @@ class ProductController extends Controller implements HasMiddleware
             // fungsi itu juga dipakai sebagai sasaran update massal, dan
             // kueri ber-selectSub tidak bisa dipakai untuk menulis.
             ->withBundleAvailability()
+            // Unit yang sudah di paket QC Kemas tetapi belum diserahkan.
+            ->withPackedUnits()
             ->with(['group' => fn ($query) => $query->withCount('variants')])
             // Varian satu produk selalu berurutan di bawah nama induknya,
             // supaya daftar bisa menampilkannya berkelompok.
@@ -51,6 +53,13 @@ class ProductController extends Controller implements HasMiddleware
             ], ['name', 'asc']))
             ->paginate(Listing::perPage($request))
             ->withQueryString();
+
+        // Pesanan yang sudah masuk tetapi belum dikemas, hanya untuk barang
+        // di halaman ini: satu kueri per sumber, bukan per baris.
+        $unpacked = Product::unitsAwaitingPacking(
+            $products->getCollection()->reject(fn (Product $product) => $product->isBundle())->pluck('id'),
+        );
+        $products->getCollection()->each(fn (Product $product) => $product->setAttribute('unpacked_units', $unpacked[$product->id] ?? 0));
 
         return view('admin.products.index', [
             'products' => $products,
@@ -140,6 +149,14 @@ class ProductController extends Controller implements HasMiddleware
             'committed' => $product->isBundle()
                 ? Product::committedUnits($product->bundleComponents->pluck('component_id'))
                 : Product::committedUnits([$product->id]),
+            // Unit yang sudah dikemas di QC Kemas, belum diserahkan ke kurir.
+            'packedUnits' => $product->isBundle()
+                ? 0
+                : (int) (Product::unitsHeldInPackages([$product->id])[$product->id] ?? 0),
+            // Pesanan yang sudah masuk tetapi belum discan di QC Kemas.
+            'unpackedUnits' => $product->isBundle()
+                ? 0
+                : (int) (Product::unitsAwaitingPacking([$product->id])[$product->id] ?? 0),
             ...$this->fabricBom($product),
         ]);
     }
@@ -400,6 +417,8 @@ class ProductController extends Controller implements HasMiddleware
             'low' => (int) $row->low,
             'out' => (int) $row->out_of_stock,
             'bundles' => (int) $row->bundles,
+            // Unit di paket QC Kemas yang belum diserahkan, seluruh gudang.
+            'packed' => Product::packedSummary()['units'],
         ];
     }
 
@@ -432,7 +451,12 @@ class ProductController extends Controller implements HasMiddleware
         return $this->scoped($request)
             ->when($request->input('stock') === 'low', fn ($query) => $query->lowStock()->where('stock', '>', 0))
             ->when($request->input('stock') === 'out', fn ($query) => $query->singles()->where('stock', '<=', 0))
-            ->when($request->input('stock') === 'safe', fn ($query) => $query->singles()->whereColumn('stock', '>', 'min_stock'));
+            ->when($request->input('stock') === 'safe', fn ($query) => $query->singles()->whereColumn('stock', '>', 'min_stock'))
+            // Barang yang sebagian unitnya sudah di paket QC Kemas dan belum
+            // diserahkan ke kurir.
+            ->when($request->input('stock') === 'packed', fn ($query) => $query->whereExists(
+                Product::packedLines()->whereColumn('oi.product_id', 'products.id')->selectRaw('1'),
+            ));
     }
 
     /**

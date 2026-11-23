@@ -8,6 +8,8 @@
                       :subtitle="'Nomor sesi '.$code.' — isinya dipotret saat sesi dibuka.'"
                       :back="route('admin.opnames.index')" />
 
+    @include('admin.opnames.partials.packed-warning', ['class' => 'mx-auto mb-5 max-w-3xl'])
+
     <form method="POST" action="{{ route('admin.opnames.store') }}" class="mx-auto max-w-3xl space-y-5"
           x-data="{ scope: '{{ old('scope', 'all') }}' }">
         @csrf

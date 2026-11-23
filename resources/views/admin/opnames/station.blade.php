@@ -20,6 +20,8 @@
         </x-slot>
     </x-ui.page-header>
 
+    @include('admin.opnames.partials.packed-warning', ['class' => 'mx-auto mb-5 w-full max-w-3xl'])
+
     <div x-data="opnameStation({
             urls: {
                 lookup: '{{ route('admin.opnames.station.lookup', $opname) }}',

@@ -258,6 +258,182 @@ class MarketplaceIntakeTest extends TestCase
         $this->assertSame(0, $second->refresh()->totalScanned());
     }
 
+    /**
+     * Daftar barang dan kartu stok menyebut unit yang sudah di paket QC
+     * tetapi belum diserahkan, di samping saldo stoknya.
+     */
+    public function test_the_stock_pages_show_units_packed_but_not_handed_over(): void
+    {
+        $this->giveStock(5);
+        $this->importOrder('SPXID111', [['FLT-OLI-STD', 2]]);
+
+        $this->actingAs($this->admin)
+            ->postJson(route('admin.outbounds.marketplace.store'), ['code' => 'SPXID111'])
+            ->assertOk();
+        $outbound = Outbound::latest('id')->firstOrFail();
+        $this->scanItem($outbound, 'FLT-OLI-STD')->assertOk();
+        $this->scanItem($outbound, 'FLT-OLI-STD')->assertOk();
+
+        // Pesanan lain yang belum discan sama sekali.
+        $this->importOrder('SPXID222', [['FLT-OLI-STD', 1]]);
+
+        $this->get(route('admin.products.index'))
+            ->assertOk()
+            ->assertSee('Di rak 3 &middot; di paket QC 2', false)
+            ->assertSee('Belum dikemas 1')
+            ->assertSee('Termasuk 2 di paket QC');
+
+        $this->get(route('admin.products.index', ['stock' => 'packed']))
+            ->assertOk()
+            ->assertSee('FLT-OLI-STD');
+
+        $this->get(route('admin.products.show', $this->product))
+            ->assertOk()
+            ->assertSee('Di rak 3 &middot; di paket QC 2', false)
+            ->assertSee('Belum dikemas 1');
+
+        $this->get(route('admin.opnames.create'))
+            ->assertOk()
+            ->assertSee('Ada 1 paket di QC Kemas yang belum diserahkan');
+
+        // Setelah diserahkan, keterangannya hilang dan stoknya berkurang.
+        $this->postJson(route('admin.outbounds.handover.scan'), ['code' => 'SPXID111'])->assertOk();
+
+        $this->get(route('admin.products.index'))
+            ->assertOk()
+            ->assertDontSee('&middot; di paket QC', false)
+            ->assertDontSee('Termasuk 2 di paket QC')
+            ->assertSee('Belum dikemas 1');
+
+        $this->get(route('admin.products.index', ['stock' => 'packed']))
+            ->assertOk()
+            ->assertDontSee('FLT-OLI-STD');
+
+        $this->get(route('admin.opnames.create'))
+            ->assertOk()
+            ->assertDontSee('paket di QC Kemas yang belum diserahkan');
+    }
+
+    /**
+     * Pesanan paket bundling yang belum discan dihitung sebagai barang isinya.
+     */
+    public function test_unpacked_units_count_bundle_components(): void
+    {
+        $bundle = Product::create([
+            'sku' => 'SET-FLT', 'name' => 'Set Filter', 'unit' => 'set',
+            'type' => Product::TYPE_BUNDLE,
+        ]);
+        $bundle->bundleComponents()->create(['component_id' => $this->product->id, 'quantity' => 2]);
+
+        $this->importOrder('SPXID333', [['SET-FLT', 3], ['FLT-OLI-STD', 1]]);
+
+        $this->assertSame(7, Product::unitsAwaitingPacking([$this->product->id])[$this->product->id]);
+    }
+
+    /**
+     * Penjualan manual tidak boleh mengambil unit yang sudah dikemas di QC
+     * Kemas — paket itu akan tertahan di Serah Terima dengan stok 0.
+     */
+    public function test_a_manual_sale_can_not_take_units_already_packed(): void
+    {
+        $this->packOne('SPXID111', stock: 2);
+
+        $manual = Outbound::create([
+            'code' => Outbound::nextCode(), 'date' => now(), 'type' => Outbound::TYPE_REGULAR,
+            'recipient' => 'Toko', 'status' => Outbound::STATUS_DRAFT,
+        ]);
+        $manual->items()->create(['product_id' => $this->product->id, 'quantity' => 2]);
+
+        $this->actingAs($this->admin)->post(route('admin.outbounds.submit', $manual))
+            ->assertSessionHas('error');
+        $this->assertSame(2, $this->product->refresh()->stock);
+
+        // Satu unit yang masih di rak tetap boleh dijual.
+        $manual->items()->update(['quantity' => 1]);
+        $this->actingAs($this->admin)->post(route('admin.outbounds.submit', $manual->refresh()))
+            ->assertSessionHas('success');
+        $this->assertSame(1, $this->product->refresh()->stock);
+
+        // Paketnya tetap bisa diserahkan.
+        $this->postJson(route('admin.outbounds.handover.scan'), ['code' => 'SPXID111'])->assertOk();
+        $this->assertSame(0, $this->product->refresh()->stock);
+    }
+
+    /**
+     * Paket yang sudah terlanjur dikemas melebihi stok (mis. stok dikoreksi
+     * setelah QC) ditandai di antrean, dan penolakannya menyebut sebabnya.
+     */
+    public function test_the_handover_queue_flags_packages_the_stock_can_not_cover(): void
+    {
+        $this->packOne('SPXID111', stock: 2);
+        $this->packOne('SPXID222');
+
+        // Stok dikoreksi turun setelah keduanya dikemas.
+        $this->product->forceFill(['stock' => 1])->save();
+
+        $this->actingAs($this->admin)->get(route('admin.outbounds.handover'))
+            ->assertOk()
+            ->assertSee('Stok 1 barang tidak cukup untuk semua paket di antrean.')
+            ->assertSee('FLT-OLI-STD: stok 1, di paket 2 pcs');
+
+        $this->postJson(route('admin.outbounds.handover.scan'), ['code' => 'SPXID111'])->assertOk();
+
+        $this->postJson(route('admin.outbounds.handover.scan'), ['code' => 'SPXID222'])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.code.0', fn (string $message) => str_contains($message, 'tersedia 0 pcs'));
+
+        $this->get(route('admin.outbounds.handover'))
+            ->assertOk()
+            ->assertSee('FLT-OLI-STD: stok 0, di paket 1 pcs');
+    }
+
+    /**
+     * Rekap harian per SKU: dikemas hari ini vs diserahkan hari ini.
+     */
+    public function test_the_daily_recap_compares_packed_and_handed_over_units_per_sku(): void
+    {
+        $this->packOne('SPXID111', stock: 5);
+        $this->packOne('SPXID222');
+        $this->postJson(route('admin.outbounds.handover.scan'), ['code' => 'SPXID111'])->assertOk();
+
+        $response = $this->get(route('admin.outbounds.handover.daily'))->assertOk();
+
+        $rows = $response->viewData('rows');
+        $this->assertCount(1, $rows);
+        $this->assertSame('FLT-OLI-STD', $rows[0]->sku);
+        $this->assertSame(2, $rows[0]->packed);
+        $this->assertSame(1, $rows[0]->handed);
+        $this->assertSame(1, $rows[0]->waiting);
+
+        $totals = $response->viewData('totals');
+        $this->assertSame(2, $totals['packed_packages']);
+        $this->assertSame(1, $totals['handed_packages']);
+        $this->assertSame(1, $totals['waiting_packages']);
+
+        // Hari lain: kosong.
+        $this->get(route('admin.outbounds.handover.daily', ['from' => now()->subDays(3)->toDateString(), 'to' => now()->subDays(3)->toDateString()]))
+            ->assertOk()
+            ->assertSee('Belum ada barang yang dikemas atau diserahkan');
+
+        $this->get(route('admin.outbounds.handover.daily.export'))->assertOk();
+    }
+
+    protected function packOne(string $tracking, int $stock = 0): Outbound
+    {
+        if ($stock > 0) {
+            $this->giveStock($stock);
+        }
+
+        $this->importOrder($tracking, [['FLT-OLI-STD', 1]]);
+        $this->actingAs($this->admin)
+            ->postJson(route('admin.outbounds.marketplace.store'), ['code' => $tracking])
+            ->assertOk();
+        $outbound = Outbound::where('tracking_number', $tracking)->firstOrFail();
+        $this->scanItem($outbound, 'FLT-OLI-STD')->assertOk();
+
+        return $outbound;
+    }
+
     /* --------------------------------------------------- borongan ------- */
 
     /**

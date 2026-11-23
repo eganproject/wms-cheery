@@ -25,6 +25,25 @@
 
     @include('admin.outbounds.partials.handover-tabs')
 
+    {{-- Barang yang unitnya di paket melebihi stok tercatat: sebagian paket
+         akan ditolak saat discan. Disebut di depan supaya bisa dibereskan
+         sebelum kurir datang. --}}
+    @if ($overPacked->isNotEmpty())
+        <div class="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3.5 text-sm text-amber-900">
+            <x-icon name="warning" class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <div>
+                <p class="font-semibold">
+                    Stok {{ $overPacked->count() }} barang tidak cukup untuk semua paket di antrean.
+                </p>
+                <p class="mt-0.5 text-amber-800">
+                    {{ $overPacked->map(fn ($row) => "{$row->sku} (stok {$row->stock}, di paket {$row->packed} {$row->unit})")->implode(' · ') }}.
+                    Paket yang discan lebih dulu akan terkirim; sisanya ditolak. Bila barangnya memang ada, catat Penerimaan Barang
+                    atau penyesuaian stok. Bila tidak, buka paket yang ditandai, pilih &ldquo;Ulangi scan dari awal&rdquo;, lalu scan ulang di QC Kemas dan ganti SKU-nya.
+                </p>
+            </div>
+        </div>
+    @endif
+
     <div x-data="handoverStation({
              url: '{{ route('admin.outbounds.handover.scan') }}',
              remaining: {{ $handoverCount }},
@@ -307,6 +326,15 @@
                                         </div>
 
                                         <p class="mt-1 truncate font-mono text-xs text-ink-500">{{ $outbound->tracking_number }}</p>
+
+                                        @if (! $cancelled && $outbound->stock_shortages)
+                                            <p class="text-xs font-medium text-amber-700">
+                                                Stok tidak cukup untuk semua paket &middot; {{ implode(' · ', $outbound->stock_shortages) }}
+                                                @can('outbounds.scan')
+                                                    &middot; <a href="{{ route('admin.outbounds.scan', $outbound) }}" class="underline">Buka paket</a>
+                                                @endcan
+                                            </p>
+                                        @endif
 
                                         @if ($cancelled)
                                             <p class="text-xs font-medium text-red-700">
