@@ -9,7 +9,7 @@
             </button>
         </td>
     @endcan
-    <td colspan="4">
+    <td colspan="6">
         <div class="flex items-center gap-3">
             @cannot('products.update')
                 <button type="button" title="Lipat / buka varian"

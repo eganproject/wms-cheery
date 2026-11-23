@@ -43,7 +43,7 @@
         <x-ui.stat-card label="Jenis Barang" :value="$summary['total']" icon="box" accent hint="SKU barang di rak" />
         <x-ui.stat-card label="Total Unit" :value="number_format($summary['units'], 0, ',', '.')" icon="chart"
                         info="Stok tercatat. Unit yang sudah dikemas di QC Kemas tetapi belum diserahkan ke kurir masih termasuk di sini, karena stok baru berkurang saat serah terima."
-                        :hint="$summary['packed'] > 0 ? 'Termasuk '.number_format($summary['packed'], 0, ',', '.').' di paket QC' : 'Seluruh stok tercatat'" />
+                        :hint="$summary['packed'] > 0 ? 'Termasuk '.number_format($summary['packed'], 0, ',', '.').' sudah di-QC' : 'Seluruh stok tercatat'" />
         <x-ui.stat-card label="Stok Menipis" info="Barang yang stoknya di bawah atau sama dengan batas minimum masing-masing." :value="$summary['low']" icon="warning" hint="Di bawah batas minimum" />
         <x-ui.stat-card label="Stok Habis" :value="$summary['out']" icon="x-circle" hint="Perlu segera diisi" />
         @if ($summary['bundles'] > 0)
@@ -75,7 +75,7 @@
                 <option value="safe" @selected(request('stock') === 'safe')>Aman</option>
                 <option value="low" @selected(request('stock') === 'low')>Menipis</option>
                 <option value="out" @selected(request('stock') === 'out')>Habis</option>
-                <option value="packed" @selected(request('stock') === 'packed')>Ada di paket QC</option>
+                <option value="packed" @selected(request('stock') === 'packed')>Ada yang sudah di-QC</option>
             </x-ui.select>
 
             <x-ui.select name="type" class="sm:w-36">
@@ -255,7 +255,9 @@
                             <th><x-ui.sort key="name">Barang</x-ui.sort></th>
                             <th><x-ui.sort key="category">Kategori</x-ui.sort></th>
                             <th><span class="inline-flex items-center gap-1"><x-ui.sort key="location">Lokasi</x-ui.sort> <x-ui.hint text="Posisi rak tempat barang disimpan." /></span></th>
-                            <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="stock" first="desc">Stok</x-ui.sort> <x-ui.hint text="Stok tercatat di gudang; &quot;min.&quot; adalah batas menipisnya. Bila ada paket di QC Kemas: stok tercatat = di rak + di paket QC (stok baru berkurang saat serah terima). &quot;Belum dikemas&quot; adalah pesanan yang sudah masuk tetapi barangnya belum discan." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="stock" first="desc">Stok</x-ui.sort> <x-ui.hint text="Stok tercatat di gudang; &quot;min.&quot; adalah batas menipisnya. Stok baru berkurang saat paket diserahkan ke kurir." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1">Sudah di-QC <x-ui.hint text="Unit yang sudah discan di QC Kemas tetapi paketnya belum diserahkan ke kurir. Barangnya sudah tidak di rak, tetapi masih termasuk stok." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1">Tersedia <x-ui.hint text="Stok dikurangi yang sudah di-QC: unit yang masih ada di rak. &quot;Belum dikemas&quot; adalah pesanan yang sudah masuk tetapi barangnya belum discan." /></span></th>
                             <th><span class="inline-flex items-center gap-1">Status <x-ui.hint text="Aman, Menipis (di bawah batas minimum), atau Habis." /></span></th>
                             <th class="text-right">Aksi</th>
                         </tr>
@@ -313,7 +315,28 @@
                                     <p class="text-[11px] text-ink-400">
                                         {{ $product->isBundle() ? 'bisa dijanjikan' : 'min. '.$product->min_stock }}
                                     </p>
-                                    @include('admin.products.partials.packed-units', ['product' => $product])
+                                </td>
+                                @php
+                                    $packed = (int) ($product->packed_units ?? 0);
+                                    $unpacked = (int) ($product->unpacked_units ?? 0);
+                                @endphp
+                                <td class="text-right">
+                                    @if ($product->isBundle())
+                                        <span class="text-sm text-ink-300">&mdash;</span>
+                                    @else
+                                        <span @class(['text-sm', 'font-semibold text-amber-700' => $packed > 0, 'text-ink-400' => $packed === 0])>{{ number_format($packed, 0, ',', '.') }}</span>
+                                    @endif
+                                </td>
+                                <td class="text-right">
+                                    @if ($product->isBundle())
+                                        <span class="text-sm text-ink-300">&mdash;</span>
+                                    @else
+                                        <span class="text-sm font-semibold text-ink-950">{{ number_format(max(0, (int) $product->stock - $packed), 0, ',', '.') }}</span>
+                                        <span class="text-xs text-ink-400">{{ $product->unit }}</span>
+                                        @if ($unpacked > 0)
+                                            <p class="whitespace-nowrap text-[11px] text-ink-500" title="Pesanan yang sudah masuk tetapi barangnya belum discan di QC Kemas.">Belum dikemas {{ number_format($unpacked, 0, ',', '.') }}</p>
+                                        @endif
+                                    @endif
                                 </td>
                                 <td>
                                     <x-ui.stock-badge :product="$product" />

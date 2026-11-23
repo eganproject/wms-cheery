@@ -279,9 +279,9 @@ class MarketplaceIntakeTest extends TestCase
 
         $this->get(route('admin.products.index'))
             ->assertOk()
-            ->assertSee('Di rak 3 &middot; di paket QC 2', false)
+            ->assertSee('Sudah di-QC 2 &middot; tersedia 3', false)
             ->assertSee('Belum dikemas 1')
-            ->assertSee('Termasuk 2 di paket QC');
+            ->assertSee('Termasuk 2 sudah di-QC');
 
         $this->get(route('admin.products.index', ['stock' => 'packed']))
             ->assertOk()
@@ -289,7 +289,7 @@ class MarketplaceIntakeTest extends TestCase
 
         $this->get(route('admin.products.show', $this->product))
             ->assertOk()
-            ->assertSee('Di rak 3 &middot; di paket QC 2', false)
+            ->assertSee('Sudah di-QC 2 &middot; tersedia 3', false)
             ->assertSee('Belum dikemas 1');
 
         $this->get(route('admin.opnames.create'))
@@ -301,8 +301,8 @@ class MarketplaceIntakeTest extends TestCase
 
         $this->get(route('admin.products.index'))
             ->assertOk()
-            ->assertDontSee('&middot; di paket QC', false)
-            ->assertDontSee('Termasuk 2 di paket QC')
+            ->assertDontSee('Sudah di-QC 2 &middot;', false)
+            ->assertDontSee('Termasuk 2 sudah di-QC')
             ->assertSee('Belum dikemas 1');
 
         $this->get(route('admin.products.index', ['stock' => 'packed']))
