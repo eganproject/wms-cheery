@@ -280,20 +280,50 @@ class Product extends Model
      */
     public static function unitsHeldInPackages($productIds, ?int $exceptOutboundId = null): \Illuminate\Support\Collection
     {
+        return static::packedLines()
+            ->when($exceptOutboundId, fn ($query) => $query->where('o.id', '!=', $exceptOutboundId))
+            ->whereIn('oi.product_id', collect($productIds)->all())
+            ->groupBy('oi.product_id')
+            ->select('oi.product_id')
+            ->selectRaw('SUM(oi.scanned_quantity) as held')
+            ->get()
+            ->mapWithKeys(fn (object $row) => [(int) $row->product_id => (int) $row->held]);
+    }
+
+    /**
+     * Baris paket marketplace yang sudah discan (sebagian atau penuh) tetapi
+     * belum diserahkan ke kurir. Satu-satunya definisi "tertahan di QC
+     * Kemas" — dipakai pengecekan stok di QC dan kolom di daftar barang.
+     */
+    public static function packedLines(): \Illuminate\Database\Query\Builder
+    {
         return \Illuminate\Support\Facades\DB::table('outbound_items as oi')
             ->join('outbounds as o', 'o.id', '=', 'oi.outbound_id')
             ->leftJoin('shipment_orders as so', 'so.id', '=', 'o.shipment_order_id')
             ->where('o.type', Outbound::TYPE_MARKETPLACE)
             ->whereIn('o.status', [Outbound::STATUS_DRAFT, Outbound::STATUS_PENDING, Outbound::STATUS_REJECTED])
             ->whereNull('so.cancelled_at')
-            ->when($exceptOutboundId, fn ($query) => $query->where('o.id', '!=', $exceptOutboundId))
-            ->whereIn('oi.product_id', collect($productIds)->all())
-            ->where('oi.scanned_quantity', '>', 0)
-            ->groupBy('oi.product_id')
-            ->select('oi.product_id')
-            ->selectRaw('SUM(oi.scanned_quantity) as held')
-            ->get()
-            ->mapWithKeys(fn (object $row) => [(int) $row->product_id => (int) $row->held]);
+            ->where('oi.scanned_quantity', '>', 0);
+    }
+
+    /**
+     * Tambahkan kolom packed_units: unit barang ini yang sudah masuk paket
+     * di QC Kemas dan belum diserahkan ke kurir. Stoknya baru berkurang saat
+     * serah terima, jadi angka ini menjelaskan selisih antara saldo stok dan
+     * barang yang benar-benar masih di rak.
+     */
+    public function scopeWithPackedUnits(Builder $query): Builder
+    {
+        if ($query->getQuery()->columns === null) {
+            $query->select('products.*');
+        }
+
+        return $query->selectSub(
+            static::packedLines()
+                ->whereColumn('oi.product_id', 'products.id')
+                ->selectRaw('COALESCE(SUM(oi.scanned_quantity), 0)'),
+            'packed_units',
+        );
     }
 
     public static function committedUnits($productIds): \Illuminate\Support\Collection

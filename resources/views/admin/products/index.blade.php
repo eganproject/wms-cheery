@@ -252,7 +252,7 @@
                             <th><x-ui.sort key="name">Barang</x-ui.sort></th>
                             <th><x-ui.sort key="category">Kategori</x-ui.sort></th>
                             <th><span class="inline-flex items-center gap-1"><x-ui.sort key="location">Lokasi</x-ui.sort> <x-ui.hint text="Posisi rak tempat barang disimpan." /></span></th>
-                            <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="stock" first="desc">Stok</x-ui.sort> <x-ui.hint text="Saldo stok di gudang. Angka &quot;min.&quot; adalah batas menipis barang ini." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="stock" first="desc">Stok</x-ui.sort> <x-ui.hint text="Saldo stok di gudang. Angka &quot;min.&quot; adalah batas menipis barang ini. &quot;Di paket QC&quot; adalah unit yang sudah dikemas di QC Kemas tetapi belum diserahkan ke kurir: masih termasuk saldo stok, karena stok baru berkurang saat serah terima." /></span></th>
                             <th><span class="inline-flex items-center gap-1">Status <x-ui.hint text="Aman, Menipis (di bawah batas minimum), atau Habis." /></span></th>
                             <th class="text-right">Aksi</th>
                         </tr>
@@ -306,6 +306,7 @@
                                     <p class="text-[11px] text-ink-400">
                                         {{ $product->isBundle() ? 'bisa dijanjikan' : 'min. '.$product->min_stock }}
                                     </p>
+                                    @include('admin.products.partials.packed-units', ['product' => $product])
                                 </td>
                                 <td>
                                     <x-ui.stock-badge :product="$product" />
@@ -392,6 +393,7 @@
                                                 min. {{ $product->min_stock }} &middot; {{ $product->location ?: 'tanpa lokasi' }}
                                             @endif
                                         </p>
+                                        @include('admin.products.partials.packed-units', ['product' => $product])
                                     </div>
 
                                     <div class="flex items-center gap-1">

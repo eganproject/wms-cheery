@@ -258,6 +258,38 @@ class MarketplaceIntakeTest extends TestCase
         $this->assertSame(0, $second->refresh()->totalScanned());
     }
 
+    /**
+     * Daftar barang dan kartu stok menyebut unit yang sudah di paket QC
+     * tetapi belum diserahkan, di samping saldo stoknya.
+     */
+    public function test_the_stock_pages_show_units_packed_but_not_handed_over(): void
+    {
+        $this->giveStock(5);
+        $this->importOrder('SPXID111', [['FLT-OLI-STD', 2]]);
+
+        $this->actingAs($this->admin)
+            ->postJson(route('admin.outbounds.marketplace.store'), ['code' => 'SPXID111'])
+            ->assertOk();
+        $outbound = Outbound::latest('id')->firstOrFail();
+        $this->scanItem($outbound, 'FLT-OLI-STD')->assertOk();
+        $this->scanItem($outbound, 'FLT-OLI-STD')->assertOk();
+
+        $this->get(route('admin.products.index'))
+            ->assertOk()
+            ->assertSee('2 di paket QC &middot; di rak 3', false);
+
+        $this->get(route('admin.products.show', $this->product))
+            ->assertOk()
+            ->assertSee('2 di paket QC &middot; di rak 3', false);
+
+        // Setelah diserahkan, keterangannya hilang dan stoknya berkurang.
+        $this->postJson(route('admin.outbounds.handover.scan'), ['code' => 'SPXID111'])->assertOk();
+
+        $this->get(route('admin.products.index'))
+            ->assertOk()
+            ->assertDontSee('di paket QC');
+    }
+
     /* --------------------------------------------------- borongan ------- */
 
     /**

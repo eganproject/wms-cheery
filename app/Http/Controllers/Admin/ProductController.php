@@ -39,6 +39,8 @@ class ProductController extends Controller implements HasMiddleware
             // fungsi itu juga dipakai sebagai sasaran update massal, dan
             // kueri ber-selectSub tidak bisa dipakai untuk menulis.
             ->withBundleAvailability()
+            // Unit yang sudah di paket QC Kemas tetapi belum diserahkan.
+            ->withPackedUnits()
             ->with(['group' => fn ($query) => $query->withCount('variants')])
             // Varian satu produk selalu berurutan di bawah nama induknya,
             // supaya daftar bisa menampilkannya berkelompok.
@@ -140,6 +142,10 @@ class ProductController extends Controller implements HasMiddleware
             'committed' => $product->isBundle()
                 ? Product::committedUnits($product->bundleComponents->pluck('component_id'))
                 : Product::committedUnits([$product->id]),
+            // Unit yang sudah dikemas di QC Kemas, belum diserahkan ke kurir.
+            'packedUnits' => $product->isBundle()
+                ? 0
+                : (int) (Product::unitsHeldInPackages([$product->id])[$product->id] ?? 0),
             ...$this->fabricBom($product),
         ]);
     }

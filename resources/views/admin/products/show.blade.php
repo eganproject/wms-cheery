@@ -56,6 +56,10 @@
                     <span class="text-base font-normal text-ink-500">{{ $product->unit }}</span>
                 </p>
 
+                @unless ($isBundle)
+                    @include('admin.products.partials.packed-units', ['product' => $product, 'packedUnits' => $packedUnits])
+                @endunless
+
                 @if (! $isBundle && $product->damaged_stock > 0)
                     <p class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
                         {{ number_format($product->damaged_stock, 0, ',', '.') }} {{ $product->unit }} rusak
