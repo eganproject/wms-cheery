@@ -148,8 +148,13 @@ class OutboundHandoverController extends Controller implements HasMiddleware
             'range' => $range,
             'summary' => $summary,
             'total' => (int) $summary->sum('packages'),
+            // Dengan saringan SKU, yang dijumlah hanya unit barang itu —
+            // bukan seluruh isi paket yang kebetulan memuatnya.
             'units' => (int) $this->historyQuery($request)
                 ->join('outbound_items', 'outbound_items.outbound_id', '=', 'outbounds.id')
+                ->when($this->skuFilter($request) !== '', fn (Builder $query) => $query
+                    ->join('products', 'products.id', '=', 'outbound_items.product_id')
+                    ->tap(fn ($query) => $this->matchSku($query, $this->skuFilter($request))))
                 ->sum('outbound_items.quantity'),
             'marketplaces' => ShipmentOrder::filterOptions('marketplace'),
             'stores' => ShipmentOrder::filterOptions('store_name'),
@@ -199,6 +204,7 @@ class OutboundHandoverController extends Controller implements HasMiddleware
                 $request->filled('by') ? 'Diserahkan oleh: '.\App\Models\User::whereKey((int) $request->input('by'))->value('name') : null,
                 $request->filled('marketplace') ? 'Marketplace: '.$request->string('marketplace') : null,
                 $request->filled('search') ? 'Cari: '.$request->string('search')->trim() : null,
+                $this->skuFilter($request) !== '' ? 'SKU: '.$this->skuFilter($request) : null,
             ])->filter()->implode(' · '))
             ->sheet('Riwayat Serah Terima', [
                 ['No', 'number'],
@@ -366,7 +372,23 @@ class OutboundHandoverController extends Controller implements HasMiddleware
             ->search($request->string('search')->trim()->value())
             ->fromMarketplace($request->string('marketplace')->value())
             ->tap(fn (Builder $query) => $this->courierStore($query, $request, $withCourier))
-            ->when($withUser && $request->filled('by'), fn (Builder $query) => $query->where('outbounds.submitted_by', (int) $request->input('by')));
+            ->when($withUser && $request->filled('by'), fn (Builder $query) => $query->where('outbounds.submitted_by', (int) $request->input('by')))
+            // Paket yang memuat barang ini (SKU atau nama, sebagian juga cocok).
+            ->when($this->skuFilter($request) !== '', fn (Builder $query) => $query->whereHas(
+                'items.product', fn (Builder $product) => $this->matchSku($product, $this->skuFilter($request)),
+            ));
+    }
+
+    protected function skuFilter(Request $request): string
+    {
+        return trim((string) $request->input('sku'));
+    }
+
+    protected function matchSku($query, string $sku)
+    {
+        return $query->where(fn ($query) => $query
+            ->where('products.sku', 'like', '%'.addcslashes($sku, '%_\\').'%')
+            ->orWhere('products.name', 'like', '%'.addcslashes($sku, '%_\\').'%'));
     }
 
     /**

@@ -32,7 +32,7 @@
             <p class="mt-0.5 text-lg font-semibold text-ink-950" data-history-total>{{ number_format($total, 0, ',', '.') }}</p>
         </div>
         <div class="frappe-card px-4 py-3">
-            <p class="text-xs text-ink-500">Total unit</p>
+            <p class="text-xs text-ink-500">{{ filled(request('sku')) ? 'Unit '.request('sku') : 'Total unit' }}</p>
             <p class="mt-0.5 text-lg font-semibold text-ink-950">{{ number_format($units, 0, ',', '.') }}</p>
         </div>
         <div class="frappe-card col-span-2 px-4 py-3 sm:col-span-1">
@@ -76,6 +76,13 @@
                 <x-text-input type="search" name="search" :value="request('search')"
                               placeholder="Cari no. resi, no. dokumen, atau penerima..." class="pl-8" />
             </div>
+            <div class="relative lg:w-56">
+                <span class="pointer-events-none absolute inset-y-0 left-0 flex w-8 items-center justify-center text-ink-500">
+                    <x-icon name="box" class="h-4 w-4" />
+                </span>
+                <x-text-input type="search" name="sku" :value="request('sku')"
+                              placeholder="SKU atau nama barang..." class="pl-8" />
+            </div>
             <x-ui.select name="marketplace" class="lg:w-44" onchange="this.form.requestSubmit()">
                 <option value="">Semua marketplace</option>
                 @foreach ($marketplaces as $marketplace)
@@ -100,7 +107,7 @@
             @endif
             <div class="flex items-center gap-2">
                 <x-ui.button type="submit" icon="filter">Cari</x-ui.button>
-                @if (request()->hasAny(['search', 'marketplace', 'courier', 'store', 'by', 'from', 'to', 'range']))
+                @if (request()->hasAny(['search', 'sku', 'marketplace', 'courier', 'store', 'by', 'from', 'to', 'range']))
                     <x-ui.button :href="route('admin.outbounds.handover.history')" variant="ghost" size="icon" title="Reset filter">
                         <x-icon name="close" class="h-4 w-4" />
                     </x-ui.button>
