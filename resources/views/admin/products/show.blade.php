@@ -57,7 +57,7 @@
                 </p>
 
                 @unless ($isBundle)
-                    @include('admin.products.partials.packed-units', ['product' => $product, 'packedUnits' => $packedUnits])
+                    @include('admin.products.partials.packed-units', ['product' => $product, 'packedUnits' => $packedUnits, 'unpackedUnits' => $unpackedUnits, 'align' => 'start'])
                 @endunless
 
                 @if (! $isBundle && $product->damaged_stock > 0)

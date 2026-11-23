@@ -274,20 +274,60 @@ class MarketplaceIntakeTest extends TestCase
         $this->scanItem($outbound, 'FLT-OLI-STD')->assertOk();
         $this->scanItem($outbound, 'FLT-OLI-STD')->assertOk();
 
+        // Pesanan lain yang belum discan sama sekali.
+        $this->importOrder('SPXID222', [['FLT-OLI-STD', 1]]);
+
         $this->get(route('admin.products.index'))
             ->assertOk()
-            ->assertSee('2 di paket QC &middot; di rak 3', false);
+            ->assertSee('Di rak 3 &middot; di paket QC 2', false)
+            ->assertSee('Belum dikemas 1')
+            ->assertSee('Termasuk 2 di paket QC');
+
+        $this->get(route('admin.products.index', ['stock' => 'packed']))
+            ->assertOk()
+            ->assertSee('FLT-OLI-STD');
 
         $this->get(route('admin.products.show', $this->product))
             ->assertOk()
-            ->assertSee('2 di paket QC &middot; di rak 3', false);
+            ->assertSee('Di rak 3 &middot; di paket QC 2', false)
+            ->assertSee('Belum dikemas 1');
+
+        $this->get(route('admin.opnames.create'))
+            ->assertOk()
+            ->assertSee('Ada 1 paket di QC Kemas yang belum diserahkan');
 
         // Setelah diserahkan, keterangannya hilang dan stoknya berkurang.
         $this->postJson(route('admin.outbounds.handover.scan'), ['code' => 'SPXID111'])->assertOk();
 
         $this->get(route('admin.products.index'))
             ->assertOk()
-            ->assertDontSee('di paket QC');
+            ->assertDontSee('&middot; di paket QC', false)
+            ->assertDontSee('Termasuk 2 di paket QC')
+            ->assertSee('Belum dikemas 1');
+
+        $this->get(route('admin.products.index', ['stock' => 'packed']))
+            ->assertOk()
+            ->assertDontSee('FLT-OLI-STD');
+
+        $this->get(route('admin.opnames.create'))
+            ->assertOk()
+            ->assertDontSee('paket di QC Kemas yang belum diserahkan');
+    }
+
+    /**
+     * Pesanan paket bundling yang belum discan dihitung sebagai barang isinya.
+     */
+    public function test_unpacked_units_count_bundle_components(): void
+    {
+        $bundle = Product::create([
+            'sku' => 'SET-FLT', 'name' => 'Set Filter', 'unit' => 'set',
+            'type' => Product::TYPE_BUNDLE,
+        ]);
+        $bundle->bundleComponents()->create(['component_id' => $this->product->id, 'quantity' => 2]);
+
+        $this->importOrder('SPXID333', [['SET-FLT', 3], ['FLT-OLI-STD', 1]]);
+
+        $this->assertSame(7, Product::unitsAwaitingPacking([$this->product->id])[$this->product->id]);
     }
 
     /* --------------------------------------------------- borongan ------- */

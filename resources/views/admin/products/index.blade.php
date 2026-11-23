@@ -41,7 +41,9 @@
     --}}
     <div class="grid grid-cols-2 gap-3 sm:gap-4 max-xl:[&>*:last-child:nth-child(odd)]:col-span-2 {{ $summary['bundles'] > 0 ? 'xl:grid-cols-5' : 'xl:grid-cols-4' }}">
         <x-ui.stat-card label="Jenis Barang" :value="$summary['total']" icon="box" accent hint="SKU barang di rak" />
-        <x-ui.stat-card label="Total Unit" :value="number_format($summary['units'], 0, ',', '.')" icon="chart" hint="Seluruh stok tersedia" />
+        <x-ui.stat-card label="Total Unit" :value="number_format($summary['units'], 0, ',', '.')" icon="chart"
+                        info="Stok tercatat. Unit yang sudah dikemas di QC Kemas tetapi belum diserahkan ke kurir masih termasuk di sini, karena stok baru berkurang saat serah terima."
+                        :hint="$summary['packed'] > 0 ? 'Termasuk '.number_format($summary['packed'], 0, ',', '.').' di paket QC' : 'Seluruh stok tercatat'" />
         <x-ui.stat-card label="Stok Menipis" info="Barang yang stoknya di bawah atau sama dengan batas minimum masing-masing." :value="$summary['low']" icon="warning" hint="Di bawah batas minimum" />
         <x-ui.stat-card label="Stok Habis" :value="$summary['out']" icon="x-circle" hint="Perlu segera diisi" />
         @if ($summary['bundles'] > 0)
@@ -73,6 +75,7 @@
                 <option value="safe" @selected(request('stock') === 'safe')>Aman</option>
                 <option value="low" @selected(request('stock') === 'low')>Menipis</option>
                 <option value="out" @selected(request('stock') === 'out')>Habis</option>
+                <option value="packed" @selected(request('stock') === 'packed')>Ada di paket QC</option>
             </x-ui.select>
 
             <x-ui.select name="type" class="sm:w-36">
@@ -252,7 +255,7 @@
                             <th><x-ui.sort key="name">Barang</x-ui.sort></th>
                             <th><x-ui.sort key="category">Kategori</x-ui.sort></th>
                             <th><span class="inline-flex items-center gap-1"><x-ui.sort key="location">Lokasi</x-ui.sort> <x-ui.hint text="Posisi rak tempat barang disimpan." /></span></th>
-                            <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="stock" first="desc">Stok</x-ui.sort> <x-ui.hint text="Saldo stok di gudang. Angka &quot;min.&quot; adalah batas menipis barang ini. &quot;Di paket QC&quot; adalah unit yang sudah dikemas di QC Kemas tetapi belum diserahkan ke kurir: masih termasuk saldo stok, karena stok baru berkurang saat serah terima." /></span></th>
+                            <th class="text-right"><span class="inline-flex items-center gap-1"><x-ui.sort key="stock" first="desc">Stok</x-ui.sort> <x-ui.hint text="Stok tercatat di gudang; &quot;min.&quot; adalah batas menipisnya. Bila ada paket di QC Kemas: stok tercatat = di rak + di paket QC (stok baru berkurang saat serah terima). &quot;Belum dikemas&quot; adalah pesanan yang sudah masuk tetapi barangnya belum discan." /></span></th>
                             <th><span class="inline-flex items-center gap-1">Status <x-ui.hint text="Aman, Menipis (di bawah batas minimum), atau Habis." /></span></th>
                             <th class="text-right">Aksi</th>
                         </tr>
@@ -393,7 +396,7 @@
                                                 min. {{ $product->min_stock }} &middot; {{ $product->location ?: 'tanpa lokasi' }}
                                             @endif
                                         </p>
-                                        @include('admin.products.partials.packed-units', ['product' => $product])
+                                        @include('admin.products.partials.packed-units', ['product' => $product, 'align' => 'start'])
                                     </div>
 
                                     <div class="flex items-center gap-1">
