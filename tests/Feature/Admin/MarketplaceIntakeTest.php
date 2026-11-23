@@ -387,6 +387,37 @@ class MarketplaceIntakeTest extends TestCase
             ->assertSee('FLT-OLI-STD: stok 0, di paket 1 pcs');
     }
 
+    /**
+     * Rekap harian per SKU: dikemas hari ini vs diserahkan hari ini.
+     */
+    public function test_the_daily_recap_compares_packed_and_handed_over_units_per_sku(): void
+    {
+        $this->packOne('SPXID111', stock: 5);
+        $this->packOne('SPXID222');
+        $this->postJson(route('admin.outbounds.handover.scan'), ['code' => 'SPXID111'])->assertOk();
+
+        $response = $this->get(route('admin.outbounds.handover.daily'))->assertOk();
+
+        $rows = $response->viewData('rows');
+        $this->assertCount(1, $rows);
+        $this->assertSame('FLT-OLI-STD', $rows[0]->sku);
+        $this->assertSame(2, $rows[0]->packed);
+        $this->assertSame(1, $rows[0]->handed);
+        $this->assertSame(1, $rows[0]->waiting);
+
+        $totals = $response->viewData('totals');
+        $this->assertSame(2, $totals['packed_packages']);
+        $this->assertSame(1, $totals['handed_packages']);
+        $this->assertSame(1, $totals['waiting_packages']);
+
+        // Hari lain: kosong.
+        $this->get(route('admin.outbounds.handover.daily', ['from' => now()->subDays(3)->toDateString(), 'to' => now()->subDays(3)->toDateString()]))
+            ->assertOk()
+            ->assertSee('Belum ada barang yang dikemas atau diserahkan');
+
+        $this->get(route('admin.outbounds.handover.daily.export'))->assertOk();
+    }
+
     protected function packOne(string $tracking, int $stock = 0): Outbound
     {
         if ($stock > 0) {

@@ -35,7 +35,7 @@ class OutboundHandoverController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:outbounds.view', only: ['index', 'export', 'history', 'historyExport']),
+            new Middleware('can:outbounds.view', only: ['index', 'export', 'history', 'historyExport', 'daily', 'dailyExport']),
             new Middleware('can:outbounds.post', only: ['process', 'scan']),
         ];
     }
@@ -217,6 +217,139 @@ class OutboundHandoverController extends Controller implements HasMiddleware
                 ['Diserahkan Oleh', 'text'],
             ], $rows())
             ->download('riwayat-serah-terima-'.now()->format('Y-m-d-Hi').'.xlsx');
+    }
+
+    /**
+     * Rekap harian per SKU: berapa unit dikemas di QC Kemas dan berapa unit
+     * diserahkan ke kurir pada rentang tanggal (bawaan: hari ini).
+     *
+     * "Dikemas" dihitung menurut waktu resi discan di QC Kemas, "diserahkan"
+     * menurut waktu serah terima. Keduanya bisa berbeda hari — paket yang
+     * dikemas sore bisa baru diserahkan besok — jadi kolom ketiga menyebut
+     * unit yang dikemas pada rentang ini tetapi paketnya belum diserahkan.
+     */
+    public function daily(Request $request): View
+    {
+        $range = DateRange::fromRequest($request);
+        $rows = $this->dailyRows($request, $range);
+
+        return view('admin.outbounds.handover-daily', [
+            'range' => $range,
+            'rows' => $rows,
+            'totals' => $this->dailyTotals($request, $range),
+            'marketplaces' => ShipmentOrder::filterOptions('marketplace'),
+            'handoverCount' => Outbound::awaitingHandover()->count(),
+        ]);
+    }
+
+    public function dailyExport(Request $request): StreamedResponse
+    {
+        $range = DateRange::fromRequest($request);
+        $rows = $this->dailyRows($request, $range);
+
+        return TableExport::make('Rekap Kemas & Serah Terima')
+            ->note(collect([
+                'Periode: '.$range->label(),
+                $request->filled('marketplace') ? 'Marketplace: '.$request->string('marketplace') : null,
+                $request->filled('search') ? 'Cari: '.$request->string('search')->trim() : null,
+            ])->filter()->implode(' · '))
+            ->sheet('Per SKU', [
+                ['No', 'number'],
+                ['SKU', 'text'],
+                ['Nama Barang', 'text'],
+                ['Dikemas (QC)', 'sum'],
+                ['Diserahkan', 'sum'],
+                ['Dikemas, Belum Diserahkan', 'sum'],
+                ['Satuan', 'text'],
+            ], (function () use ($rows) {
+                foreach ($rows->values() as $index => $row) {
+                    yield [$index + 1, $row->sku, $row->name, $row->packed, $row->handed, $row->waiting, $row->unit];
+                }
+            })())
+            ->download('rekap-kemas-serah-terima-'.now()->format('Y-m-d-Hi').'.xlsx');
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, object{product_id: int, sku: string, name: string, unit: string, packed: int, handed: int, waiting: int}>
+     */
+    protected function dailyRows(Request $request, DateRange $range): \Illuminate\Support\Collection
+    {
+        $packed = $this->dailyBase($request)
+            ->whereNull('so.cancelled_at')
+            ->tap(fn ($query) => DateRange::constrain($query, 'o.resi_verified_at', $range->from, $range->to))
+            ->where('oi.scanned_quantity', '>', 0)
+            ->groupBy('oi.product_id')
+            ->select('oi.product_id')
+            ->selectRaw('SUM(oi.scanned_quantity) as packed')
+            ->selectRaw('SUM(CASE WHEN o.status = ? THEN 0 ELSE oi.scanned_quantity END) as waiting', [Outbound::STATUS_POSTED])
+            ->get()->keyBy('product_id');
+
+        $handed = $this->dailyBase($request)
+            ->where('o.status', Outbound::STATUS_POSTED)
+            ->tap(fn ($query) => DateRange::constrain($query, 'o.posted_at', $range->from, $range->to))
+            ->groupBy('oi.product_id')
+            ->select('oi.product_id')
+            ->selectRaw('SUM(oi.quantity) as handed')
+            ->get()->keyBy('product_id');
+
+        $ids = $packed->keys()->merge($handed->keys())->unique();
+        $search = mb_strtolower(trim((string) $request->input('search')));
+
+        return \App\Models\Product::whereIn('id', $ids)->get(['id', 'sku', 'name', 'unit'])
+            ->map(fn ($product) => (object) [
+                'product_id' => $product->id,
+                'sku' => $product->sku,
+                'name' => $product->name,
+                'unit' => $product->unit,
+                'packed' => (int) ($packed[$product->id]->packed ?? 0),
+                'handed' => (int) ($handed[$product->id]->handed ?? 0),
+                'waiting' => (int) ($packed[$product->id]->waiting ?? 0),
+            ])
+            ->when($search !== '', fn ($rows) => $rows->filter(
+                fn (object $row) => str_contains(mb_strtolower($row->sku.' '.$row->name), $search),
+            ))
+            ->sortBy('sku', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
+    }
+
+    /**
+     * Jumlah paket dan unit, dihitung dari dokumen (bukan dijumlah dari baris
+     * per SKU) supaya paket berisi banyak SKU tetap terhitung satu.
+     *
+     * @return array{packed_packages: int, packed_units: int, handed_packages: int, handed_units: int, waiting_packages: int}
+     */
+    protected function dailyTotals(Request $request, DateRange $range): array
+    {
+        $packed = $this->dailyBase($request)
+            ->whereNull('so.cancelled_at')
+            ->tap(fn ($query) => DateRange::constrain($query, 'o.resi_verified_at', $range->from, $range->to))
+            ->where('oi.scanned_quantity', '>', 0)
+            ->selectRaw('COUNT(DISTINCT o.id) as packages, COALESCE(SUM(oi.scanned_quantity), 0) as units')
+            ->selectRaw('COUNT(DISTINCT CASE WHEN o.status = ? THEN NULL ELSE o.id END) as waiting', [Outbound::STATUS_POSTED])
+            ->first();
+
+        $handed = $this->dailyBase($request)
+            ->where('o.status', Outbound::STATUS_POSTED)
+            ->tap(fn ($query) => DateRange::constrain($query, 'o.posted_at', $range->from, $range->to))
+            ->selectRaw('COUNT(DISTINCT o.id) as packages, COALESCE(SUM(oi.quantity), 0) as units')
+            ->first();
+
+        return [
+            'packed_packages' => (int) $packed->packages,
+            'packed_units' => (int) $packed->units,
+            'waiting_packages' => (int) $packed->waiting,
+            'handed_packages' => (int) $handed->packages,
+            'handed_units' => (int) $handed->units,
+        ];
+    }
+
+    protected function dailyBase(Request $request): \Illuminate\Database\Query\Builder
+    {
+        return \Illuminate\Support\Facades\DB::table('outbound_items as oi')
+            ->join('outbounds as o', 'o.id', '=', 'oi.outbound_id')
+            ->leftJoin('shipment_orders as so', 'so.id', '=', 'o.shipment_order_id')
+            ->where('o.type', Outbound::TYPE_MARKETPLACE)
+            ->when($request->filled('marketplace'), fn ($query) => $query->where('so.marketplace', $request->string('marketplace')->value()));
     }
 
     /**

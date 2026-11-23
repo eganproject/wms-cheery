@@ -138,6 +138,8 @@ Route::middleware('auth')
         Route::get('outbounds/handover/export', [OutboundHandoverController::class, 'export'])->name('outbounds.handover.export');
         Route::get('outbounds/handover/history', [OutboundHandoverController::class, 'history'])->name('outbounds.handover.history');
         Route::get('outbounds/handover/history/export', [OutboundHandoverController::class, 'historyExport'])->name('outbounds.handover.history.export');
+        Route::get('outbounds/handover/daily', [OutboundHandoverController::class, 'daily'])->name('outbounds.handover.daily');
+        Route::get('outbounds/handover/daily/export', [OutboundHandoverController::class, 'dailyExport'])->name('outbounds.handover.daily.export');
         Route::get('outbounds/marketplace', [OutboundMarketplaceController::class, 'create'])->name('outbounds.marketplace');
         Route::post('outbounds/marketplace', [OutboundMarketplaceController::class, 'store'])->name('outbounds.marketplace.store');
         Route::get('outbounds/handover', [OutboundHandoverController::class, 'index'])->name('outbounds.handover');
