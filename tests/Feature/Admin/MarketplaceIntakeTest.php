@@ -418,6 +418,30 @@ class MarketplaceIntakeTest extends TestCase
         $this->get(route('admin.outbounds.handover.daily.export'))->assertOk();
     }
 
+    public function test_the_handover_history_can_be_filtered_by_sku(): void
+    {
+        $other = Product::create(['sku' => 'BAN-DLM', 'name' => 'Ban Dalam', 'unit' => 'pcs']);
+        $other->forceFill(['stock' => 5])->save();
+
+        $this->packOne('SPXID111', stock: 3);
+        $this->importOrder('SPXID222', [['BAN-DLM', 2]]);
+        $this->actingAs($this->admin)->postJson(route('admin.outbounds.marketplace.store'), ['code' => 'SPXID222'])->assertOk();
+        $second = Outbound::where('tracking_number', 'SPXID222')->firstOrFail();
+        $this->scanItem($second, 'BAN-DLM')->assertOk();
+        $this->scanItem($second, 'BAN-DLM')->assertOk();
+
+        foreach (['SPXID111', 'SPXID222'] as $code) {
+            $this->postJson(route('admin.outbounds.handover.scan'), ['code' => $code])->assertOk();
+        }
+
+        $response = $this->get(route('admin.outbounds.handover.history', ['sku' => 'ban-dlm']))->assertOk();
+        $this->assertSame(['SPXID222'], $response->viewData('outbounds')->pluck('tracking_number')->all());
+        $this->assertSame(2, $response->viewData('units'));
+
+        $this->assertCount(2, $this->get(route('admin.outbounds.handover.history'))->viewData('outbounds'));
+        $this->get(route('admin.outbounds.handover.history.export', ['sku' => 'BAN']))->assertOk();
+    }
+
     protected function packOne(string $tracking, int $stock = 0): Outbound
     {
         if ($stock > 0) {
