@@ -68,7 +68,7 @@
 
     <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($movements->isEmpty())
-            <x-ui.empty-state icon="outbound" title="Belum ada kain keluar pada tanggal ini"
+            <x-ui.empty-state date-filtered icon="outbound" title="Belum ada kain keluar pada tanggal ini"
                               description="Kain keluar dicatat dari Scan Kain: scan QR roll, isi jumlahnya, simpan." />
         @else
             <div class="overflow-x-auto">

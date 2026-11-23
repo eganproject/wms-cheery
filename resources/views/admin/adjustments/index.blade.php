@@ -66,7 +66,7 @@
 
     <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($adjustments->isEmpty())
-            <x-ui.empty-state icon="sliders" title="Belum ada penyesuaian"
+            <x-ui.empty-state date-filtered icon="sliders" title="Belum ada penyesuaian"
                               description="Buat dokumen penyesuaian setelah menghitung fisik barang di gudang.">
                 @can('adjustments.create')
                     <x-slot name="action">

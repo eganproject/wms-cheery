@@ -52,7 +52,7 @@
 
     <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($inbounds->isEmpty())
-            <x-ui.empty-state icon="login" title="Belum ada dokumen"
+            <x-ui.empty-state date-filtered icon="login" title="Belum ada dokumen"
                               description="Buat dokumen penerimaan barang untuk menambah stok gudang.">
                 @can('inbounds.create')
                     <x-slot name="action">
