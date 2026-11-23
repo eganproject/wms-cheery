@@ -216,11 +216,17 @@ class OutboundScanService
         // Barang yang stoknya tidak tercatat tidak boleh keluar. Diperiksa
         // ulang di sini karena stok bisa habis oleh paket lain setelah resi
         // ini dibuka. Barang yang sama di baris pengganti ikut dihitung.
+        //
+        // Unit yang sudah discan ke paket lain yang belum diserahkan ke kurir
+        // ikut dikurangkan: barangnya sudah tidak di rak, dan tanpa ini dua
+        // paket bisa lolos QC dari satu stok lalu salah satunya tertahan di
+        // Serah Terima dengan stok 0.
         $needed = (int) $outbound->items->where('product_id', $item->product_id)->sum('quantity');
+        $held = (int) (Product::unitsHeldInPackages([$item->product_id], $outbound->id)[$item->product_id] ?? 0);
 
-        if ($item->product->stock < $needed) {
+        if ($item->product->stock - $held < $needed) {
             throw ValidationException::withMessages([
-                'code' => $this->shortageMessage($item->product, $needed)
+                'code' => $this->shortageMessage($item->product, $needed, $held)
                     .($canSubstitute ? ' · scan barang pengganti untuk mengganti' : ''),
             ]);
         }
@@ -348,16 +354,20 @@ class OutboundScanService
      * @param  array<int, array<string, mixed>>  $lines
      * @return array<int, string>
      */
-    public function stockShortages(array $lines): array
+    public function stockShortages(array $lines, ?int $exceptOutboundId = null): array
     {
         $needed = collect($lines)
             ->groupBy('product_id')
             ->map(fn ($group) => (int) $group->sum('quantity'));
 
+        // Unit yang sudah dipegang paket lain (discan, belum diserahkan)
+        // tidak tersedia lagi untuk paket ini.
+        $held = Product::unitsHeldInPackages($needed->keys(), $exceptOutboundId);
+
         return Product::whereIn('id', $needed->keys())
             ->get()
-            ->filter(fn (Product $product) => $product->stock < $needed[$product->id])
-            ->map(fn (Product $product) => $this->shortageMessage($product, $needed[$product->id]))
+            ->filter(fn (Product $product) => $product->stock - ($held[$product->id] ?? 0) < $needed[$product->id])
+            ->map(fn (Product $product) => $this->shortageMessage($product, $needed[$product->id], $held[$product->id] ?? 0))
             ->values()
             ->all();
     }
@@ -365,10 +375,20 @@ class OutboundScanService
     /**
      * Satu kalimat untuk stok yang kurang, dengan angka yang bisa ditindak.
      */
-    protected function shortageMessage(Product $product, int $needed): string
+    protected function shortageMessage(Product $product, int $needed, int $held = 0): string
     {
         // Sependek mungkin tanpa kehilangan yang bisa ditindak: barang mana,
         // dan apa yang kurang. Operator membacanya sambil memegang paket.
+        //
+        // Bila sebagian stok sudah berada di paket lain yang menunggu serah
+        // terima, itu disebut: angka stok di daftar barang masih penuh, dan
+        // tanpa keterangan ini penolakannya terlihat seperti kesalahan.
+        if ($held > 0) {
+            $free = max(0, (int) $product->stock - $held);
+
+            return "Stok {$product->sku} tinggal {$free} · {$held} {$product->unit} sudah di paket lain yang menunggu serah terima";
+        }
+
         if ($product->stock < 1) {
             return "Stok {$product->sku} kosong — catat Penerimaan Barang dulu";
         }

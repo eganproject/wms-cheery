@@ -194,7 +194,7 @@ class OutboundMarketplaceController extends Controller implements HasMiddleware
         //
         // Pengguna yang boleh substitusi SKU tetap bisa membuka paketnya:
         // barang yang stoknya kurang bisa diganti barang lain saat scan.
-        if (! $canSubstitute && ($shortages = $this->scanner->stockShortages(array_merge($orderLines, $substituteLines)))) {
+        if (! $canSubstitute && ($shortages = $this->scanner->stockShortages(array_merge($orderLines, $substituteLines), $existing?->id))) {
             throw ValidationException::withMessages([
                 'code' => $shortages,
             ]);
