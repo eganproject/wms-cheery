@@ -195,6 +195,69 @@ class MarketplaceIntakeTest extends TestCase
         $this->assertSame(0, $outbound->refresh()->totalScanned());
     }
 
+    /**
+     * Stok 1, dua pesanan. Paket pertama selesai QC tetapi belum diserahkan,
+     * jadi stoknya masih tercatat 1 — namun unitnya sudah di dalam paket.
+     * Paket kedua harus ditolak di QC, bukan lolos lalu tertahan di Serah
+     * Terima dengan stok 0.
+     */
+    public function test_units_already_packed_for_another_waybill_are_not_available_again(): void
+    {
+        $this->giveStock(1);
+        $this->importOrder('SPXID111', [['FLT-OLI-STD', 1]]);
+        $this->importOrder('SPXID222', [['FLT-OLI-STD', 1]]);
+
+        $this->actingAs($this->admin)
+            ->postJson(route('admin.outbounds.marketplace.store'), ['code' => 'SPXID111'])
+            ->assertOk();
+        $first = Outbound::where('tracking_number', 'SPXID111')->firstOrFail();
+        $this->scanItem($first, 'FLT-OLI-STD')->assertOk();
+
+        $this->actingAs($this->admin)
+            ->postJson(route('admin.outbounds.marketplace.store'), ['code' => 'SPXID222'])
+            ->assertStatus(422)
+            ->assertJsonPath(
+                'errors.code.0',
+                'Stok FLT-OLI-STD tinggal 0 · 1 pcs sudah di paket lain yang menunggu serah terima',
+            );
+
+        // Paket pertama tetap bisa dikirim.
+        $this->actingAs($this->admin)
+            ->postJson(route('admin.outbounds.handover.scan'), ['code' => 'SPXID111'])
+            ->assertOk();
+        $this->assertSame(0, $this->product->refresh()->stock);
+    }
+
+    /**
+     * Dua resi dibuka bersamaan dari stok 1: yang lebih dulu discan barangnya
+     * mendapat unitnya, yang lain ditolak saat scan barang.
+     */
+    public function test_an_item_scan_counts_units_packed_in_other_open_packages(): void
+    {
+        $this->giveStock(1);
+        $this->importOrder('SPXID111', [['FLT-OLI-STD', 1]]);
+        $this->importOrder('SPXID222', [['FLT-OLI-STD', 1]]);
+
+        foreach (['SPXID111', 'SPXID222'] as $tracking) {
+            $this->actingAs($this->admin)
+                ->postJson(route('admin.outbounds.marketplace.store'), ['code' => $tracking])
+                ->assertOk();
+        }
+
+        $first = Outbound::where('tracking_number', 'SPXID111')->firstOrFail();
+        $second = Outbound::where('tracking_number', 'SPXID222')->firstOrFail();
+
+        $this->scanItem($first, 'FLT-OLI-STD')->assertOk();
+        $this->scanItem($second, 'FLT-OLI-STD')
+            ->assertStatus(422)
+            ->assertJsonPath(
+                'errors.code.0',
+                'Stok FLT-OLI-STD tinggal 0 · 1 pcs sudah di paket lain yang menunggu serah terima',
+            );
+
+        $this->assertSame(0, $second->refresh()->totalScanned());
+    }
+
     /* --------------------------------------------------- borongan ------- */
 
     /**

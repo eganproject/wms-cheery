@@ -93,13 +93,19 @@ class OutboundSubstitutionService
 
         // Stok pengganti harus cukup untuk semua baris barang ini di paket,
         // termasuk yang akan ditambahkan sekarang.
+        // Unit yang sudah discan ke paket lain yang belum diserahkan ikut
+        // dikurangkan — barangnya sudah tidak di rak.
         $needed = (int) $outbound->items()->where('product_id', $substitute->id)->sum('quantity') + $quantity;
+        $held = (int) (Product::unitsHeldInPackages([$substitute->id], $outbound->id)[$substitute->id] ?? 0);
+        $free = (int) $substitute->stock - $held;
 
-        if ($substitute->stock < $needed) {
+        if ($free < $needed) {
             throw ValidationException::withMessages([
-                'code' => $substitute->stock < 1
-                    ? "Stok {$substitute->sku} kosong · tidak bisa jadi pengganti"
-                    : "Stok {$substitute->sku} kurang · butuh {$needed}, ada {$substitute->stock} {$substitute->unit}",
+                'code' => match (true) {
+                    $held > 0 => 'Stok '.$substitute->sku.' tinggal '.max(0, $free)." · {$held} {$substitute->unit} sudah di paket lain yang menunggu serah terima",
+                    $substitute->stock < 1 => "Stok {$substitute->sku} kosong · tidak bisa jadi pengganti",
+                    default => "Stok {$substitute->sku} kurang · butuh {$needed}, ada {$substitute->stock} {$substitute->unit}",
+                },
             ]);
         }
 

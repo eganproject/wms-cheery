@@ -264,6 +264,38 @@ class Product extends Model
      * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $productIds
      * @return \Illuminate\Support\Collection<int, int>
      */
+    /**
+     * Unit yang sudah discan masuk ke paket lain dan masih menunggu serah
+     * terima — barangnya sudah keluar dari rak dan berada di dalam paket,
+     * tetapi stoknya baru berkurang saat paket itu diserahkan ke kurir.
+     *
+     * Tanpa angka ini, QC Kemas membandingkan pesanan dengan saldo stok
+     * penuh: dua paket bisa sama-sama lolos QC dengan stok 1, lalu paket
+     * kedua tertahan di Serah Terima karena stoknya sudah 0. Yang dihitung
+     * adalah unit yang discan (bukan jumlah pesanan), karena hanya unit
+     * itulah yang benar-benar sudah diambil dari rak.
+     *
+     * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $productIds
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public static function unitsHeldInPackages($productIds, ?int $exceptOutboundId = null): \Illuminate\Support\Collection
+    {
+        return \Illuminate\Support\Facades\DB::table('outbound_items as oi')
+            ->join('outbounds as o', 'o.id', '=', 'oi.outbound_id')
+            ->leftJoin('shipment_orders as so', 'so.id', '=', 'o.shipment_order_id')
+            ->where('o.type', Outbound::TYPE_MARKETPLACE)
+            ->whereIn('o.status', [Outbound::STATUS_DRAFT, Outbound::STATUS_PENDING, Outbound::STATUS_REJECTED])
+            ->whereNull('so.cancelled_at')
+            ->when($exceptOutboundId, fn ($query) => $query->where('o.id', '!=', $exceptOutboundId))
+            ->whereIn('oi.product_id', collect($productIds)->all())
+            ->where('oi.scanned_quantity', '>', 0)
+            ->groupBy('oi.product_id')
+            ->select('oi.product_id')
+            ->selectRaw('SUM(oi.scanned_quantity) as held')
+            ->get()
+            ->mapWithKeys(fn (object $row) => [(int) $row->product_id => (int) $row->held]);
+    }
+
     public static function committedUnits($productIds): \Illuminate\Support\Collection
     {
         return Outbound::committedLines()
