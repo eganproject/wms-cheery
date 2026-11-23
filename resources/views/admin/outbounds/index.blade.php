@@ -56,7 +56,7 @@
 
     <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($outbounds->isEmpty())
-            <x-ui.empty-state icon="logout" title="Belum ada dokumen"
+            <x-ui.empty-state date-filtered icon="logout" title="Belum ada dokumen"
                               description="Buat dokumen penjualan manual untuk mencatat barang yang terjual di luar marketplace.">
                 @can('outbounds.create')
                     <x-slot name="action">

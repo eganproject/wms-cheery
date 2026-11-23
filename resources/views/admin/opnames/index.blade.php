@@ -47,7 +47,7 @@
 
     <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($opnames->isEmpty())
-            <x-ui.empty-state icon="cube" title="Belum ada sesi opname"
+            <x-ui.empty-state date-filtered icon="cube" title="Belum ada sesi opname"
                               description="Buka sesi untuk menghitung fisik barang di rak dan menemukan selisihnya.">
                 @can('opnames.create')
                     <x-slot name="action">

@@ -73,7 +73,7 @@
 
     <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($returns->isEmpty())
-            <x-ui.empty-state icon="refresh" title="Belum ada dokumen retur"
+            <x-ui.empty-state date-filtered icon="refresh" title="Belum ada dokumen retur"
                               description="Catat barang yang dikembalikan pembeli agar stok kembali akurat.">
                 @can('returns.create')
                     <x-slot name="action">

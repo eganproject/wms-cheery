@@ -42,7 +42,7 @@
 
     <div class="overflow-hidden rounded-2xl border border-ink-100 bg-white">
         @if ($receipts->isEmpty())
-            <x-ui.empty-state icon="inbound" title="Belum ada kain masuk pada tanggal ini"
+            <x-ui.empty-state date-filtered icon="inbound" title="Belum ada kain masuk pada tanggal ini"
                               description="Catat kain yang diterima per roll, lalu cetak dan tempel label QR-nya.">
                 @can('fabrics.receive')
                     <x-slot name="action">
