@@ -360,7 +360,7 @@ class InboundController extends Controller implements HasMiddleware
                     return null;
                 }
 
-                // Label tanpa kode batch: tanggal diberikan ke penjahit, nama barang, SKU, sisa.
+                // Label tanpa kode batch: tanggal ke penjahit · sisa pcs · SKU · nama barang.
                 $products = $batch->items->pluck('product', 'product_id');
                 $skus = $left->keys()->map(fn ($productId) => $products[$productId]?->sku)->filter()->values();
                 $skuText = $skus->take(3)->implode(', ').($skus->count() > 3 ? ' +'.($skus->count() - 3).' SKU' : '');
@@ -369,7 +369,7 @@ class InboundController extends Controller implements HasMiddleware
                 return [
                     'id' => $batch->id,
                     'supplier_id' => $batch->supplier_id,
-                    'label' => collect(["Diberikan {$sentAt}", $batch->productName(), $skuText, "sisa {$left->sum()} pcs"])->filter()->implode(' · '),
+                    'label' => collect([$sentAt, "{$left->sum()} pcs", $skuText, $batch->productName()])->filter()->implode(' · '),
                     'sent_at' => $sentAt,
                     'skus' => $left->map(fn ($quantity, $productId) => ['sku' => $products[$productId]?->sku, 'name' => $products[$productId]?->name, 'quantity' => $quantity])->values()->all(),
                     'items' => $left->map(fn ($quantity, $productId) => ['product_id' => $productId, 'quantity' => $quantity])->values()->all(),

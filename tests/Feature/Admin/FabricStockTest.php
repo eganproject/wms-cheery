@@ -443,7 +443,7 @@ class FabricStockTest extends TestCase
         $this->actingAs($this->admin)->get(route('admin.inbounds.create'))->assertOk()
             ->assertViewHas('sewingBatches', fn ($b) => in_array($sent->id, collect($b)->flatten(1)->pluck('id')->all(), true))
             ->assertViewHas('sewingBatches', fn ($b) => ($row = collect($b[$tailor->id])->firstWhere('id', $sent->id))
-                && str_starts_with($row['label'], 'Diberikan 12 Jun 2026 · ') && str_ends_with($row['label'], ' · GMS-S · sisa 4 pcs')
+                && str_starts_with($row['label'], '12 Jun 2026 · 4 pcs · GMS-S · ')
                 && ! str_contains($row['label'], $sent->code)
                 && $row['skus'] === [['sku' => 'GMS-S', 'name' => 'Gamis - S', 'quantity' => 4]]);
         $note = $this->actingAs($this->admin)->get(route('admin.sewing-batches.delivery-note', $sent))->assertOk();
