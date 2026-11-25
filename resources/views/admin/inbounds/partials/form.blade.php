@@ -27,6 +27,9 @@
                         returns: @js((object) ($openReturns ?? [])),
                         batches: @js((object) ($sewingBatches ?? [])),
                         batch: @js((string) old('sewing_batch_id', $inbound?->sewing_batch_id ?? '')),
+                        selectedBatch() {
+                            return (this.batches[this.supplier] ?? []).find((item) => String(item.id) === String(this.batch)) ?? null;
+                        },
                         fill() {
                             const found = (this.batches[this.supplier] ?? []).find((item) => String(item.id) === String(this.batch));
                             if (found) window.dispatchEvent(new CustomEvent('resi-items-found', { detail: found.items }));
@@ -63,6 +66,19 @@
                                 </template>
                             </select>
                         </div>
+                        <template x-if="selectedBatch()">
+                            <div class="mt-2 rounded-md bg-white px-2.5 py-2 ring-1 ring-inset ring-sky-200" data-batch-detail>
+                                <p>Diberikan ke penjahit: <span class="font-semibold" x-text="selectedBatch().sent_at"></span></p>
+                                <ul class="mt-1 space-y-0.5">
+                                    <template x-for="row in selectedBatch().skus" :key="row.sku">
+                                        <li class="flex justify-between gap-2">
+                                            <span><span class="font-mono font-medium" x-text="row.sku"></span> <span class="text-sky-800" x-text="row.name"></span></span>
+                                            <span class="shrink-0" x-text="`sisa ${row.quantity} pcs`"></span>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </div>
+                        </template>
                         <p class="mt-1">Memilih batch mengisi baris barang dengan sisa per varian; ubah qty sesuai yang datang. Batch berkurang setelah penerimaan disetujui.</p>
                     </div>
                 </template>

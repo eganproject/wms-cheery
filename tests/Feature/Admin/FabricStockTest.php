@@ -420,7 +420,7 @@ class FabricStockTest extends TestCase
         $this->assertSame(10, \App\Support\FabricNeeds::wipByProduct()[$s->id]);
         $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.index', ['lihat' => 'jahit', 'status' => 'gudang']))->assertOk()->assertSee($stored->code)->assertSee('Di Gudang');
         $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.show', $cutting))->assertOk()->assertSee('Kirim ke Penjahit');
-        $this->actingAs($this->admin)->get(route('admin.inbounds.create'))->assertOk()->assertDontSee($stored->code);
+        $this->actingAs($this->admin)->get(route('admin.inbounds.create'))->assertOk()->assertViewHas('sewingBatches', fn ($b) => ! in_array($stored->id, collect($b)->flatten(1)->pluck('id')->all(), true));
 
         // Surat jalan kain ke pemotong; hasil potong di gudang belum punya surat jalan jahit.
         $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.show', $cutting))->assertSee('Surat Jalan Kain');
@@ -440,7 +440,12 @@ class FabricStockTest extends TestCase
         $this->assertSame([$s->id => 4], $sent->items()->pluck('quantity', 'product_id')->all());
         $this->assertSame([$s->id => 6, $m->id => 5], $stored->items()->orderBy('product_id')->pluck('quantity', 'product_id')->all());
         $this->assertTrue($stored->refresh()->inWarehouse());
-        $this->actingAs($this->admin)->get(route('admin.inbounds.create'))->assertOk()->assertSee($sent->code);
+        $this->actingAs($this->admin)->get(route('admin.inbounds.create'))->assertOk()
+            ->assertViewHas('sewingBatches', fn ($b) => in_array($sent->id, collect($b)->flatten(1)->pluck('id')->all(), true))
+            ->assertViewHas('sewingBatches', fn ($b) => ($row = collect($b[$tailor->id])->firstWhere('id', $sent->id))
+                && str_starts_with($row['label'], 'Diberikan 12 Jun 2026 · ') && str_ends_with($row['label'], ' · GMS-S · sisa 4 pcs')
+                && ! str_contains($row['label'], $sent->code)
+                && $row['skus'] === [['sku' => 'GMS-S', 'name' => 'Gamis - S', 'quantity' => 4]]);
         $note = $this->actingAs($this->admin)->get(route('admin.sewing-batches.delivery-note', $sent))->assertOk();
         $this->assertSame('application/pdf', $note->headers->get('Content-Type'));
         $this->actingAs($this->admin)->get(route('admin.fabric-cuttings.index', ['lihat' => 'jahit']))->assertSee(route('admin.sewing-batches.delivery-note', $sent));
@@ -665,7 +670,7 @@ class FabricStockTest extends TestCase
         $this->assertSame(1, FabricMovement::where('type', 'return')->count());
 
         // Penerimaan dari penjahit memilih batch; batch dari pemasok lain ditolak.
-        $this->actingAs($this->admin)->get(route('admin.inbounds.create'))->assertOk()->assertSee($first->code);
+        $this->actingAs($this->admin)->get(route('admin.inbounds.create'))->assertOk()->assertViewHas('sewingBatches', fn ($b) => in_array($first->id, collect($b)->flatten(1)->pluck('id')->all(), true));
         $this->actingAs($this->admin)->post(route('admin.inbounds.store'), [
             'date' => now()->toDateString(), 'supplier_id' => $other->id, 'sewing_batch_id' => $first->id,
             'items' => [['product_id' => $s->id, 'quantity' => 10]],

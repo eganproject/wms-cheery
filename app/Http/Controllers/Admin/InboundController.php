@@ -356,11 +356,22 @@ class InboundController extends Controller implements HasMiddleware
         return $batches
             ->map(function ($batch) use ($received, $include) {
                 $left = $batch->outstanding($received->get($batch->id, collect()));
+                if ($left->isEmpty() && $batch->id !== $include) {
+                    return null;
+                }
 
-                return $left->isEmpty() && $batch->id !== $include ? null : [
+                // Label tanpa kode batch: tanggal diberikan ke penjahit, nama barang, SKU, sisa.
+                $products = $batch->items->pluck('product', 'product_id');
+                $skus = $left->keys()->map(fn ($productId) => $products[$productId]?->sku)->filter()->values();
+                $skuText = $skus->take(3)->implode(', ').($skus->count() > 3 ? ' +'.($skus->count() - 3).' SKU' : '');
+                $sentAt = ($batch->sent_at ?? $batch->date)?->translatedFormat('d M Y');
+
+                return [
                     'id' => $batch->id,
                     'supplier_id' => $batch->supplier_id,
-                    'label' => "{$batch->code} · {$batch->productName()} · sisa {$left->sum()} pcs",
+                    'label' => collect(["Diberikan {$sentAt}", $batch->productName(), $skuText, "sisa {$left->sum()} pcs"])->filter()->implode(' · '),
+                    'sent_at' => $sentAt,
+                    'skus' => $left->map(fn ($quantity, $productId) => ['sku' => $products[$productId]?->sku, 'name' => $products[$productId]?->name, 'quantity' => $quantity])->values()->all(),
                     'items' => $left->map(fn ($quantity, $productId) => ['product_id' => $productId, 'quantity' => $quantity])->values()->all(),
                 ];
             })
